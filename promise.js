@@ -406,12 +406,13 @@
 			var whenData = [];
 
 			for(var i = 0; i<promises.length; i++) {
+				var tempI = i;
 				//if it is a promise object
 				if(promises[i].toString() === "[object Promise]") {
 					//when the promise is done store the data into the whenData array
 					//and resolve the new whenDeferred if all the promises are resolved
 					promises[i].done(function(data) {
-						whenData[i] = data;
+						whenData[tempI] = data;
 						resolvedCount++; handledCount++;
 						if(resolvedCount === promises.length) {
 							newDfd.resolve(data);
@@ -423,7 +424,7 @@
 					//wrapped promises
 					promises[i].fail(function(e) {
 						handledCount++;
-						whenData[i] = e;
+						whenData[tempI] = e;
 						if(handledCount === promises.length) {
 							newDfd.reject(whenData);
 						}
