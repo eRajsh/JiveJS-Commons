@@ -519,9 +519,9 @@
 					delete processing[message.key];
 				}, peekTimeout);
 				processing[message.key] = {message:message, timeout:timeout};
-				setTimeout(args.callback.call(null, {data:message}),0);
+				setTimeout(function(){args.callback.call(null, {data:message})},0);
 			} else {
-				setTimeout(args.callback.call(null, {data:{}}),0);
+				setTimeout(function(){args.callback.call(null, {data:{}})},0);
 			}
 			return;
 		};

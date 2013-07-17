@@ -29,10 +29,11 @@
 	 * @return {null} null
 	**/
 	function callback(scope, data, cbs) {
-  	for(var i=0; i<cbs.length; i++) {
-			cbs[i].call(scope, data);
-		}
-		return;
+		return function() {
+	  		for(var i=0; i<cbs.length; i++) {
+				cbs[i].call(scope, data);
+			}
+		};
 	}
 
 	/**
