@@ -416,7 +416,7 @@
 						whenData[tempI] = data;
 						resolvedCount++; handledCount++;
 						if(resolvedCount === promises.length) {
-							newDfd.resolve(data);
+							newDfd.resolve(whenData);
 						}
 					});
 					//if one of the inner promises fails then we store that fail and the 
