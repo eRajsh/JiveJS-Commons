@@ -26,11 +26,12 @@
 	 * @param {array[function]} cbs - an array of callback functions
 	 * @return {null} null
 	**/
-	function callback(data, cbs) {
-  	for(var i = 0; i < cbs.length; i++) {
-			cbs[i].call(null, data);
-		}
-		return;
+	function callback(scope, data, cbs) {
+		return function() {
+	  		for(var i=0; i<cbs.length; i++) {
+				cbs[i].call(scope, data);
+			}
+		};
 	}
 
 	/**
