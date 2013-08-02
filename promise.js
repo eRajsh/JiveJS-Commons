@@ -68,28 +68,28 @@
 			done    : [],
 			fail    : [],
 			always  : [],
-			progress: [],
-		}
+			progress: []
+		};
 		
 		//if beforeStart is passed then call it with this being the deferred
 		if(beforeStart && {}.toString.call(beforeStart) === '[object Function]') {
-    	beforeStart.call(this, this);
-    }
+			beforeStart.call(this, this);
+		}
 
-     if(!debugMode) {
-		  Object.defineProperties(this, {
-			  "internalState": {enumerable:false, writable:true, configurable:false},
-			  "internalWith": {enumerable:false, writable:true, configurable:false},
-			  "internalData": {enumerable:false, writable:true, configurable:false},
-			  "callbacks": {enumerable:false, writable:false, configurable:false},
+		if(!debugMode) {
+			Object.defineProperties(this, {
+				"internalState": {enumerable:false, writable:true, configurable:false},
+				"internalWith": {enumerable:false, writable:true, configurable:false},
+				"internalData": {enumerable:false, writable:true, configurable:false},
+				"callbacks": {enumerable:false, writable:false, configurable:false}
 			});
-  		//Freeze the this so that the functions cannot be changed/overridden nor modified
+			//Freeze the this so that the functions cannot be changed/overridden nor modified
 			Object.seal(this);
-   		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
+			//Freeze the prototype so that the functions cannot be changed/overridden nor modified
 			Object.freeze(Dfd.prototype);
 		}
 		return this;
-	}
+	};
 
 	//extend the Deferred prototype with the functions that it needs.
 	//This is a performance/security tradeoff in tht these functions are 
