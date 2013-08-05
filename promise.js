@@ -412,24 +412,33 @@
 				if(promises[i].toString() === "[object Promise]") {
 					//when the promise is done store the data into the whenData array
 					//and resolve the new whenDeferred if all the promises are resolved
-					promises[i].done(function(data) {
-						whenData[tempI] = data;
-						resolvedCount++; handledCount++;
-						if(resolvedCount === promises.length) {
-							newDfd.resolve(whenData);
+					var doneFunc = (function(tempI) {
+						return function(data) {
+							whenData[tempI] = data;
+							resolvedCount++; handledCount++;
+							if(resolvedCount === promises.length) {
+								newDfd.resolve(whenData);
+							}
 						}
-					});
+					})(tempI);
+
+					promises[i].done(doneFunc);
 					//if one of the inner promises fails then we store that fail and the 
 					//when wrapper will also fail but only after running all of the promises
 					//such that the returned composite data is indicative of the status of all of the 
 					//wrapped promises
-					promises[i].fail(function(e) {
-						handledCount++;
-						whenData[tempI] = e;
-						if(handledCount === promises.length) {
-							newDfd.reject(whenData);
+					
+					var failFunc = (function(tempI) {
+						return function(e) {
+							handledCount++;
+							whenData[tempI] = e;
+							if(handledCount === promises.length) {
+								newDfd.reject(whenData);
+							}
 						}
-					});
+					})(tempI);
+				
+					promises[i].fail(failFunc);
 					//simply pass along progress events with no need to chain them etc.
 					promises[i].progress(function(e) {
 						newDfd.notify(e);
