@@ -61,7 +61,7 @@
 		options = options || {
 			initState : "new",
 			states    : ["new"]
-		}
+		};
 
 		//setup some instance parameters
 		this.internalState = options.initState;
@@ -72,30 +72,30 @@
 				leave : [],
 				on    : []
 			}
-		}
+		};
 
 		this.addStates(options.states);
 
 		function trigger(data, cbs) {
 			setTimeout(callback(
-				data, 
+				data,
 				cbs)
 			,0);
-		};
+		}
 
 		Object.defineProperties(this, {
 		  "internalState" : {enumerable:false, writable:true, configurable:false},
 		  "states"        : {enumerable:false, writable:false, configurable:false},
-		  "callbacks"     : {enumerable:false, writable:false, configurable:false},
+		  "callbacks"     : {enumerable:false, writable:false, configurable:false}
 		});
 
-    //Freeze the this so that the functions cannot be changed/overridden nor modified
+    	//Freeze the this so that the functions cannot be changed/overridden nor modified
 		Object.seal(this);
  		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
 		Object.freeze(State.prototype);
 		
 		return this;
-	}
+	};
 
 	//extend the State prototype with the functions that it needs.
 	//This is a performance/security tradeoff in tht these functions are 
@@ -215,7 +215,7 @@
 		promise: function() {
 			var pro = new this.Promise(this);
 			return pro;
-		},
+		}
 	});
 	
 	//set this to the utility namespace 
@@ -224,5 +224,5 @@
 
 	//and also return the Constructor so that it could be saved and used directly
 	return State;
-})()
+})();
 

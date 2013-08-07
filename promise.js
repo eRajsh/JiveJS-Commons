@@ -6,27 +6,26 @@
  *   	a bit less performant than vow.js but it does the difference between the deferred object and the 
  *    promise object better, (whereas vow does not).
  * @closure returns a Deferred @constructor
- * @notes Read this if you don't understand public/private/privelege in JS 
+ * @notes Read this if you don't understand public/private/privilege in JS
  *        http://javascript.crockford.com/private.html
  *        there is a cost to defining all of these functions in the constructor... 
- *        but that cost in very few instnaces is merited by the encapsulation gains
- * @returns {Deferred} Deferred constructor
+ *        but that cost in very few instances is merited by the encapsulation gains
+ * @returns {Dfd} Deferred constructor
 **/
 (function() {
 	//temp helper function since this promise lib should be stand alone and not dependant on any
 	//unerscore or utility library
 	function extend(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; }
 
-
 	/**
-	 * callback recieves a scope and data as well as a list of callbacks to execute
+	 * callback receives a scope and data as well as a list of callbacks to execute
 	 * 		it proceeds to call all of those callbacks with the scope and data provided
 	 * @function
 	 * @private to this closure
 	 * @param {object} scope - the scope with which to call the callback
 	 * @param {object} data - data to pass as the argument of the callback
-	 * @param {array[function]} cbs - an array of callback functions
-	 * @return {null} null
+	 * @param {Array.<Function>} cbs - an array of callback functions
+	 * @return {Function} Function to invoke the set of callbacks provided
 	**/
 	function callback(scope, data, cbs) {
 		return function() {
@@ -41,21 +40,22 @@
 	 * 		this is a helper function to keep it from being used all over the place below
 	 * @function
 	 * @private to this closure
-	 * @param {array[functions] || function} - cbs, either an array of functions or a single function
-	 * @return {array[function]} - returns an array of functions
+	 * @param {Array.<Function>|Function} cbs either an array of functions or a single function
+	 * @return {Array.<Function>} - returns an array of functions
 	**/
 	function sanitizeCbs(cbs) {
 		if(cbs && {}.toString.call(cbs) !== '[object Array]') {
     	cbs = [cbs]
-    }
+    	}
 		return cbs;
 	}
 	
 	/**
 	 * Represents a Deferred Object
 	 * @constructor
-	 * @param {function} beforeStart - an optional function to be called before
+	 * @param {function} [beforeStart] - an optional function to be called before
 	 *                               the deferred starts up
+	 * @param {boolean} [debugMode] - Enables debug mode for exposing internal properties
 	 * @returns {deferred} the deferred instance object
 	**/
 	var Dfd = function(beforeStart, debugMode) {
@@ -92,7 +92,7 @@
 	};
 
 	//extend the Deferred prototype with the functions that it needs.
-	//This is a performance/security tradeoff in tht these functions are 
+	//This is a performance/security trade-off in that these functions are
 	//kinda exposed (even though we freeze them below), but they are on
 	//the prototype chain so tht you could extend this object and add things
 	//or overload some prototype methods
@@ -107,14 +107,14 @@
 		 * 		by extending it with the promise functions
 		 * 		instead of creating a new promise
 		 * @constructor
-		 * @param {deferred} Dfd - the linked Deferred instance
+		 * @param {Dfd} dfd - the linked Deferred instance
 		 * @param {object} target - the target object
 		 * @returns {promise} the promise instance object
 		**/
 		Promise: function(dfd, target) {
 			this.toString = function() {
 				return "[object Promise]";
-			}
+			};
 			this.done = dfd.done.bind(dfd);
 			this.fail = dfd.fail.bind(dfd);
 			this.progress = dfd.progress.bind(dfd);
@@ -147,7 +147,7 @@
 					this.callbacks.progress)
 				,0);
 			}
-			return;
+			return null;
 		},
 		
 		/**
@@ -169,27 +169,27 @@
 					this.callbacks.progress)
 				,0);
 			}
-			return;
+			return null;
 		},
 		
 		/**
 		 * reject will call any fail callbacks with the data provided, as well as always callbacks
 		 * @function
 		 * @public on prototype
-		 * @param {object} data - the data to reject with 
+		 * @param {object} [data] - the data to reject with
 		 * @return {null} null
 		**/
 		reject: function(data) {
 			if(this.state() == 0) {
 				this.internalData = data;
-				this.setState(2)
+				this.setState(2);
 				setTimeout(callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.fail.concat(this.callbacks.always)
 				),0);
 			}
-			return;
+			return null;
 		},
 		
 		/**
@@ -205,14 +205,14 @@
 			if(this.state() == 0) {
 				this.internalWith = scope;
 				this.internalData = data;
-				this.setState(2)
+				this.setState(2);
 				setTimeout(callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.fail.concat(this.callbacks.always)
 				),0)
 			}
-			return;
+			return null;
 		},
 		
 		/**
@@ -225,14 +225,14 @@
 		resolve: function(data) {
 			if(this.state() == 0) {
 				this.internalData = data;
-				this.setState(1)
+				this.setState(1);
 				setTimeout(callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.done.concat(this.callbacks.always)
 				),0)
 			}
-			return;
+			return null;
 		},
 		
 		/**
@@ -248,19 +248,19 @@
 			if(this.state() == 0) {
 				this.internalWith = scope;
 				this.internalData = data;
-				this.setState(1)
+				this.setState(1);
 				setTimeout(callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.done.concat(this.callbacks.always)
 				),0)
 			}
-			return;
+			return null;
 		},
 
 		/**
 		 * always will set a callback for the resolve and reject events
-		 * 		or will immediatly run the callback if the object is already
+		 * 		or will immediately run the callback if the object is already
 		 *   	resolved or rejected.
 		 * @function
 		 * @public on prototype
@@ -281,16 +281,16 @@
 					this.callbacks.always = this.callbacks.always.concat(cbs)
 				}
 			}
-			return;
+			return null;
 		},
 		
 		/**
 		 * done will set a callback for the resolve events
-		 * 		or will immediatly run the callback if the object is already
+		 * 		or will immediately run the callback if the object is already
 		 *   	resolved.
 		 * @function
 		 * @public on prototype
-		 * @param {function || array[function]} cbs - a callback function or an array
+		 * @param {Function|Array.<Function>} cbs a callback function or an array
 		 *                     of callback functions
 		 * @return {null} null
 		**/
@@ -307,16 +307,16 @@
 					this.callbacks.done = this.callbacks.done.concat(cbs)
 				}
 			}
-			return;
+			return null;
 		},
 		
 		/**
 		 * fail will set a callback for the reject events
-		 * 		or will immediatly run the callback if the object is already
+		 * 		or will immediately run the callback if the object is already
 		 *   	rejected.
 		 * @function
 		 * @public on prototype
-		 * @param {function || array[function]} cbs - a callback function or an array
+		 * @param {Function|Array.<Function>} cbs - a callback function or an array
 		 *                     of callback functions
 		 * @return {null} null
 		**/
@@ -354,8 +354,8 @@
 		},
 
 		/**
-		 * then provides a function which allows chaining of promise callbacks essentialy
-		 * 		it allows you to provide filter functions that will be called upone the origional promise
+		 * then provides a function which allows chaining of promise callbacks essentially
+		 * 		it allows you to provide filter functions that will be called upon the original promise
 		 * 		which may modify/alter the data before returning/resolving/rejecting the newly
 		 * 		created deferred/promise.
 		 * @function
@@ -366,25 +366,33 @@
 		 *                              will be used to reject the promise returned by the "then"
 		 * @param {function} progressFilter - a function to be run on the notify event and whose return value
 		 *                              will be used to notify the promise returned by the "then"
-		 * @return {null} null
+		 * @return {Promise} New promise to chain further events off of
 		**/
 		then: function(doneFilter, failFilter, progressFilter) {
 			//create a new inner DFD function
 			var newDfd = new Dfd;
-			
+
 			var dF = function(data) {
-				var ret = doneFilter.call(this, data);
-				newDfd.resolveWith(this, ret);
-			}
+				if (doneFilter) {
+					data = doneFilter.call(this, data);
+				}
+				newDfd.resolveWith(this, data);
+			};
+			this.done(dF);
 			var fF = function(data) {
-				var ret = failFilter.call(this, data);
+				if (failFilter) {
+					var ret = failFilter.call(this, data);
+				}
 				newDfd.rejectWith(this, ret);
-			}
+			};
+			this.fail(fF);
 			var pF = function(data) {
-				var ret = progressFilter.call(this, data);
+				if (progressFilter) {
+					var ret = progressFilter.call(this, data);
+				}
 				newDfd.notifyWith(this, ret);
-			}
-			this.done(dF); this.fail(fF); this.progress(pF);
+			};
+			this.progress(pF);
 
 			return newDfd.promise();
 		},
@@ -481,7 +489,7 @@
 		 * 		The promise cannot be used to "escalate" to the deferred
 		 * @function
 		 * @public on prototype
-		 * @return {promise} promise instance object
+		 * @return {Promise} promise instance object
 		**/
 		promise: function(target) {
 			var pro = new this.Promise(this, target);

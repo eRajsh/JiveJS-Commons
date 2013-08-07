@@ -15,7 +15,7 @@
 
 	/**
 	 * Shimming some of the utils functions so that this library doesn't need to have any dependencies
-	 * _u_.__i___ is still an auto incrementing number with each "get" and the extend function
+	 * _u_.__i__ is still an auto incrementing number with each "get" and the extend function
 	 * does some very simple copying of object properties and methods from on object to another
 	**/
 	var _u_ = _u_ || {};
@@ -33,8 +33,8 @@
 	/**
 	 * Represents a Fabric Object
 	 * @constructor
-	 * @param {object} args - an optional object which should contain:
-	 *        @param {int} peekTimeout - a timeout standard for when a queue message is "peeked at"
+	 * @param {object} [args] - an optional object which should contain:
+	 * @param {int} args.peekTimeout - a timeout standard for when a queue message is "peeked at"
 	 * @returns {fabric} the fabric instance object
 	**/
 	var Fabric = function(args) {
