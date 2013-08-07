@@ -599,5 +599,9 @@
 		}
 	});
 
-	self.Fabric = Fabric;
+	if (typeof exports !== 'undefined') {
+		exports.Fabric = Fabric;
+	} else {
+		self.Fabric = Fabric;
+	}
 })();
