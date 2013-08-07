@@ -102,16 +102,16 @@
 			var reg = [];
 			for(var i = 0; i < parts.length; i++) {
 				if(parts[i] == "*") {
-					reg.push("([\\w\\d]*?)")
+					reg.push("([\\w\\d.\\-]*?)")
 				} else if(parts[i] == "#") {
-					reg.push("([\\w\\d\\:]*)")
+					reg.push("([\\w\\d.\\-\\:]*)")
 				} else {
 					reg.push("("+parts[i]+")")
 				}
 			}
-			var regex = new RegExp(reg.join("\\:\\b")+"$", "i");
+			var regex = new RegExp("^" + reg.join("\\:\\b")+"$", "i");
 			return regex;
-		};
+		}
 
 		/**
 		 * triggerPublish is the private function for abstracting some of the logic out of the publish function
