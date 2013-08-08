@@ -104,7 +104,7 @@
 				if(parts[i] == "*") {
 					reg.push("([\\w\\d.\\-]*?)")
 				} else if(parts[i] == "#") {
-					reg.push("([\\w\\d.\\-\\:\\*#]*)")
+					reg.push("([\\w\\d.\\-\\:]*)")
 				} else {
 					reg.push("("+parts[i]+")")
 				}
