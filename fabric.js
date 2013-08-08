@@ -56,32 +56,32 @@
 		 * executing them a single function or chaining functions together if they are sent in with a .next
 		 *
 		 * @private
-		 * @param  {object}   args - an object containing:
-		 *         @param {function} next - optional next callback to trigger after this callback returns
-		 *         @param {string} loc - the matching index of the bindings object
-		 *         @param {array} matches - the matching elements if the match was done via regex instead of direct equals on urn
-		 *         @param {int} index - the index of the binding loc that would be next
-		 *         @param {function} cb - the callback function to execute with the data and matches
-		 * @return {null} null;
+		 * @param {object} args - an object containing:
+		 * @param {object} args.data - Data that was published or the return of the previous callback in sync mode
+		 * @param {object} args.raw - The data that was originally published
+		 * @param {function} [args.next] - optional next callback to trigger after this callback returns
+		 * @param {Array} [args.matches] - the matching elements if the match was done via regex instead of direct equals on urn
+		 * @param {int} args.index - the index of the binding loc that would be next
+		 * @param {function} args.cb - the callback function to execute with the data and matches
+		 * @param {string} args.binding - The subscription binding that matched
+		 * @return {null} null
 		**/
 		function cb(args) {
 			if(args.next) {
 				args.index++;
-				var resp = args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw});
-				var next = bindings[args.loc].subs[args.index]
-				var seed = args;
-				seed.data = resp;
-				seed.cb = seed.next;
+				args.data = args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding});
+				var next = bindings[args.matches.binding].subs[args.index];
+				args.cb = args.next;
 				if(next) {
-					seed.next = next.callback
+					args.next = next.callback
 				} else {
-					seed.next = undefined;
+					args.next = undefined;
 				}
-				cb(seed);
+				cb(args);
 			} else {
-				args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw});
+				args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding});
 			}
-			return;
+			return null;
 		}
 
 		/**
@@ -137,9 +137,9 @@
 				for(triggerPublishI = 0; triggerPublishI < args.subs.length; triggerPublishI++) {
 					triggerPublishSeed.data = args.data;
 					triggerPublishSeed.matches = args.matches;
+					triggerPublishSeed.binding = args.loc;
 					triggerPublishSeed.raw = args.data;
 					triggerPublishSeed.cb = args.subs[triggerPublishI].callback;
-					triggerPublishSeed.loc = args.loc;
 					triggerPublishSeed.index = triggerPublishI+1;
 
 					cb(triggerPublishSeed);
@@ -147,16 +147,16 @@
 			} else {
 				triggerPublishSeed.data = args.data;
 				triggerPublishSeed.matches = args.matches;
+				triggerPublishSeed.binding = args.loc;
 				triggerPublishSeed.raw = args.data;
 				triggerPublishSeed.cb = args.subs[0].callback;
-				triggerPublishSeed.loc = args.loc;
 				triggerPublishSeed.index = triggerPublishI+1;
 				if(args.subs[1]) {
 					seed.next = args.subs[1].callback;
 				}
 				cb(triggerPublishSeed);
 			}
-			return;
+			return null;
 		}
 
 		/**
