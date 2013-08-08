@@ -152,7 +152,7 @@
 				triggerPublishSeed.cb = args.subs[0].callback;
 				triggerPublishSeed.index = triggerPublishI+1;
 				if(args.subs[1]) {
-					seed.next = args.subs[1].callback;
+					triggerPublishSeed.next = args.subs[1].callback;
 				}
 				cb(triggerPublishSeed);
 			}
