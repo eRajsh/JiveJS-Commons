@@ -61,6 +61,7 @@
 		 * @param {object} args.raw - The data that was originally published
 		 * @param {function} [args.next] - optional next callback to trigger after this callback returns
 		 * @param {Array} [args.matches] - the matching elements if the match was done via regex instead of direct equals on urn
+		 * @param {string} args.key - the unique Fabric message ID
 		 * @param {int} args.index - the index of the binding loc that would be next
 		 * @param {function} args.cb - the callback function to execute with the data and matches
 		 * @param {string} args.binding - The subscription binding that matched
@@ -69,7 +70,7 @@
 		function cb(args) {
 			if(args.next) {
 				args.index++;
-				args.data = args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding});
+				args.data = args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 				var next = bindings[args.matches.binding].subs[args.index];
 				args.cb = args.next;
 				if(next) {
@@ -79,7 +80,7 @@
 				}
 				cb(args);
 			} else {
-				args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding});
+				args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
 			return null;
 		}
@@ -141,6 +142,7 @@
 					triggerPublishSeed.raw = args.data;
 					triggerPublishSeed.cb = args.subs[triggerPublishI].callback;
 					triggerPublishSeed.index = triggerPublishI+1;
+					triggerPublishSeed.key = args.key;
 
 					cb(triggerPublishSeed);
 				}
@@ -151,6 +153,7 @@
 				triggerPublishSeed.raw = args.data;
 				triggerPublishSeed.cb = args.subs[0].callback;
 				triggerPublishSeed.index = triggerPublishI+1;
+				triggerPublishSeed.key = args.key;
 				if(args.subs[1]) {
 					triggerPublishSeed.next = args.subs[1].callback;
 				}
