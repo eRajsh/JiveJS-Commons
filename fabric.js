@@ -256,6 +256,7 @@
 			args.data = args.data || {};
 			args.key = "message_"+_u_.__i__;
 			args.type = args.type  || "publish";
+			var published = false;
 
 			//loop through all of the bindings
 			publishKey = null;
@@ -267,6 +268,7 @@
 					args.subs = bindings[publishKey].subs;
 					args.loc = publishKey;
 					triggerPublish(args);
+					published = true;
 				} else {
 					//otherwise lets try and match, and if we have a match
 					publishMatches = bindings[publishKey].regex.exec(args.urn)
@@ -278,10 +280,11 @@
 						args.subs = bindings[publishKey].subs;
 						args.loc = publishKey;
 						triggerPublish(args);
+						published = true;
 					}
 				}
 			}
-			return;
+			return published;
 		};
 
 		
