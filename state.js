@@ -156,6 +156,8 @@
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
 				this.trigger(args, cbs);
+
+				this.setState(state);
 			}
 			return;
 		},
@@ -210,7 +212,7 @@
 		 * @return {int} internalState integer
 		**/
 		setState: function(newState) {
-			if(newState in states) {
+			if(this.states.indexOf(newState) > -1) {
 				this.internalState = newState;
 			}
 			return this.state();
