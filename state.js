@@ -64,6 +64,8 @@
 			states    : ["new"]
 		};
 
+		options.sync = options.sync || false;
+
 		var that = this;
 
 		//setup some instance parameters
@@ -80,11 +82,12 @@
 		this.addStates(options.states);
 
 		this.trigger = function(data, cbs) {
-			setTimeout(callback(
-				that,
-				data,
-				cbs)
-			,0);
+			var func = callback(that, data, cbs);
+			if(options.sync){
+				func();
+			} else {
+				setTimeout(func, 0);
+			}
 		}
 
 		Object.defineProperties(this, {
