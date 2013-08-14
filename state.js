@@ -29,7 +29,7 @@
 	function callback(scope, data, cbs) {
 		cbs = cbs || [];
 		return function() {
-	  		for(var i=0; i<cbs.length; i++) {
+			for(var i=0; i<cbs.length; i++) {
 				cbs[i].call(scope, data);
 			}
 		};
@@ -45,11 +45,11 @@
 	**/
 	function sanitizeCbs(cbs) {
 		if(cbs && {}.toString.call(cbs) !== '[object Array]') {
-    	cbs = [cbs]
-    }
+			cbs = [cbs];
+		}
 		return cbs;
 	}
-	
+
 	/**
 	 * Represents a State Object
 	 * @constructor
@@ -63,6 +63,8 @@
 			initState : "new",
 			states    : ["new"]
 		};
+
+		var that = this;
 
 		//setup some instance parameters
 		this.internalState = options.initState;
@@ -79,6 +81,7 @@
 
 		this.trigger = function(data, cbs) {
 			setTimeout(callback(
+				that,
 				data,
 				cbs)
 			,0);
