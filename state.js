@@ -27,6 +27,7 @@
 	 * @return {null} null
 	**/
 	function callback(scope, data, cbs) {
+		cbs = cbs || [];
 		return function() {
 	  		for(var i=0; i<cbs.length; i++) {
 				cbs[i].call(scope, data);
@@ -76,7 +77,7 @@
 
 		this.addStates(options.states);
 
-		function trigger(data, cbs) {
+		this.trigger = function(data, cbs) {
 			setTimeout(callback(
 				data,
 				cbs)
@@ -141,17 +142,17 @@
 				//gather and trigger the "leave" callbacks... these are still sync its just a courtesy issue of ordering... 
 				//you don't get to block or stop the state change in the callback
 				cbs = cbs.concat(this.callbacks.all.leave).concat(this.callbacks[this.state()].leave);
-				trigger(args, cbs);
+				this.trigger(args, cbs);
 
 				//now gather and trigger the "enter" callbacks... same constraints as leave
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.enter).concat(this.callbacks[state].enter);
-				trigger(args, cbs);
+				this.trigger(args, cbs);
 
 				//now gather and trigger the "on" callbacks.
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
-				trigger(args, cbs);
+				this.trigger(args, cbs);
 			}
 			return;
 		},
