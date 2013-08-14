@@ -157,7 +157,7 @@
 		},
 
 		addStates: function(states) {
-			if(!(item && {}.toString.call(item) === '[object Array]')) {
+			if(!(states && {}.toString.call(states) === '[object Array]')) {
 				states = [states];
 			}
 			states.forEach(function(state) {
@@ -167,7 +167,7 @@
 		},
 
 		removeStates: function(states) {
-			if(!(item && {}.toString.call(item) === '[object Array]')) {
+			if(!(states && {}.toString.call(states) === '[object Array]')) {
 				states = [states];
 			};
 			var toKill = [];
