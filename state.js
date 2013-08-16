@@ -59,6 +59,7 @@
 	 * @returns {deferred} the deferred instance object
 	**/
 	var State = function(options) {
+		var that = this;
 		options = options || {
 			initState : "new",
 			states    : ["new"]
@@ -66,7 +67,7 @@
 
 		options.sync = options.sync || false;
 
-		var that = this;
+		this.data = null;
 
 		//setup some instance parameters
 		this.internalState = options.initState;
@@ -96,7 +97,7 @@
 		  "callbacks"     : {enumerable:false, writable:false, configurable:false}
 		});
 
-    	//Freeze the this so that the functions cannot be changed/overridden nor modified
+    //Freeze the this so that the functions cannot be changed/overridden nor modified
 		Object.seal(this);
  		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
 		Object.freeze(State.prototype);
@@ -136,6 +137,7 @@
 
 		go: function(state, data) {
 			data = data || {};
+			this.data = data;
 			if(state != this.state()) {
 				var args = {
 					leavingState  : this.state(),
@@ -154,13 +156,13 @@
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.enter).concat(this.callbacks[state].enter);
 				this.trigger(args, cbs);
-
+				
+				this.setState(state);
+				
 				//now gather and trigger the "on" callbacks.
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
 				this.trigger(args, cbs);
-
-				this.setState(state);
 			}
 			return;
 		},
