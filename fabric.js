@@ -20,7 +20,8 @@
 	**/
 	var _u_ = _u_ || {};
 	_u_.AutoInc = 0;
-	_u_.extend =  function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; }
+	_u_.extend =  function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
+	_u_.isString = function(item) {return (item && {}.toString.call(item) === '[object String]');};
 	Object.defineProperty(_u_, "__i__", {
 		enumerable:false,
 		configurable:false,
@@ -34,13 +35,13 @@
 	 * Represents a Fabric Object
 	 * @constructor
 	 * @param {object} [args] - an optional object which should contain:
-	 * @param {int} args.peekTimeout - a timeout standard for when a queue message is "peeked at"
-	 * @param {boolean} args.replay - Whether to enable replaying events for the Fabric from some message ID
-	 * @param {LinkedHashMap} args.persistenceProvider - An instance of an object that has an interface that
+	 * @param {int} [args.peekTimeout] - a timeout standard for when a queue message is "peeked at"
+	 * @param {boolean} [args.replay] - Whether to enable replaying events for the Fabric from some message ID
+	 * @param {LinkedHashMap} [args.persistenceProvider] - An instance of an object that has an interface that
 	 * 	like a LinkedHashMap. The implementation can store values however it likes but must implement the
 	 * 	proper interface for replaying. If not provided and args.replay = true, then an in memory implementation
 	 * 	will be setup.
-	 * @returns {fabric} the fabric instance object
+	 * @returns {Fabric} the fabric instance object
 	**/
 	var Fabric = function(args) {
 		args            = args || {};
@@ -52,7 +53,8 @@
 		//bindings - holds the subscription bindings
 		//queue - holds queue messages
 		//processing - is a temp holder for queue messages that have been peeked at
-		var bindings    = {}; 
+		var bindings    = {};
+		var subscriptions = {};
 		var queue 		  = {};
 		var processing  = {};
 		var replay = args.replay ? true : false;
@@ -204,6 +206,10 @@
 
 			//and also stash the subscription itself under its binding urn "channel"
 			bindings[args.urn].subs.push(args);
+
+			// Also stash the subscription key for later lookup
+			subscriptions[args.key] = args;
+
 			return args;
 		};
 
@@ -226,7 +232,16 @@
 		**/
 		this.unsubscribe = function(args) {
 			args = args || {};
-			
+
+			if (_u_.isString(args)) {
+				// just passed the subscription ID/key
+				args = subscriptions[args] || {};
+			}
+
+			if (args.key) {
+				delete subscriptions[args.key];
+			}
+
 			//find a binding for the urn match, this is why you have to pass the same urn string as used to subscribe
 			var binding = bindings[args.urn];
 			if(binding) {
@@ -285,6 +300,41 @@
 		}
 
 		/**
+		 * Publish a message to a set of given subscription keys.
+		 *
+		 * @param {object} message - The message to publish
+		 * @param {Array} subscriptionKeys - An array of subscription keys to publish to
+		 */
+		function publishTo(message, subscriptionKeys) {
+			var subscription, args, published = false;
+
+			for (var i = 0; i < subscriptionKeys.length; i++) {
+				subscription = subscriptions[subscriptionKeys[i]];
+				if (subscription) {
+					message.loc = subscription.urn;
+					message.subs = [subscription];
+					if (message.urn == subscription.urn) {
+						triggerPublish(message);
+						published = true;
+					} else {
+						publishMatches = bindings[subscription.urn].regex.exec(message.urn);
+						if(publishMatches) {
+							publishMatches.splice(0,1);
+							message.matches = publishMatches;
+							triggerPublish(message);
+							published = true;
+						}
+					}
+				}
+			}
+
+			return {
+				published: published,
+				key: message.key
+			}
+		}
+
+		/**
 		 * publish is the lowest level method to trigger a subscription callback.  
 		 * You provide the urn string (no wildcards allowed) to which you are publishing and a
 		 * data and type param
@@ -293,12 +343,12 @@
 		 *
 		 * @privileged
 		 * @public
-		 * @param  {object}   args - an object containing:
-		 *         @param {string} urn - the urn to publish to
-		 *         @param {object|variable} data - the data to be passed to the callback
-		 *         @param {string} type - the type of publish, defaults to publish, but higher level API's that use publish
-		 *                              provide args such as command/fulfill/notify/request etc
-		 *        
+		 * @param {string} args.urn - the urn to publish to
+		 * @param {*} [args.data] - the data to be passed to the callback
+		 * @param {string} [args.type] - the type of publish, defaults to publish,
+		 * 	but higher level API's that use publish
+		 *  provide args such as command/fulfill/notify/request etc
+		 *
 		 * @return {boolean} Whether someone received the message or not
 		**/
 		this.publish     = function(args) {
@@ -610,20 +660,52 @@
 		/**
 		 * Replay all fabric events from a given message ID. Only available if Fabric was setup with replay=true
 		 *
-		 * @param from The unique message ID to start from.
+		 * @param {string} from The unique message ID to start from.
+		 * @param {Number} [count] The number of messages to replay
+		 * @param {Array} [to] A set of subscription IDs to replay to
 		 * @throws {Error} If the message ID is not found or we are not setup for replaying.
 		 */
-		this.replay = function(from) {
+		this.replay = function(from, count, to) {
 			if (!replay) {
 				throw new Error("Cannot replay events since Fabric was not initialized with replay=true");
 			}
 			if (!store.containsKey(from)) {
 				throw new Error("Cannot replay from '" + from + "', the message ID was not found");
 			}
+
+			if (arguments.length === 1) {
+				count = -1;
+				to = null;
+			} else if (arguments.length === 2) {
+				if (_u_.isArray(count)) {
+					to = count;
+					count = -1;
+				} else {
+					to = null;
+				}
+			}
+
+			// Setup publish function so we don't have to keep evaluating
+			// which function to use on every iteration
+			var publishFunc;
+			if (to) {
+				publishFunc = function (message) {
+					return publishTo(message, to);
+				}
+			} else {
+				publishFunc = internalPublish;
+			}
+
 			var itr = store.iterator(from);
-			while (itr.hasNext()) {
+			var numPublished = 0;
+			var publishedInfo;
+
+			while (itr.hasNext() && (count < 0 || numPublished < count)) {
 				var message = itr.next();
-				internalPublish(message);
+				publishedInfo = publishFunc(message);
+				if (publishedInfo.published) {
+					numPublished++;
+				}
 			}
 		};
 
