@@ -35,6 +35,11 @@
 	 * @constructor
 	 * @param {object} [args] - an optional object which should contain:
 	 * @param {int} args.peekTimeout - a timeout standard for when a queue message is "peeked at"
+	 * @param {boolean} args.replay - Whether to enable replaying events for the Fabric from some message ID
+	 * @param {LinkedHashMap} args.persistenceProvider - An instance of an object that has an interface that
+	 * 	like a LinkedHashMap. The implementation can store values however it likes but must implement the
+	 * 	proper interface for replaying. If not provided and args.replay = true, then an in memory implementation
+	 * 	will be setup.
 	 * @returns {fabric} the fabric instance object
 	**/
 	var Fabric = function(args) {
@@ -50,6 +55,15 @@
 		var bindings    = {}; 
 		var queue 		  = {};
 		var processing  = {};
+		var replay = args.replay ? true : false;
+		var store = null;
+		if (replay) {
+			if (args.persistenceProvider) {
+				store = args.persistenceProvider;
+			} else {
+				store = new LinkedHashMap();
+			}
+		}
 
 		/**
 		 * cd is a recursive sometimes self calling function that actually executes the publish callbacks
@@ -230,32 +244,12 @@
 			} else {
 				return false;
 			}
-		}
+		};
 
-		/**
-		 * publish is the lowest level method to trigger a subscription callback.  
-		 * You provide the urn string (no wildcards allowed) to which you are publishing and a
-		 * data and type param
-		 *
-		 * the urn provided is a string and CANNOT use the wildcards
-		 *
-		 * @privileged
-		 * @public
-		 * @param  {object}   args - an object containing:
-		 *         @param {string} urn - the urn to publish to
-		 *         @param {object|variable} data - the data to be passed to the callback
-		 *         @param {string} type - the type of publish, defaults to publish, but higher level API's that use publish
-		 *                              provide args such as command/fulfill/notify/request etc
-		 *        
-		 * @return {null} null
-		**/
+		// optimization
 		var publishMatches;
 		var publishKey;
-		this.publish     = function(args) {
-			args = args || {data:{}};
-			args.data = args.data || {};
-			args.key = "message_"+_u_.__i__;
-			args.type = args.type  || "publish";
+		function internalPublish(args) {
 			var published = false;
 
 			//loop through all of the bindings
@@ -284,7 +278,40 @@
 					}
 				}
 			}
-			return published;
+			return {
+				published: published,
+				key: args.key
+			};
+		}
+
+		/**
+		 * publish is the lowest level method to trigger a subscription callback.  
+		 * You provide the urn string (no wildcards allowed) to which you are publishing and a
+		 * data and type param
+		 *
+		 * the urn provided is a string and CANNOT use the wildcards
+		 *
+		 * @privileged
+		 * @public
+		 * @param  {object}   args - an object containing:
+		 *         @param {string} urn - the urn to publish to
+		 *         @param {object|variable} data - the data to be passed to the callback
+		 *         @param {string} type - the type of publish, defaults to publish, but higher level API's that use publish
+		 *                              provide args such as command/fulfill/notify/request etc
+		 *        
+		 * @return {boolean} Whether someone received the message or not
+		**/
+		this.publish     = function(args) {
+			args = args || {data:{}};
+			args.data = args.data || {};
+			args.key = "message_"+_u_.__i__;
+			args.type = args.type  || "publish";
+
+			if (replay) {
+				store.put(args.key, args);
+			}
+
+			return internalPublish(args);
 		};
 
 		
@@ -571,6 +598,35 @@
 			return;
 		};
 
+		/**
+		 * Check whether this instance of Fabric can replay events or not.
+		 *
+		 * @returns {boolean} True if the Fabric is setup for replay.
+		 */
+		this.canReplay = function() {
+			return replay;
+		};
+
+		/**
+		 * Replay all fabric events from a given message ID. Only available if Fabric was setup with replay=true
+		 *
+		 * @param from The unique message ID to start from.
+		 * @throws {Error} If the message ID is not found or we are not setup for replaying.
+		 */
+		this.replay = function(from) {
+			if (!replay) {
+				throw new Error("Cannot replay events since Fabric was not initialized with replay=true");
+			}
+			if (!store.containsKey(from)) {
+				throw new Error("Cannot replay from '" + from + "', the message ID was not found");
+			}
+			var itr = store.iterator(from);
+			while (itr.hasNext()) {
+				var message = itr.next();
+				internalPublish(message);
+			}
+		};
+
 		//set a unique id for this fabric
 		this.id = "Fabric_"+_u_.__i__;
 
@@ -595,7 +651,10 @@
 			}
 		}
 		return this;
-	}
+	};
+
+	// Linked Hash Map, in memory implementation
+	var LinkedHashMap=function(){this._size=0;this._map={};this._Entry=function(key,value){this.prev=null;this.next=null;this.key=key;this.value=value};this._head=this._tail=null};var _Iterator=function(start,property){this.entry=start===null?null:start;this.property=property};_Iterator.prototype={hasNext:function(){return this.entry!==null},next:function(){if(this.entry===null){return null}var value=this.entry[this.property];this.entry=this.entry.next;return value}};LinkedHashMap.prototype={put:function(key,value){var entry=new this._Entry(key,value);if(!this.containsKey(key)){if(this._size===0){this._head=entry;this._tail=entry}else{this._tail.next=entry;entry.prev=this._tail;this._tail=entry}this._size++}this._map[key]=entry},remove:function(key){var entry;if(this.containsKey(key)){this._size--;entry=this._map[key];delete this._map[key];if(entry===this._head){this._head=entry.next;this._head.prev=null}else if(entry===this._tail){this._tail=entry.prev;this._tail.next=null}else{entry.prev.next=entry.next;entry.next.prev=entry.prev}}else{entry=null}return entry===null?null:entry.value},containsKey:function(key){return this._map.hasOwnProperty(key)},containsValue:function(value){for(var key in this._map){if(this._map.hasOwnProperty(key)){if(this._map[key].value===value){return true}}}return false},get:function(key){return this.containsKey(key)?this._map[key].value:null},clear:function(){this._size=0;this._map={};this._head=this._tail=null},keys:function(from){var keys=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){keys.push(cur.key)}return keys},values:function(from){var values=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){values.push(cur.value)}return values},iterator:function(from,type){var property="value";if(type&&(type==="key"||type==="keys")){property="key"}var entry=this.containsKey(from)?this._map[from]:null;return new _Iterator(entry,property)},size:function(){return this._size}};
 
 	//a few tiny methods can live on the prototype since they don't need access to the privates
 	_u_.extend(Fabric.prototype, {
