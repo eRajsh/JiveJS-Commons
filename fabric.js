@@ -4,9 +4,9 @@
  * Fabric.js returns a Fabric constructor which exposes standard pub/sub as well as request/fulfill, command/notify
  * 				and enqueue, dequeue, peek, handle and release.  You would usually only have one of these per application
  * @closure returns a Fabric @constructor
- * @notes Read this if you don't understand public/private/privelege in JS 
+ * @notes Read this if you don't understand public/private/privelege in JS
  *        http://javascript.crockford.com/private.html
- *        there is a cost to defining all of these functions in the constructor... 
+ *        there is a cost to defining all of these functions in the constructor...
  *        but that cost in very few instnaces is merited by the encapsulation gains
  * @returns {Fabric} Fabric constructor
 **/
@@ -47,7 +47,7 @@
 	**/
 	var Fabric = function(args) {
 		args            = args || {};
-		
+
 		//peekTimeout defaults to 5000 ms or 5 s until a peeked queue message is released back to the queue
 		var peekTimeout = args.peekTimeout || 5000;
 
@@ -115,7 +115,7 @@
 		 * @param  {object}   args - an object containing:
 		 *         @param {string} urn - the urn string to convert into a regular expression
 		 * @return {RegExp} an instance of a RegExp;
-		**/ 
+		**/
 		 function createRegex(args) {
 			var parts = args.urn.split(":");
 			var reg = [];
@@ -145,8 +145,8 @@
 		 *         @param {array} matches - the regex matching aspects if the match was based on a regex urn
 		 *         @param {array} subs - the subscription callbacks on the urn that was matched, these contain an object with the callback function
 		 *         @param {string} loc - the matching urn string as the key to the bindings object
-		 *         @param {int} index - the index of the subs 
-		 *        
+		 *         @param {int} index - the index of the subs
+		 *
 		 * @return {null} null;
 		**/
 		var triggerPublishI;
@@ -193,13 +193,13 @@
 		 *         @param {function} callback - the callback function, will be called with .call(null, ...), and as such
 		 *                                    should be bound before being used in the subscribe.  This is so that the Fabric
 		 *                                    does not have to keep an array/object of scopes with which to call functions
-		 *        
+		 *
 		 * @return {object} args - the args object that was subscribed... in case you want to get back and use the key to unsub;
 		**/
 		this.subscribe   = function(args) {
 			args = args || {};
 			args.key = "subscription_"+_u_.__i__;
-			
+
 			//setup the bindings property if it doesn't exist already;
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
 
@@ -216,7 +216,7 @@
 		};
 
 		/**
-		 * unsubscribe is an easy way to remove a subscription for events.  Unsubscribe must provide the same urn string used to 
+		 * unsubscribe is an easy way to remove a subscription for events.  Unsubscribe must provide the same urn string used to
 		 * subscribe as well as either the key returned in the subscribes returned object, or the same bound callback function
 		 *
 		 * the urn provided is a string and can use the * and # wildcards in the : separated string
@@ -229,7 +229,7 @@
 		 *                                    should be bound before being used in the subscribe.  This is so that the Fabric
 		 *                                    does not have to keep an array/object of scopes with which to call functions
 		 *         @param {string} key - [either key or callback required] the message key that was returned from the subscribe
-		 *        
+		 *
 		 * @return {object|bool} args - the args object that was unsubscribed or false if there was no successful sub match to remove
 		**/
 		this.unsubscribe = function(args) {
@@ -344,7 +344,7 @@
 		}
 
 		/**
-		 * publish is the lowest level method to trigger a subscription callback.  
+		 * publish is the lowest level method to trigger a subscription callback.
 		 * You provide the urn string (no wildcards allowed) to which you are publishing and a
 		 * data and type param
 		 *
@@ -373,7 +373,7 @@
 			return internalPublish(args);
 		};
 
-		
+
 		/**
 		 * request is a bit higher level of an API and subscribes to a fulfill callback and then publishes the request
 		 * this guy creates the callback urn that it will subscribe to and then passes that through so that whomever
@@ -385,7 +385,7 @@
 		 *         @param {string} urn - the urn to request to
 		 *         @param {object|variable} data - the data to be passed to the request handler
 		 *         @param {function} callback - the callback function to execute when the request is fulfilled
-		 *        
+		 *
 		 * @return {null} null
 		**/
 		this.request     = function(args) {
@@ -418,26 +418,26 @@
 		 *         @param {string} urn - the urn to fulfill to
 		 *         @param {object|variable} data - the data to be passed to the callback
 		 *         @param {string} key - the subscription key that was created by the request function
-		 *        
+		 *
 		 * @return {null} null
 		**/
 		this.fulfill     = function(args) {
 			args = args || {};
 			args.type = "fulfill";
-			
+
 			//publish the provided argument through to the subscription that was created by the request function
 			this.publish(args);
 
-			//then ubsubscribe from the 
+			//then ubsubscribe from the
 			this.unsubscribe({urn: args.urn, key: args.key});
 			return;
 		};
 
 		/**
 		 * command is a higher level api over publish and does not expect a response with data.  It may optionally
-		 * be informed of the command execution with a paired notify function.  This is a synonym of request/fulfil 
+		 * be informed of the command execution with a paired notify function.  This is a synonym of request/fulfil
 		 * in the functional sense but is to be used for different purposes, as such the onus is really on the party
-		 * who is subscribing to a "command" channel as a command handler to execute the difference between a command 
+		 * who is subscribing to a "command" channel as a command handler to execute the difference between a command
 		 * and a request... in general a command shouldn't return anything but can notify of completion, and a request should
 		 * not change any data and "must" be fulfilled.
 		 *
@@ -448,7 +448,7 @@
 		 * @param  {object}   args - an object containing:
 		 *         @param {string} urn - the urn to command to
 		 *         @param {object|variable} data - the data to be passed to the callback
-		 *        
+		 *
 		 * @return {null} null
 		**/
 		this.command     = function(args) {
@@ -477,13 +477,13 @@
 		 *         @param {string} urn - the urn to notify to
 		 *         @param {object|variable} data - the data to be passed to the callback
 		 *         @param {string} key - the subscription key that was created by the command function
-		 *        
+		 *
 		 * @return {null} null
 		**/
 		this.notify      = function(args) {
 			args = args || {};
 			args.type = "notify";
-			
+
 			this.publish(args);
 			this.unsubscribe({urn: args.urn, key: args.key});
 			return;
@@ -492,7 +492,7 @@
 		/**
 		 * enqueue is a slight be different in that it does not build off of Subscribe and Publish per se
 		 * but rather exposes an alternative way of doing things, rather than immediate distribution of messages in a "push"
-		 * fashion, the queue holds the messages, and a listener must poll the queue using the peek on a urn channel and then can 
+		 * fashion, the queue holds the messages, and a listener must poll the queue using the peek on a urn channel and then can
 		 * elect to handle or release the peeked message.
 		 *
 		 * @privileged
@@ -500,7 +500,7 @@
 		 * @param  {object}   args - an object containing:
 		 *         @param {string} urn - the urn to notify to
 		 *         @param {object|variable} data - the data to be set and used by the peek function
-		 *        
+		 *
 		 * @return {object} the queued args object, which must be used in order to dequeue it
 		**/
 		this.enqueue     = function(args) {
@@ -528,7 +528,7 @@
 		 * @public
 		 * @param  {object}   args - must match the args returned by enqueue... you cannot composite an object that will match
 		 *                         it must be an exact object equality match
-		 *        
+		 *
 		 * @return {null} - null;
 		**/
 		this.dequeue     = function(args) {
@@ -541,7 +541,7 @@
 					//iterate over the items finding a match and only the first match
 					var j = 0;
 					for(var i = 0; i < queue[key].items.length; i++) {
-						//a match must be a direct object equality match and thus cannot be from a newly generated object but 
+						//a match must be a direct object equality match and thus cannot be from a newly generated object but
 						//rather must be the return of the enqueue function which was also pushed into the queue
 						if(args.key === queue[key].items[i].key) {
 							match = true;
@@ -556,21 +556,21 @@
 							delete queue[key];
 						}
 					}
-				}	
+				}
 			}
 			return;
 		};
 
 		/**
-		 * peek is used to get the first matching queue message out of the queue channel that matches the urn.  
+		 * peek is used to get the first matching queue message out of the queue channel that matches the urn.
 		 * Based on the urn that you are wanting to peek at.
 		 *
 		 * @privileged
 		 * @public
-		 * @param  {object}   args - 
+		 * @param  {object}   args -
 		 *         @param {string} urn - the urn wildcards allowed
 		 *         @param {function} callback - the function to callback when we get a message match from the peek
-		 *        
+		 *
 		 * @return {null} - null;
 		**/
 		this.peek        = function(args) {
@@ -588,7 +588,7 @@
 						break;
 					}
 				} else {
-					//otherwise match the queue channel 
+					//otherwise match the queue channel
 					var matches = queue[key].regex.exec(args.urn)
 					if(matches) {
 						if(queue[key].items.length > args.offset) {
@@ -624,9 +624,9 @@
 		 *
 		 * @privileged
 		 * @public
-		 * @param  {object}   args - 
+		 * @param  {object}   args -
 		 *         @param {string} key - the string of the queue message to "handle"
-		 *        
+		 *
 		 * @return {null} - null;
 		**/
 		this.handle      = function(args) {
@@ -645,9 +645,9 @@
 		 *
 		 * @privileged
 		 * @public
-		 * @param  {object}   args - 
+		 * @param  {object}   args -
 		 *         @param {string} key - the string of the queue message to "handle"
-		 *        
+		 *
 		 * @return {null} - null;
 		**/
 		this.release     = function(args) {
@@ -726,7 +726,7 @@
 		//mucking around with the method signatures or functionality.
 		//
 		//Although take a note that doing this is awesome but makes it a bloody pain in the arse to write unit tests.
-		//hence this silly debugMode piece of work... 
+		//hence this silly debugMode piece of work...
 		if(!args.debugMode) {
 			Object.freeze(this);
 			Object.defineProperties(Fabric.prototype, {
