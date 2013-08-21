@@ -241,6 +241,7 @@
 			}
 
 			if (args.key) {
+				args = subscriptions[args.key];
 				delete subscriptions[args.key];
 			}
 
@@ -250,11 +251,17 @@
 				for(var i = 0; i < binding.subs.length; i++) {
 					//match the key directly as a string compare
 					if(args.key && args.key == binding.subs[i].key) {
-						delete bindings[args.urn][i];
-					} 
-					//or match the callback as a function compare 
+						bindings[args.urn].subs.splice(i, 1);
+						if(bindings[args.urn].subs.length == 0){
+							delete bindings[args.urn];
+						}
+					}
+					//or match the callback as a function compare
 					else if (args.callback && args.callback == binding.subs[i].callback) {
-						delete bindings[args.urn][i];
+						bindings[args.urn].subs.splice(i, 1);
+						if(bindings[args.urn].subs.length == 0){
+							delete bindings[args.urn];
+						}
 					}
 				}
 				return args;
