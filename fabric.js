@@ -251,7 +251,6 @@
 			}
 
 			if (args.key) {
-				console.log("args", args, subscriptions);
 				args = subscriptions[args.key];
 				delete subscriptions[args.key];
 			}
