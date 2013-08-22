@@ -14,6 +14,35 @@
 (function() {
 
 	/**
+	 * createRegex is a function to take a urn style string and convert it into a regular expression
+	 * for matching wild card subscriptions or peeks
+	 *
+	 * The matching logic is a "word" delimiter of colon :
+	 * where * matches a single wild card word
+	 * and # matches multiple words
+	 *
+	 * @private
+	 * @param  {object}   args - an object containing:
+	 *         @param {string} urn - the urn string to convert into a regular expression
+	 * @return {RegExp} an instance of a RegExp;
+	**/
+	 function createRegex(args) {
+		var parts = args.urn.split(":");
+		var reg = [];
+		for(var i = 0; i < parts.length; i++) {
+			if(parts[i] == "*") {
+				reg.push("([\\w\\d.\\-]*?)")
+			} else if(parts[i] == "#") {
+				reg.push("([\\w\\d.\\-\\:]*)")
+			} else {
+				reg.push("("+parts[i]+")")
+			}
+		}
+		var regex = new RegExp("^" + reg.join("\\:\\b")+"$", "i");
+		return regex;
+	}
+
+	/**
 	 * Shimming some of the utils functions so that this library doesn't need to have any dependencies
 	 * _u_.__i__ is still an auto incrementing number with each "get" and the extend function
 	 * does some very simple copying of object properties and methods from on object to another
@@ -22,6 +51,7 @@
 	_u_.AutoInc = 0;
 	_u_.extend =  function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
 	_u_.isString = function(item) {return (item && {}.toString.call(item) === '[object String]');};
+	_u_.createRegex = _u_.createRegex || createRegex;
 	// Linked Hash Map, in memory implementation
 	var LinkedHashMap=function(){this._size=0;this._map={};this._Entry=function(key,value){this.prev=null;this.next=null;this.key=key;this.value=value};this._head=this._tail=null};var _Iterator=function(start,property){this.entry=start===null?null:start;this.property=property};_Iterator.prototype={hasNext:function(){return this.entry!==null},next:function(){if(this.entry===null){return null}var value=this.entry[this.property];this.entry=this.entry.next;return value}};LinkedHashMap.prototype={put:function(key,value){var entry;if(!this.containsKey(key)){entry=new this._Entry(key,value);if(this._size===0){this._head=entry;this._tail=entry}else{this._tail.next=entry;entry.prev=this._tail;this._tail=entry}this._size++}else{entry=this._map[key];entry.value=value}this._map[key]=entry},remove:function(key){var entry;if(this.containsKey(key)){this._size--;entry=this._map[key];delete this._map[key];if(entry===this._head){this._head=entry.next;this._head.prev=null}else if(entry===this._tail){this._tail=entry.prev;this._tail.next=null}else{entry.prev.next=entry.next;entry.next.prev=entry.prev}}else{entry=null}return entry===null?null:entry.value},containsKey:function(key){return this._map.hasOwnProperty(key)},containsValue:function(value){for(var key in this._map){if(this._map.hasOwnProperty(key)){if(this._map[key].value===value){return true}}}return false},get:function(key){return this.containsKey(key)?this._map[key].value:null},clear:function(){this._size=0;this._map={};this._head=this._tail=null},keys:function(from){var keys=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){keys.push(cur.key)}return keys},values:function(from){var values=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){values.push(cur.value)}return values},iterator:function(from,type){var property="value";if(type&&(type==="key"||type==="keys")){property="key"}var entry=this.containsKey(from)?this._map[from]:null;return new _Iterator(entry,property)},size:function(){return this._size}};
 	Object.defineProperty(_u_, "__i__", {
@@ -104,35 +134,6 @@
 		}
 
 		/**
-		 * createRegex is a function to take a urn style string and convert it into a regular expression
-		 * for matching wild card subscriptions or peeks
-		 *
-		 * The matching logic is a "word" delimiter of colon :
-		 * where * matches a single wild card word
-		 * and # matches multiple words
-		 *
-		 * @private
-		 * @param  {object}   args - an object containing:
-		 *         @param {string} urn - the urn string to convert into a regular expression
-		 * @return {RegExp} an instance of a RegExp;
-		**/
-		 function createRegex(args) {
-			var parts = args.urn.split(":");
-			var reg = [];
-			for(var i = 0; i < parts.length; i++) {
-				if(parts[i] == "*") {
-					reg.push("([\\w\\d.\\-]*?)")
-				} else if(parts[i] == "#") {
-					reg.push("([\\w\\d.\\-\\:]*)")
-				} else {
-					reg.push("("+parts[i]+")")
-				}
-			}
-			var regex = new RegExp("^" + reg.join("\\:\\b")+"$", "i");
-			return regex;
-		}
-
-		/**
 		 * triggerPublish is the private function for abstracting some of the logic out of the publish function
 		 * of what to do if they request a synchronous trigger versus the default async trigger etc.  It formats the data slightly
 		 * and then defers to the cb function for the actual triggering of the subscriptions callback.
@@ -202,7 +203,7 @@
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
 
 			//stash the regex so we don't have to create it every time...
-			bindings[args.urn].regex = createRegex({urn : args.urn});
+			bindings[args.urn].regex = _u_.createRegex({urn : args.urn});
 
 			//and also stash the subscription itself under its binding urn "channel"
 			bindings[args.urn].subs.push(args);
@@ -509,7 +510,7 @@
 			queue[args.urn] = queue[args.urn] || {items:[]};
 
 			//stash the regex so we don't have to create it every time...
-			queue[args.urn].regex = createRegex({urn : args.urn});
+			queue[args.urn].regex = _u_.createRegex({urn : args.urn});
 
 			//and also stash the subscription itself under its binding urn "channel"
 			queue[args.urn].items.push(args);
@@ -604,7 +605,7 @@
 			//like call your callback, take it out of the queue and stick it into the processing temp holder
 			if(message) {
 				var timeout = setTimeout(function() {
-					queue[match] = queue[match] || {items:[], regex: createRegex({urn : match})};
+					queue[match] = queue[match] || {items:[], regex: _u_.createRegex({urn : match})};
 					queue[match].items.unshift(message);
 					delete processing[message.key];
 				}, peekTimeout);
