@@ -432,7 +432,6 @@
 			args = args || {};
 			args.type = "fulfill";
 
-			console.log("args in fufill", args);
 			//publish the provided argument through to the subscription that was created by the request function
 			this.publish(args);
 
