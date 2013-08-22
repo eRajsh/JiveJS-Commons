@@ -12,7 +12,6 @@
 **/
 
 (function() {
-
 	var _u_ = _u_ || {};
 	_u_.extend =  _u_.extend || function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
 	_u_.isString = _u_.isString || function(item) {return (item && {}.toString.call(item) === '[object String]');};
@@ -407,7 +406,7 @@
 			args.data.type = "request";
 
 			//subscribe to the newly created cbUrn so that the fulfill can reach us
-			this.subscribe({urn:args.data.cbUrn, callback:args.callback});
+			args.data.key = this.subscribe({urn:args.data.cbUrn, callback:args.callback}).key;
 
 			//then publish the args object so that any subscriber/handler for this request can react.
 			//the first one to fulfill the message is the only one who will reach the provided request callback
@@ -435,11 +434,14 @@
 			args = args || {};
 			args.type = "fulfill";
 
+			var key = args.key;
+			var urn = args.urn;
+
 			//publish the provided argument through to the subscription that was created by the request function
 			this.publish(args);
 
 			//then ubsubscribe from the
-			this.unsubscribe({urn: args.urn, key: args.key});
+			this.unsubscribe({urn: urn, key: key});
 			return;
 		};
 
@@ -469,7 +471,7 @@
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "command";
 
-			this.subscribe({urn:args.data.cbUrn, callback:args.callback});
+			args.data.key = this.subscribe({urn:args.data.cbUrn, callback:args.callback}).key;
 			this.publish(args);
 			return;
 		};
@@ -494,8 +496,11 @@
 			args = args || {};
 			args.type = "notify";
 
+			var key = args.key;
+			var urn = args.urn;
+
 			this.publish(args);
-			this.unsubscribe({urn: args.urn, key: args.key});
+			this.unsubscribe({urn: urn, key: key});
 			return;
 		};
 
