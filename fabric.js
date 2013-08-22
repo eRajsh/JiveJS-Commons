@@ -86,17 +86,25 @@
 		 * @return {null} null
 		**/
 		function cb(args) {
-			if(args.next) {
-				args.index++;
+			if(args.next){
 				args.data = args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
-				var next = bindings[args.matches.binding].subs[args.index];
+				args.index++;
+
+				var next = bindings[args.binding].subs[args.index];
+
+				// Assign our previous next to be the current callback for the next run
 				args.cb = args.next;
 				if(next) {
-					args.next = next.callback
+					args.next = next.callback;
+				} else if(typeof args.cb === "function") {
+					args.next = true;
 				} else {
 					args.next = undefined;
 				}
-				cb(args);
+
+				if(args.next){
+					cb(args);
+				}
 			} else {
 				args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
@@ -168,7 +176,7 @@
 				triggerPublishSeed.binding = args.loc;
 				triggerPublishSeed.raw = args.data;
 				triggerPublishSeed.cb = args.subs[0].callback;
-				triggerPublishSeed.index = triggerPublishI+1;
+				triggerPublishSeed.index = 1;
 				triggerPublishSeed.key = args.key;
 				if(args.subs[1]) {
 					triggerPublishSeed.next = args.subs[1].callback;
@@ -239,6 +247,7 @@
 			}
 
 			if (args.key) {
+				console.log("args", args, subscriptions);
 				args = subscriptions[args.key];
 				delete subscriptions[args.key];
 			}
@@ -423,6 +432,7 @@
 			args = args || {};
 			args.type = "fulfill";
 
+			console.log("args in fufill", args);
 			//publish the provided argument through to the subscription that was created by the request function
 			this.publish(args);
 
