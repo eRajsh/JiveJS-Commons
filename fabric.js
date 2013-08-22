@@ -157,19 +157,17 @@
 		 *
 		 * @return {null} null;
 		**/
-		var triggerPublishI;
 		var triggerPublishSeed = {};
 		function triggerPublish(args) {
 			if(!args.sync) {
-				for(triggerPublishI = 0; triggerPublishI < args.subs.length; triggerPublishI++) {
+				for(var i = 0; i < args.subs.length; i++) {
 					triggerPublishSeed.data = args.data;
 					triggerPublishSeed.matches = args.matches;
 					triggerPublishSeed.binding = args.loc;
 					triggerPublishSeed.raw = args.data;
-					triggerPublishSeed.cb = args.subs[triggerPublishI].callback;
-					triggerPublishSeed.index = triggerPublishI+1;
+					triggerPublishSeed.cb = args.subs[i].callback;
+					triggerPublishSeed.index = i+1;
 					triggerPublishSeed.key = args.key;
-
 					cb(triggerPublishSeed);
 				}
 			} else {
@@ -621,9 +619,9 @@
 					delete processing[message.key];
 				}, peekTimeout);
 				processing[message.key] = {message:message, timeout:timeout};
-				setTimeout(function(){args.callback.call(null, {data:message})},0);
+				args.callback.call(null, {data:message});
 			} else {
-				setTimeout(function(){args.callback.call(null, {data:{}})},0);
+				args.callback.call(null, {data:{}});
 			}
 			return;
 		};
