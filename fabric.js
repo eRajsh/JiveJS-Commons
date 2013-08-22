@@ -13,26 +13,11 @@
 
 (function() {
 
-	/**
-	 * Shimming some of the utils functions so that this library doesn't need to have any dependencies
-	 * _u_.__i__ is still an auto incrementing number with each "get" and the extend function
-	 * does some very simple copying of object properties and methods from on object to another
-	**/
 	var _u_ = _u_ || {};
-	_u_.AutoInc = 0;
-	_u_.extend =  function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
-	_u_.isString = function(item) {return (item && {}.toString.call(item) === '[object String]');};
+	_u_.extend =  _u_.extend || function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
+	_u_.isString = _u_.isString || function(item) {return (item && {}.toString.call(item) === '[object String]');};
 	// Linked Hash Map, in memory implementation
 	var LinkedHashMap=function(){this._size=0;this._map={};this._Entry=function(key,value){this.prev=null;this.next=null;this.key=key;this.value=value};this._head=this._tail=null};var _Iterator=function(start,property){this.entry=start===null?null:start;this.property=property};_Iterator.prototype={hasNext:function(){return this.entry!==null},next:function(){if(this.entry===null){return null}var value=this.entry[this.property];this.entry=this.entry.next;return value}};LinkedHashMap.prototype={put:function(key,value){var entry;if(!this.containsKey(key)){entry=new this._Entry(key,value);if(this._size===0){this._head=entry;this._tail=entry}else{this._tail.next=entry;entry.prev=this._tail;this._tail=entry}this._size++}else{entry=this._map[key];entry.value=value}this._map[key]=entry},remove:function(key){var entry;if(this.containsKey(key)){this._size--;entry=this._map[key];delete this._map[key];if(entry===this._head){this._head=entry.next;this._head.prev=null}else if(entry===this._tail){this._tail=entry.prev;this._tail.next=null}else{entry.prev.next=entry.next;entry.next.prev=entry.prev}}else{entry=null}return entry===null?null:entry.value},containsKey:function(key){return this._map.hasOwnProperty(key)},containsValue:function(value){for(var key in this._map){if(this._map.hasOwnProperty(key)){if(this._map[key].value===value){return true}}}return false},get:function(key){return this.containsKey(key)?this._map[key].value:null},clear:function(){this._size=0;this._map={};this._head=this._tail=null},keys:function(from){var keys=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){keys.push(cur.key)}return keys},values:function(from){var values=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){values.push(cur.value)}return values},iterator:function(from,type){var property="value";if(type&&(type==="key"||type==="keys")){property="key"}var entry=this.containsKey(from)?this._map[from]:null;return new _Iterator(entry,property)},size:function(){return this._size}};
-	Object.defineProperty(_u_, "__i__", {
-		enumerable:false,
-		configurable:false,
-		set: undefined,
-		get: function() {
-			return _u_.AutoInc++;
-		}
-	});
-
 	/**
 	 * Represents a Fabric Object
 	 * @constructor
@@ -46,7 +31,26 @@
 	 * @returns {Fabric} the fabric instance object
 	**/
 	var Fabric = function(args) {
-		args            = args || {};
+		args = args || {};
+
+		/**
+		 * Shimming some of the utils functions so that this library doesn't need to have any dependencies
+		 * this.__i__ is still an auto incrementing number with each "get" and the extend function
+		 * does some very simple copying of object properties and methods from on object to another
+		 *
+		 * I do this on the fabric instead of globally so each new fabric restarts.
+		 **/
+		var AutoInc = 0;
+
+		Object.defineProperty(this, "__i__", {
+			enumerable:false,
+			configurable:false,
+			set: undefined,
+			get: function() {
+				return AutoInc++;
+			}
+		});
+
 
 		//peekTimeout defaults to 5000 ms or 5 s until a peeked queue message is released back to the queue
 		var peekTimeout = args.peekTimeout || 5000;
@@ -204,7 +208,7 @@
 		**/
 		this.subscribe   = function(args) {
 			args = args || {};
-			args.key = "subscription_"+_u_.__i__;
+			args.key = "subscription_"+this.__i__;
 
 			//setup the bindings property if it doesn't exist already;
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
@@ -370,7 +374,7 @@
 		this.publish     = function(args) {
 			args = args || {data:{}};
 			args.data = args.data || {};
-			args.key = "message_"+_u_.__i__;
+			args.key = "message_"+this.__i__;
 			args.type = args.type  || "publish";
 
 			if (replay) {
@@ -399,7 +403,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+_u_.__i__;
+			args.data.key = "message_"+this.__i__;
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "request";
 
@@ -462,7 +466,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+_u_.__i__;
+			args.data.key = "message_"+this.__i__;
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "command";
 
@@ -512,7 +516,7 @@
 		**/
 		this.enqueue     = function(args) {
 			args = args || {};
-			args.key = "queued"+_u_.__i__;
+			args.key = "queued"+this.__i__;
 
 			//setup the bindings property if it doesn't exist already;
 			queue[args.urn] = queue[args.urn] || {items:[]};
@@ -726,7 +730,7 @@
 		};
 
 		//set a unique id for this fabric
-		this.id = "Fabric_"+_u_.__i__;
+		this.id = "Fabric_"+this.__i__;
 
 		//this object exposes no consumable or writable public properties or methods
 		//and as such we can freez the whole damn thing in order to prevent people from
