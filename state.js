@@ -28,11 +28,9 @@
 	**/
 	function callback(scope, data, cbs) {
 		cbs = cbs || [];
-		return function() {
-			for(var i=0; i<cbs.length; i++) {
-				cbs[i].call(scope, data);
-			}
-		};
+		for(var i=0; i<cbs.length; i++) {
+			cbs[i].call(scope, data);
+		}
 	}
 
 	/**
@@ -83,12 +81,7 @@
 		this.addStates(options.states);
 
 		this.trigger = function(data, cbs) {
-			var func = callback(that, data, cbs);
-			if(options.sync){
-				func();
-			} else {
-				setTimeout(func, 0);
-			}
+			callback(that, data, cbs);
 		}
 
 		Object.defineProperties(this, {

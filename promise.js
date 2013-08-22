@@ -28,11 +28,9 @@
 	 * @return {Function} Function to invoke the set of callbacks provided
 	**/
 	function callback(scope, data, cbs) {
-		return function() {
-	  		for(var i=0; i<cbs.length; i++) {
-				cbs[i].call(scope, data);
-			}
-		};
+		for(var i=0; i<cbs.length; i++) {
+			cbs[i].call(scope, data);
+		}
 	}
 
 	/**
@@ -141,11 +139,11 @@
 		notify: function(data) {
 			if(this.state() == 0) {
 				this.internalData = data;
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
-					this.callbacks.progress)
-				,0);
+					this.callbacks.progress
+				);
 			}
 			return null;
 		},
@@ -163,11 +161,11 @@
 			if(this.state() == 0) {
 				this.internalWith = scope;
 				this.internalData = data;
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
-					this.callbacks.progress)
-				,0);
+					this.callbacks.progress
+				);
 			}
 			return null;
 		},
@@ -183,11 +181,11 @@
 			if(this.state() == 0) {
 				this.internalData = data;
 				this.setState(2);
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.fail.concat(this.callbacks.always)
-				),0);
+				);
 			}
 			return null;
 		},
@@ -206,11 +204,11 @@
 				this.internalWith = scope;
 				this.internalData = data;
 				this.setState(2);
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.fail.concat(this.callbacks.always)
-				),0)
+				);
 			}
 			return null;
 		},
@@ -226,11 +224,11 @@
 			if(this.state() == 0) {
 				this.internalData = data;
 				this.setState(1);
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.done.concat(this.callbacks.always)
-				),0)
+				);
 			}
 			return null;
 		},
@@ -249,11 +247,11 @@
 				this.internalWith = scope;
 				this.internalData = data;
 				this.setState(1);
-				setTimeout(callback(
+				callback(
 					this.internalWith, 
 					this.internalData, 
 					this.callbacks.done.concat(this.callbacks.always)
-				),0)
+				);
 			}
 			return null;
 		},
@@ -272,11 +270,11 @@
 			cbs = sanitizeCbs(cbs);
 			if(cbs.length > 0) {
 				if(this.state() !== 0) {
-					setTimeout(callback(
+					callback(
 						this.internalWith, 
 						this.internalData, 
-						cbs)
-					,0);
+						cbs
+					);
 				} else {
 					this.callbacks.always = this.callbacks.always.concat(cbs)
 				}
@@ -298,11 +296,11 @@
 			cbs = sanitizeCbs(cbs);
 			if(cbs.length > 0) {
 				if(this.state() === 1) {
-					setTimeout(callback(
+					callback(
 						this.internalWith, 
 						this.internalData, 
-						cbs)
-					,0);
+						cbs
+					);
 				} else {
 					this.callbacks.done = this.callbacks.done.concat(cbs)
 				}
@@ -324,11 +322,11 @@
 			cbs = sanitizeCbs(cbs);
 			if(cbs.length > 0) {
 				if(this.state() === 2) {
-					setTimeout(callback(
+					callback(
 						this.internalWith, 
 						this.internalData, 
-						cbs)
-					,0);
+						cbs
+					);
 				} else {
 					this.callbacks.fail = this.callbacks.fail.concat(cbs)
 				}
