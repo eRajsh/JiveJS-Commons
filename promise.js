@@ -415,7 +415,7 @@
 			for(var i = 0; i<promises.length; i++) {
 				var tempI = i;
 				//if it is a promise object
-				if(promises[i].toString() === "[object Promise]") {
+				if(promises[i].toString() === "[object Promise]" || promises[i].toString() === "[object Deferred]") {
 					//when the promise is done store the data into the whenData array
 					//and resolve the new whenDeferred if all the promises are resolved
 					var doneFunc = (function(tempI) {
