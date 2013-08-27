@@ -334,9 +334,10 @@
 					}, args);
 				}
 			} else {
-				setImmediate(function(args) {
+				//TODO WTF Nick? WTF. This breaks stuff, but it should be done.
+				//setImmediate(function(args) {
 					args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
-				}, args);
+				//}, args);
 			}
 			return null;
 		}
