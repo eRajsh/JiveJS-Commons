@@ -35,7 +35,7 @@
 		for(var i=0; i<cbs.length; i++) {
 			setImmediate(function(i) {
 				cbs[i].call(scope, data);
-			}, [i]);
+			}, i);
 		}
 	}
 

@@ -143,12 +143,12 @@
 				if(args.next){
 					setImmediate(function(args) {
 						cb(args);
-					}, [args]);
+					}, args);
 				}
 			} else {
 				setImmediate(function(args) {
 					args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
-				}, [args]);
+				}, args);
 			}
 			return null;
 		}
