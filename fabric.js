@@ -189,7 +189,7 @@
 
 		attachTo.clearImmediate = tasks.remove;
 	}
-}(typeof global === "object" && global ? global : this));
+}(typeof self === "object" && self ? self : this));
 
 /**
  * Fabric.js returns a Fabric constructor which exposes standard pub/sub as well as request/fulfill, command/notify
@@ -334,10 +334,9 @@
 					}, args);
 				}
 			} else {
-				//TODO WTF Nick? WTF. This breaks stuff, but it should be done.
-				//setImmediate(function(args) {
+				setImmediate(function(args) {
 					args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
-				//}, args);
+				}, {cb: args.cb, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
 			return null;
 		}
