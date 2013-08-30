@@ -80,18 +80,7 @@
 			beforeStart.call(this, this);
 		}
 
-		if(!debugMode) {
-			Object.defineProperties(this, {
-				"internalState": {enumerable:false, writable:true, configurable:false},
-				"internalWith": {enumerable:false, writable:true, configurable:false},
-				"internalData": {enumerable:false, writable:true, configurable:false},
-				"callbacks": {enumerable:false, writable:false, configurable:false}
-			});
-			//Freeze the this so that the functions cannot be changed/overridden nor modified
-			Object.seal(this);
-			//Freeze the prototype so that the functions cannot be changed/overridden nor modified
-			Object.freeze(Dfd.prototype);
-		}
+		if(!debugMode) {}
 		return this;
 	};
 

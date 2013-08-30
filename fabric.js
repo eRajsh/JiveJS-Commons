@@ -264,14 +264,9 @@
 		 **/
 		var AutoInc = 0;
 
-		Object.defineProperty(this, "__i__", {
-			enumerable:false,
-			configurable:false,
-			set: undefined,
-			get: function() {
-				return AutoInc++;
-			}
-		});
+		this.__i__ = function() {
+			return AutoInc++;
+		}
 
 
 		//peekTimeout defaults to 5000 ms or 5 s until a peeked queue message is released back to the queue
@@ -941,11 +936,7 @@
 		//Although take a note that doing this is awesome but makes it a bloody pain in the arse to write unit tests.
 		//hence this silly debugMode piece of work...
 		if(!args.debugMode) {
-			Object.freeze(this);
-			Object.defineProperties(Fabric.prototype, {
-			  "name"     : {writable:false},
-			  "toString" : {writable:false}
-			});
+			
 		} else {
 			this.debug = function() {
 				return { bindings: bindings,

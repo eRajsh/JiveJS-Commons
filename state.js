@@ -91,17 +91,17 @@
 			callback(that, data, cbs);
 		}
 
-		Object.defineProperties(this, {
-		  "internalState" : {enumerable:false, writable:true, configurable:false},
-		  "states"        : {enumerable:false, writable:false, configurable:false},
-		  "callbacks"     : {enumerable:false, writable:false, configurable:false}
-		});
-
-    //Freeze the this so that the functions cannot be changed/overridden nor modified
-		Object.seal(this);
- 		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
-		Object.freeze(State.prototype);
-		
+		if(Object.defineProperties) {
+			Object.defineProperties(this, {
+				"internalState" : {enumerable:false, writable:true, configurable:false},
+				"states"        : {enumerable:false, writable:false, configurable:false},
+				"callbacks"     : {enumerable:false, writable:false, configurable:false}
+			});
+			//Freeze the this so that the functions cannot be changed/overridden nor modified
+			Object.seal(this);
+			//Freeze the prototype so that the functions cannot be changed/overridden nor modified
+			Object.freeze(State.prototype);
+		}
 		return this;
 	};
 
@@ -168,13 +168,14 @@
 		},
 
 		addStates: function(states) {
+			var that = this;
 			if(!(states && {}.toString.call(states) === '[object Array]')) {
 				states = [states];
 			}
-			states.forEach(function(state) {
-				this.states.push(state);
-				this.callbacks[state] = this.callbacks[state] || {enter: [], leave: [], on: []};
-			}, this);
+			for(var i = 0; i < states.length; i++) {
+				that.states.push(states[i]);
+				that.callbacks[states[i]] = that.callbacks[states[i]] || {enter: [], leave: [], on: []};
+			}
 		},
 
 		removeStates: function(states) {
