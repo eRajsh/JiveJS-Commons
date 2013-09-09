@@ -176,16 +176,20 @@
 						  Object.getPrototypeOf(global)
 						: global;
 
-		if (canUseNextTick()) {
-			installNextTickImplementation(attachTo);
-		} else if (canUsePostMessage()) {
-			installPostMessageImplementation(attachTo);
-		} else if (canUseMessageChannel()) {
-			installMessageChannelImplementation(attachTo);
-		} else if (canUseReadyStateChange()) {
-			installReadyStateChangeImplementation(attachTo);
-		} else {
+		if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 			installSetTimeoutImplementation(attachTo);
+		} else {
+			if (canUseNextTick()) {
+				installNextTickImplementation(attachTo);
+			} else if (canUsePostMessage()) {
+				installPostMessageImplementation(attachTo);
+			} else if (canUseMessageChannel()) {
+				installMessageChannelImplementation(attachTo);
+			} else if (canUseReadyStateChange()) {
+				installReadyStateChangeImplementation(attachTo);
+			} else {
+				installSetTimeoutImplementation(attachTo);
+			}
 		}
 
 		attachTo.clearImmediate = tasks.remove;
@@ -358,6 +362,7 @@
 		function triggerPublish(args) {
 			if(!args.sync) {
 				for(var i = 0; i < args.subs.length; i++) {
+					delete triggerPublishSeed.next;
 					triggerPublishSeed.data = args.data;
 					triggerPublishSeed.matches = args.matches;
 					triggerPublishSeed.binding = args.loc;
