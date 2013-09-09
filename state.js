@@ -89,19 +89,24 @@
 
 		this.trigger = function(data, cbs) {
 			callback(that, data, cbs);
+		};
+
+		if(Object.defineProperties) {
+			Object.defineProperties(this, {
+			  "internalState" : {enumerable:false, writable:true, configurable:false},
+			  "states"        : {enumerable:false, writable:false, configurable:false},
+			  "callbacks"     : {enumerable:false, writable:false, configurable:false}
+			});
 		}
-
-		Object.defineProperties(this, {
-		  "internalState" : {enumerable:false, writable:true, configurable:false},
-		  "states"        : {enumerable:false, writable:false, configurable:false},
-		  "callbacks"     : {enumerable:false, writable:false, configurable:false}
-		});
-
-    //Freeze the this so that the functions cannot be changed/overridden nor modified
-		Object.seal(this);
- 		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
-		Object.freeze(State.prototype);
 		
+    if(Object.seal) {
+	    //Freeze the this so that the functions cannot be changed/overridden nor modified
+			Object.seal(this);
+		}
+ 		if(Object.freeze) {
+	 		//Freeze the prototype so that the functions cannot be changed/overridden nor modified
+			Object.freeze(State.prototype);
+		}
 		return this;
 	};
 

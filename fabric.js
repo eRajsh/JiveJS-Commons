@@ -39,6 +39,7 @@
 						currentlyRunningATask = true;
 						try {
 							task.run();
+						} catch(e) {
 						} finally {
 							delete tasksByHandle[handle];
 							currentlyRunningATask = false;
@@ -262,16 +263,11 @@
 		 *
 		 * I do this on the fabric instead of globally so each new fabric restarts.
 		 **/
-		var AutoInc = 0;
 
-		Object.defineProperty(this, "__i__", {
-			enumerable:false,
-			configurable:false,
-			set: undefined,
-			get: function() {
-				return AutoInc++;
-			}
-		});
+		var AutoInc = 0;
+		this.__i__ = function() {
+			return AutoInc++;
+		}
 
 
 		//peekTimeout defaults to 5000 ms or 5 s until a peeked queue message is released back to the queue
@@ -405,7 +401,7 @@
 		**/
 		this.subscribe   = function(args) {
 			args = args || {};
-			args.key = "subscription_"+this.__i__;
+			args.key = "subscription_"+this.__i__();
 
 			//setup the bindings property if it doesn't exist already;
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
@@ -570,7 +566,7 @@
 		this.publish     = function(args) {
 			args = args || {data:{}};
 			args.data = args.data || {};
-			args.key = "message_"+this.__i__;
+			args.key = "message_"+this.__i__();
 			args.type = args.type  || "publish";
 
 			if (replay) {
@@ -599,7 +595,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__;
+			args.data.key = "message_"+this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "request";
 
@@ -665,7 +661,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__;
+			args.data.key = "message_"+this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "command";
 
@@ -718,7 +714,7 @@
 		**/
 		this.enqueue     = function(args) {
 			args = args || {};
-			args.key = "queued"+this.__i__;
+			args.key = "queued"+this.__i__();
 
 			//setup the bindings property if it doesn't exist already;
 			queue[args.urn] = queue[args.urn] || {items:[]};
@@ -932,7 +928,7 @@
 		};
 
 		//set a unique id for this fabric
-		this.id = "Fabric_"+this.__i__;
+		this.id = "Fabric_"+this.__i__();
 
 		//this object exposes no consumable or writable public properties or methods
 		//and as such we can freez the whole damn thing in order to prevent people from
@@ -941,11 +937,16 @@
 		//Although take a note that doing this is awesome but makes it a bloody pain in the arse to write unit tests.
 		//hence this silly debugMode piece of work...
 		if(!args.debugMode) {
-			Object.freeze(this);
-			Object.defineProperties(Fabric.prototype, {
-			  "name"     : {writable:false},
-			  "toString" : {writable:false}
-			});
+			if(Object.freeze) {
+				Object.freeze(this);
+			}
+			if(Object.defineProperties) {
+				Object.defineProperties(Fabric.prototype, {
+				  "name"     : {writable:false},
+				  "toString" : {writable:false}
+				});
+			}
+			
 		} else {
 			this.debug = function() {
 				return { bindings: bindings,

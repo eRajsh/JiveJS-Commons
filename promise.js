@@ -15,7 +15,7 @@
 (function() {
 
 	//setImmediate Poly
-	(function(global,undefined){"use strict";function canUseNextTick(){return typeof process==="object"&&Object.prototype.toString.call(process)==="[object process]"}function canUseMessageChannel(){return!!global.MessageChannel}function canUsePostMessage(){if(!global.postMessage||global.importScripts){return false}var e=true;var t=global.onmessage;global.onmessage=function(){e=false};global.postMessage("","*");global.onmessage=t;return e}function canUseReadyStateChange(){return"document"in global&&"onreadystatechange"in global.document.createElement("script")}function installNextTickImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);process.nextTick(function(){tasks.runIfPresent(e)});return e}}function installMessageChannelImplementation(e){var t=new global.MessageChannel;t.port1.onmessage=function(e){var t=e.data;tasks.runIfPresent(t)};e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);t.port2.postMessage(e);return e}}function installPostMessageImplementation(e){function n(e,t){return typeof e==="string"&&e.substring(0,t.length)===t}function r(e){if(e.source===global&&n(e.data,t)){var r=e.data.substring(t.length);tasks.runIfPresent(r)}}var t="com.setImmediate"+Math.random();if(global.addEventListener){global.addEventListener("message",r,false)}else{global.attachEvent("onmessage",r)}e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);global.postMessage(t+e,"*");return e}}function installReadyStateChangeImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);var t=global.document.createElement("script");t.onreadystatechange=function(){tasks.runIfPresent(e);t.onreadystatechange=null;t.parentNode.removeChild(t);t=null};global.document.documentElement.appendChild(t);return e}}function installSetTimeoutImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);global.setTimeout(function(){tasks.runIfPresent(e)},0);return e}}var tasks=function(){function Task(e,t){this.handler=e;this.args=t}Task.prototype.run=function(){if(typeof this.handler==="function"){this.handler.apply(undefined,this.args)}else{var scriptSource=""+this.handler;eval(scriptSource)}};var nextHandle=1;var tasksByHandle={};var currentlyRunningATask=false;return{addFromSetImmediateArguments:function(e){var t=e[0];var n=Array.prototype.slice.call(e,1);var r=new Task(t,n);var i=nextHandle++;tasksByHandle[i]=r;return i},runIfPresent:function(e){if(!currentlyRunningATask){var t=tasksByHandle[e];if(t){currentlyRunningATask=true;try{t.run()}finally{delete tasksByHandle[e];currentlyRunningATask=false}}}else{global.setTimeout(function(){tasks.runIfPresent(e)},0)}},remove:function(e){delete tasksByHandle[e]}}}();if(!global.setImmediate){var attachTo=typeof Object.getPrototypeOf==="function"&&"setTimeout"in Object.getPrototypeOf(global)?Object.getPrototypeOf(global):global;if(canUseNextTick()){installNextTickImplementation(attachTo)}else if(canUsePostMessage()){installPostMessageImplementation(attachTo)}else if(canUseMessageChannel()){installMessageChannelImplementation(attachTo)}else if(canUseReadyStateChange()){installReadyStateChangeImplementation(attachTo)}else{installSetTimeoutImplementation(attachTo)}attachTo.clearImmediate=tasks.remove}})(typeof self==="object"&&self?self:this);
+	(function(global,undefined){"use strict";function canUseNextTick(){return typeof process==="object"&&Object.prototype.toString.call(process)==="[object process]"}function canUseMessageChannel(){return!!global.MessageChannel}function canUsePostMessage(){if(!global.postMessage||global.importScripts){return false}var e=true;var t=global.onmessage;global.onmessage=function(){e=false};global.postMessage("","*");global.onmessage=t;return e}function canUseReadyStateChange(){return"document"in global&&"onreadystatechange"in global.document.createElement("script")}function installNextTickImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);process.nextTick(function(){tasks.runIfPresent(e)});return e}}function installMessageChannelImplementation(e){var t=new global.MessageChannel;t.port1.onmessage=function(e){var t=e.data;tasks.runIfPresent(t)};e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);t.port2.postMessage(e);return e}}function installPostMessageImplementation(e){function n(e,t){return typeof e==="string"&&e.substring(0,t.length)===t}function r(e){if(e.source===global&&n(e.data,t)){var r=e.data.substring(t.length);tasks.runIfPresent(r)}}var t="com.setImmediate"+Math.random();if(global.addEventListener){global.addEventListener("message",r,false)}else{global.attachEvent("onmessage",r)}e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);global.postMessage(t+e,"*");return e}}function installReadyStateChangeImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);var t=global.document.createElement("script");t.onreadystatechange=function(){tasks.runIfPresent(e);t.onreadystatechange=null;t.parentNode.removeChild(t);t=null};global.document.documentElement.appendChild(t);return e}}function installSetTimeoutImplementation(e){e.setImmediate=function(){var e=tasks.addFromSetImmediateArguments(arguments);global.setTimeout(function(){tasks.runIfPresent(e)},0);return e}}var tasks=function(){function Task(e,t){this.handler=e;this.args=t}Task.prototype.run=function(){if(typeof this.handler==="function"){this.handler.apply(undefined,this.args)}else{var scriptSource=""+this.handler;eval(scriptSource)}};var nextHandle=1;var tasksByHandle={};var currentlyRunningATask=false;return{addFromSetImmediateArguments:function(e){var t=e[0];var n=Array.prototype.slice.call(e,1);var r=new Task(t,n);var i=nextHandle++;tasksByHandle[i]=r;return i},runIfPresent:function(e){if(!currentlyRunningATask){var t=tasksByHandle[e];if(t){currentlyRunningATask=true;try{t.run()}catch(e){}finally{delete tasksByHandle[e];currentlyRunningATask=false}}}else{global.setTimeout(function(){tasks.runIfPresent(e)},0)}},remove:function(e){delete tasksByHandle[e]}}}();if(!global.setImmediate){var attachTo=typeof Object.getPrototypeOf==="function"&&"setTimeout"in Object.getPrototypeOf(global)?Object.getPrototypeOf(global):global;if(canUseNextTick()){installNextTickImplementation(attachTo)}else if(canUsePostMessage()){installPostMessageImplementation(attachTo)}else if(canUseMessageChannel()){installMessageChannelImplementation(attachTo)}else if(canUseReadyStateChange()){installReadyStateChangeImplementation(attachTo)}else{installSetTimeoutImplementation(attachTo)}attachTo.clearImmediate=tasks.remove}})(typeof self==="object"&&self?self:this);
 
 	//temp helper function since this promise lib should be stand alone and not dependant on any
 	//unerscore or utility library
@@ -49,8 +49,8 @@
 	**/
 	function sanitizeCbs(cbs) {
 		if(cbs && {}.toString.call(cbs) !== '[object Array]') {
-    	cbs = [cbs]
-    	}
+			cbs = [cbs]
+			}
 		return cbs;
 	}
 	
@@ -74,6 +74,7 @@
 			always  : [],
 			progress: []
 		};
+		this._pro = null;
 		
 		//if beforeStart is passed then call it with this being the deferred
 		if(beforeStart && {}.toString.call(beforeStart) === '[object Function]') {
@@ -81,17 +82,26 @@
 		}
 
 		if(!debugMode) {
-			Object.defineProperties(this, {
-				"internalState": {enumerable:false, writable:true, configurable:false},
-				"internalWith": {enumerable:false, writable:true, configurable:false},
-				"internalData": {enumerable:false, writable:true, configurable:false},
-				"callbacks": {enumerable:false, writable:false, configurable:false}
-			});
-			//Freeze the this so that the functions cannot be changed/overridden nor modified
-			Object.seal(this);
-			//Freeze the prototype so that the functions cannot be changed/overridden nor modified
-			Object.freeze(Dfd.prototype);
+			if(Object.defineProperties) {
+				Object.defineProperties(this, {
+					"internalState": {enumerable:false, writable:true, configurable:false},
+					"internalWith": {enumerable:false, writable:true, configurable:false},
+					"internalData": {enumerable:false, writable:true, configurable:false},
+					"callbacks": {enumerable:false, writable:false, configurable:false}
+				});
+			}
+			
+			if(Object.seal) {
+				//Freeze the this so that the functions cannot be changed/overridden nor modified
+				Object.seal(this);
+			}
+			
+			if(Object.freeze) {
+				//Freeze the prototype so that the functions cannot be changed/overridden nor modified
+				Object.freeze(Dfd.prototype);
+			}
 		}
+
 		return this;
 	};
 
@@ -151,7 +161,7 @@
 					this.callbacks.progress
 				);
 			}
-			return null;
+			return this;
 		},
 		
 		/**
@@ -173,7 +183,7 @@
 					this.callbacks.progress
 				);
 			}
-			return null;
+			return this;
 		},
 		
 		/**
@@ -193,7 +203,7 @@
 					this.callbacks.fail.concat(this.callbacks.always)
 				);
 			}
-			return null;
+			return this;
 		},
 		
 		/**
@@ -216,7 +226,7 @@
 					this.callbacks.fail.concat(this.callbacks.always)
 				);
 			}
-			return null;
+			return this;
 		},
 		
 		/**
@@ -236,7 +246,7 @@
 					this.callbacks.done.concat(this.callbacks.always)
 				);
 			}
-			return null;
+			return this;
 		},
 		
 		/**
@@ -259,7 +269,7 @@
 					this.callbacks.done.concat(this.callbacks.always)
 				);
 			}
-			return null;
+			return this;
 		},
 
 		/**
@@ -282,10 +292,10 @@
 						cbs
 					);
 				} else {
-					this.callbacks.always = this.callbacks.always.concat(cbs)
+					this.callbacks.always = this.callbacks.always.concat(cbs);
 				}
 			}
-			return null;
+			return this.promise();
 		},
 		
 		/**
@@ -308,10 +318,10 @@
 						cbs
 					);
 				} else {
-					this.callbacks.done = this.callbacks.done.concat(cbs)
+					this.callbacks.done = this.callbacks.done.concat(cbs);
 				}
 			}
-			return null;
+			return this.promise();
 		},
 		
 		/**
@@ -334,10 +344,10 @@
 						cbs
 					);
 				} else {
-					this.callbacks.fail = this.callbacks.fail.concat(cbs)
+					this.callbacks.fail = this.callbacks.fail.concat(cbs);
 				}
 			}
-			return;
+			return this.promise();
 		},
 		
 		/**
@@ -352,9 +362,9 @@
 		progress: function(cbs) {
 			if(this.state() === 0) {
 				cbs = sanitizeCbs(cbs);
-				this.callbacks.progress = this.callbacks.progress.concat(cbs)
+				this.callbacks.progress = this.callbacks.progress.concat(cbs);
 			}
-			return;
+			return this.promise();
 		},
 
 		/**
@@ -383,6 +393,7 @@
 				newDfd.resolveWith(this, data);
 			};
 			this.done(dF);
+			
 			var fF = function(data) {
 				if (failFilter) {
 					var ret = failFilter.call(this, data);
@@ -390,6 +401,7 @@
 				newDfd.rejectWith(this, ret);
 			};
 			this.fail(fF);
+			
 			var pF = function(data) {
 				if (progressFilter) {
 					var ret = progressFilter.call(this, data);
@@ -496,8 +508,10 @@
 		 * @return {Promise} promise instance object
 		**/
 		promise: function(target) {
-			var pro = new this.Promise(this, target);
-			return pro;
+			if(!this._pro) {
+				this._pro = new this.Promise(this, target);
+			}
+			return this._pro;
 		},
 
 		/**
@@ -511,7 +525,7 @@
 		},
 
 		/**
-		 * setter for the internalState property
+		 * private setter for the internalState property
 		 * @function
 		 * @public on prototype
 		 * @param {int} newState - state int, 0 is pending, 1 is resolved, 2 is rejected
@@ -528,6 +542,8 @@
 	//set this to the utility namespace 
 	self._u_ = self._u_ || {};
 	self._u_.Dfd = Dfd;
+	self._u_.dfd = new _u_.Dfd();
+	self._u_.dfd.resolve("Only to be used for WHEN magic!!!!");
 
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;
