@@ -439,7 +439,6 @@
 						return function(data) {
 							whenData[i] = data;
 							resolvedCount++; handledCount++;
-							console.log(resolvedCount, handledCount);
 							if(resolvedCount === promises.length) {
 								newDfd.resolve(whenData);
 							}
