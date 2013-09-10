@@ -22,6 +22,7 @@
 	//temp helper function since this promise lib should be stand alone and not dependant on any
 	//unerscore or utility library
 	function extend(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; }
+	function isArray(item) {return (item && {}.toString.call(item) === '[object Array]');}
 
 	/**
 	 * callback receives a scope and data as well as a list of callbacks to execute
@@ -414,27 +415,36 @@
 		 * @public on prototype
 		 * @return {promise} promise instance object
 		**/
-		when: function(promises) {
+		when: function() {
+			var args = Array.prototype.slice.call(arguments);
+			var promises = [];
 			var newDfd = new Dfd();
 			var resolvedCount = 0;
 			var handledCount = 0;
 			var whenData = [];
+			for (var i = 0; i < args.length; i++) {
+				if (isArray(args[i])) {
+					promises = promises.concat(args[i]);
+				} else {
+					promises.push(args[i]);
+				}
+			}
 
 			for(var i = 0; i<promises.length; i++) {
-				var tempI = i;
 				//if it is a promise object
 				if(promises[i].toString() === "[object Promise]" || promises[i].toString() === "[object Deferred]") {
 					//when the promise is done store the data into the whenData array
 					//and resolve the new whenDeferred if all the promises are resolved
-					var doneFunc = (function(tempI) {
+					var doneFunc = (function(i) {
 						return function(data) {
-							whenData[tempI] = data;
+							whenData[i] = data;
 							resolvedCount++; handledCount++;
+							console.log(resolvedCount, handledCount);
 							if(resolvedCount === promises.length) {
 								newDfd.resolve(whenData);
 							}
 						}
-					})(tempI);
+					})(i);
 
 					promises[i].done(doneFunc);
 					//if one of the inner promises fails then we store that fail and the 
@@ -442,15 +452,15 @@
 					//such that the returned composite data is indicative of the status of all of the 
 					//wrapped promises
 					
-					var failFunc = (function(tempI) {
+					var failFunc = (function(i) {
 						return function(e) {
 							handledCount++;
-							whenData[tempI] = e;
+							whenData[i] = e;
 							if(handledCount === promises.length) {
 								newDfd.reject(whenData);
 							}
 						}
-					})(tempI);
+					})(i);
 				
 					promises[i].fail(failFunc);
 					//simply pass along progress events with no need to chain them etc.
