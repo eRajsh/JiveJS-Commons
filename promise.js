@@ -13,6 +13,35 @@
  * @returns {Dfd} Deferred constructor
 **/
 (function() {
+	var global;
+	if (typeof exports !== 'undefined') {
+		global = exports;
+	} else {
+		global = self;
+	}
+
+	// Function bind polyfill
+	if (!Function.prototype.bind) {
+		Function.prototype.bind = function(oThis) {
+			if (typeof this !== "function") {
+				// closest thing possible to the ECMAScript 5 internal IsCallable function
+				throw new TypeError("Function.prototype.bind - what is trying to be bound is not callable");
+			}
+
+			var aArgs = Array.prototype.slice.call(arguments, 1),
+				fToBind = this,
+				fNOP = function() {},
+				fBound = function() {
+					return fToBind.apply(this instanceof fNOP && oThis ? this : oThis,
+						aArgs.concat(Array.prototype.slice.call(arguments)));
+				};
+
+			fNOP.prototype = this.prototype;
+			fBound.prototype = new fNOP();
+
+			return fBound;
+		};
+	}
 
 	//setImmediate Poly
 	(function (global, undefined) {
@@ -190,7 +219,7 @@
 							  Object.getPrototypeOf(global)
 							: global;
 
-			if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
+			if ((typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 				installSetTimeoutImplementation(attachTo);
 			} else {
 				if (canUseNextTick()) {
@@ -208,7 +237,7 @@
 
 			attachTo.clearImmediate = tasks.remove;
 		}
-	}(typeof self === "object" && self ? self : this));
+	}(typeof global === "object" && global ? global : this));
 
 	//temp helper function since this promise lib should be stand alone and not dependant on any
 	//unerscore or utility library
@@ -733,10 +762,10 @@
 	});
 	
 	//set this to the utility namespace 
-	self._u_ = self._u_ || {};
-	self._u_.Dfd = Dfd;
-	self._u_.dfd = new _u_.Dfd();
-	self._u_.dfd.resolve("Only to be used for WHEN magic!!!!");
+	global._u_ = global._u_ || {};
+	global._u_.Dfd = Dfd;
+	global._u_.dfd = new _u_.Dfd();
+	global._u_.dfd.resolve("Only to be used for WHEN magic!!!!");
 
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;
