@@ -1,5 +1,5 @@
 {
-	"name": "jive-promise",
-	"version": "0.0.1",
-	"main": "./promise"
+	"name": "jive-commons",
+	"version": "0.1.0",
+	"main": "./index"
 }

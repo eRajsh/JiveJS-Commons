@@ -1,5 +1,9 @@
 "use strict";
 
+if (typeof exports !== 'undefined') {
+	var self = exports;
+}
+
 //setImmediate Poly
 (function (global, undefined) {
 	"use strict";
@@ -965,9 +969,5 @@
 		}
 	});
 
-	if (typeof exports !== 'undefined') {
-		exports.Fabric = Fabric;
-	} else {
-		self.Fabric = Fabric;
-	}
+	self.Fabric = Fabric;
 })();
