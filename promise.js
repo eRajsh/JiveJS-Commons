@@ -540,6 +540,7 @@
 	//set this to the utility namespace 
 	self._u_ = self._u_ || {};
 	self._u_.Dfd = Dfd;
+	self._u_.dfd = new Dfd();
 
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;
