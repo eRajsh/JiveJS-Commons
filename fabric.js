@@ -919,7 +919,7 @@
 				publishFunc = internalPublish;
 			}
 
-			var itr = store.iterator(from);
+			var itr = store.iterator(from + 1);
 			var numPublished = 0;
 			var publishedInfo;
 
