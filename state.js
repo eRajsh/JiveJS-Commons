@@ -12,8 +12,11 @@
  * @returns {State} State constructor
 **/
 (function() {
+	var global;
 	if (typeof exports !== 'undefined') {
-		var self = exports;
+		global = exports;
+	} else {
+		global = self;
 	}
 
 	//setImmediate Poly
@@ -192,7 +195,7 @@
 							  Object.getPrototypeOf(global)
 							: global;
 
-			if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
+			if ((typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 				installSetTimeoutImplementation(attachTo);
 			} else {
 				if (canUseNextTick()) {
@@ -210,7 +213,7 @@
 
 			attachTo.clearImmediate = tasks.remove;
 		}
-	}(typeof self === "object" && self ? self : this));
+	}(typeof global === "object" && global ? global : this));
 
 
 
@@ -432,8 +435,8 @@
 	});
 	
 	//set this to the utility namespace 
-	self._u_ = self._u_ || {};
-	self._u_.State = State;
+	global._u_ = global._u_ || {};
+	global._u_.State = State;
 
 	//and also return the Constructor so that it could be saved and used directly
 	return State;

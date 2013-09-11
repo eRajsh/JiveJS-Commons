@@ -1,7 +1,10 @@
 "use strict";
 
+var global;
 if (typeof exports !== 'undefined') {
-	var self = exports;
+	global = exports;
+} else {
+	global = self;
 }
 
 //setImmediate Poly
@@ -180,7 +183,7 @@ if (typeof exports !== 'undefined') {
 						  Object.getPrototypeOf(global)
 						: global;
 
-		if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
+		if ((typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 			installSetTimeoutImplementation(attachTo);
 		} else {
 			if (canUseNextTick()) {
@@ -198,7 +201,7 @@ if (typeof exports !== 'undefined') {
 
 		attachTo.clearImmediate = tasks.remove;
 	}
-}(typeof self === "object" && self ? self : this));
+}(typeof global === "object" && global ? global : this));
 
 /**
  * Fabric.js returns a Fabric constructor which exposes standard pub/sub as well as request/fulfill, command/notify
@@ -975,5 +978,5 @@ if (typeof exports !== 'undefined') {
 		}
 	});
 
-	self.Fabric = Fabric;
+	global.Fabric = Fabric;
 })();
