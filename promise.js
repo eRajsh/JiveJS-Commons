@@ -310,10 +310,11 @@
 					"internalState": {enumerable:false, writable:true, configurable:false},
 					"internalWith": {enumerable:false, writable:true, configurable:false},
 					"internalData": {enumerable:false, writable:true, configurable:false},
-					"callbacks": {enumerable:false, writable:false, configurable:false}
+					"callbacks": {enumerable:false, writable:false, configurable:false},
+					"_pro": {enumerable:false, writable:true, configurable:false}
 				});
 			}
-			
+
 			if(Object.seal) {
 				//Freeze the this so that the functions cannot be changed/overridden nor modified
 				Object.seal(this);
