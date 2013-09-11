@@ -708,7 +708,7 @@
 					resolvedCount++; handledCount++;
 				} 
 				//otherwise if it is falsy
-				//then use that valu to return in the callback
+				//then use that value to return in the callback
 				//and increment only the handledCount not the 
 				//resolved Count.  This means the when will eventually 
 				//reject.
