@@ -774,7 +774,7 @@
 	//set this to the utility namespace 
 	global._u_ = global._u_ || {};
 	global._u_.Dfd = Dfd;
-	global._u_.dfd = new _u_.Dfd();
+	global._u_.dfd = new global._u_.Dfd();
 	global._u_.dfd.resolve("Only to be used for WHEN magic!!!!");
 
 	//and also return the Constructor so that it could be saved and used directly
