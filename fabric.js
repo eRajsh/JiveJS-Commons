@@ -43,6 +43,7 @@ if (typeof exports !== 'undefined') {
 						currentlyRunningATask = true;
 						try {
 							task.run();
+						} catch(e) {
 						} finally {
 							delete tasksByHandle[handle];
 							currentlyRunningATask = false;
@@ -179,16 +180,20 @@ if (typeof exports !== 'undefined') {
 						  Object.getPrototypeOf(global)
 						: global;
 
-		if (canUseNextTick()) {
-			installNextTickImplementation(attachTo);
-		} else if (canUsePostMessage()) {
-			installPostMessageImplementation(attachTo);
-		} else if (canUseMessageChannel()) {
-			installMessageChannelImplementation(attachTo);
-		} else if (canUseReadyStateChange()) {
-			installReadyStateChangeImplementation(attachTo);
-		} else {
+		if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 			installSetTimeoutImplementation(attachTo);
+		} else {
+			if (canUseNextTick()) {
+				installNextTickImplementation(attachTo);
+			} else if (canUsePostMessage()) {
+				installPostMessageImplementation(attachTo);
+			} else if (canUseMessageChannel()) {
+				installMessageChannelImplementation(attachTo);
+			} else if (canUseReadyStateChange()) {
+				installReadyStateChangeImplementation(attachTo);
+			} else {
+				installSetTimeoutImplementation(attachTo);
+			}
 		}
 
 		attachTo.clearImmediate = tasks.remove;
@@ -266,16 +271,11 @@ if (typeof exports !== 'undefined') {
 		 *
 		 * I do this on the fabric instead of globally so each new fabric restarts.
 		 **/
-		var AutoInc = 0;
 
-		Object.defineProperty(this, "__i__", {
-			enumerable:false,
-			configurable:false,
-			set: undefined,
-			get: function() {
-				return AutoInc++;
-			}
-		});
+		var AutoInc = 0;
+		this.__i__ = function() {
+			return AutoInc++;
+		}
 
 
 		//peekTimeout defaults to 5000 ms or 5 s until a peeked queue message is released back to the queue
@@ -366,6 +366,7 @@ if (typeof exports !== 'undefined') {
 		function triggerPublish(args) {
 			if(!args.sync) {
 				for(var i = 0; i < args.subs.length; i++) {
+					delete triggerPublishSeed.next;
 					triggerPublishSeed.data = args.data;
 					triggerPublishSeed.matches = args.matches;
 					triggerPublishSeed.binding = args.loc;
@@ -409,7 +410,7 @@ if (typeof exports !== 'undefined') {
 		**/
 		this.subscribe   = function(args) {
 			args = args || {};
-			args.key = "subscription_"+this.__i__;
+			args.key = "subscription_"+this.__i__();
 
 			//setup the bindings property if it doesn't exist already;
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
@@ -574,7 +575,7 @@ if (typeof exports !== 'undefined') {
 		this.publish     = function(args) {
 			args = args || {data:{}};
 			args.data = args.data || {};
-			args.key = "message_"+this.__i__;
+			args.key = "message_"+this.__i__();
 			args.type = args.type  || "publish";
 
 			if (replay) {
@@ -603,7 +604,7 @@ if (typeof exports !== 'undefined') {
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__;
+			args.data.key = "message_"+this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "request";
 
@@ -669,7 +670,7 @@ if (typeof exports !== 'undefined') {
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__;
+			args.data.key = "message_"+this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "command";
 
@@ -722,7 +723,7 @@ if (typeof exports !== 'undefined') {
 		**/
 		this.enqueue     = function(args) {
 			args = args || {};
-			args.key = "queued"+this.__i__;
+			args.key = "queued"+this.__i__();
 
 			//setup the bindings property if it doesn't exist already;
 			queue[args.urn] = queue[args.urn] || {items:[]};
@@ -922,7 +923,7 @@ if (typeof exports !== 'undefined') {
 				publishFunc = internalPublish;
 			}
 
-			var itr = store.iterator(from);
+			var itr = store.iterator(from + 1);
 			var numPublished = 0;
 			var publishedInfo;
 
@@ -936,7 +937,7 @@ if (typeof exports !== 'undefined') {
 		};
 
 		//set a unique id for this fabric
-		this.id = "Fabric_"+this.__i__;
+		this.id = "Fabric_"+this.__i__();
 
 		//this object exposes no consumable or writable public properties or methods
 		//and as such we can freez the whole damn thing in order to prevent people from
@@ -945,11 +946,16 @@ if (typeof exports !== 'undefined') {
 		//Although take a note that doing this is awesome but makes it a bloody pain in the arse to write unit tests.
 		//hence this silly debugMode piece of work...
 		if(!args.debugMode) {
-			Object.freeze(this);
-			Object.defineProperties(Fabric.prototype, {
-			  "name"     : {writable:false},
-			  "toString" : {writable:false}
-			});
+			if(Object.freeze) {
+				Object.freeze(this);
+			}
+			if(Object.defineProperties) {
+				Object.defineProperties(Fabric.prototype, {
+				  "name"     : {writable:false},
+				  "toString" : {writable:false}
+				});
+			}
+			
 		} else {
 			this.debug = function() {
 				return { bindings: bindings,
