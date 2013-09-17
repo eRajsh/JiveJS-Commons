@@ -80,13 +80,9 @@
 						var task = tasksByHandle[handle];
 						if (task) {
 							currentlyRunningATask = true;
-							try {
-								task.run();
-							} catch(e) {
-							} finally {
-								delete tasksByHandle[handle];
-								currentlyRunningATask = false;
-							}
+							task.run();
+							delete tasksByHandle[handle];
+							currentlyRunningATask = false;
 						}
 					} else {
 						global.setTimeout(function () {
