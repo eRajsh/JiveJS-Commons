@@ -766,6 +766,8 @@
 			return this.internalState;
 		}
 	});
+
+	Dfd.when = Dfd.prototype.when;
 	
 	//set this to the utility namespace 
 	global._u_ = global._u_ || {};
