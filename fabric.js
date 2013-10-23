@@ -233,9 +233,9 @@ if (typeof exports !== 'undefined') {
 		var reg = [];
 		for(var i = 0; i < parts.length; i++) {
 			if(parts[i] == "*") {
-				reg.push("([\\w\\d.\\-]*?)")
-			} else if(parts[i] == "#") {
-				reg.push("([\\w\\d.\\-\\:]*)")
+				reg.push("([^:]*?)")
+			} else if (parts[i] == "#") {
+				reg.push("([\\s\\S]*)")
 			} else {
 				reg.push("("+parts[i]+")")
 			}
