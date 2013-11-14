@@ -1,5 +1,5 @@
 {
 	"name": "jivejs",
-	"version": "0.1.1",
-	"main": "./index"
+	"version": "1.0.0",
+	"main": "./jive"
 }

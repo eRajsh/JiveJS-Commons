@@ -1,204 +1,5 @@
 "use strict";
 
-var global;
-if (typeof exports !== 'undefined') {
-	global = exports;
-} else {
-	global = self;
-}
-
-//setImmediate Poly
-(function (global, undefined) {
-	"use strict";
-
-	var tasks = (function () {
-		function Task(handler, args) {
-			this.handler = handler;
-			this.args = args;
-		}
-		Task.prototype.run = function () {
-			if (typeof this.handler === "function") {
-				this.handler.apply(undefined, this.args);
-			} else {
-				var scriptSource = "" + this.handler;
-				eval(scriptSource);
-			}
-		};
-
-		var nextHandle = 1; 
-		var tasksByHandle = {};
-		var currentlyRunningATask = false;
-
-		return {
-			addFromSetImmediateArguments: function (args) {
-				var handler = args[0];
-				var argsToHandle = Array.prototype.slice.call(args, 1);
-				var task = new Task(handler, argsToHandle);
-
-				var thisHandle = nextHandle++;
-				tasksByHandle[thisHandle] = task;
-				return thisHandle;
-			},
-			runIfPresent: function (handle) {
-				if (!currentlyRunningATask) {
-					var task = tasksByHandle[handle];
-					if (task) {
-						currentlyRunningATask = true;
-						task.run();
-						delete tasksByHandle[handle];
-						currentlyRunningATask = false;
-					}
-				} else {
-					global.setTimeout(function () {
-						tasks.runIfPresent(handle);
-					}, 0);
-				}
-			},
-			remove: function (handle) {
-				delete tasksByHandle[handle];
-			}
-		};
-	}());
-
-	function canUseNextTick() {
-		return typeof process === "object" &&
-			   Object.prototype.toString.call(process) === "[object process]";
-	}
-
-	function canUseMessageChannel() {
-		return !!global.MessageChannel;
-	}
-
-	function canUsePostMessage() {
-		if (!global.postMessage || global.importScripts) {
-			return false;
-		}
-
-		var postMessageIsAsynchronous = true;
-		var oldOnMessage = global.onmessage;
-		global.onmessage = function () {
-			postMessageIsAsynchronous = false;
-		};
-		global.postMessage("", "*");
-		global.onmessage = oldOnMessage;
-
-		return postMessageIsAsynchronous;
-	}
-
-	function canUseReadyStateChange() {
-		return "document" in global && "onreadystatechange" in global.document.createElement("script");
-	}
-
-	function installNextTickImplementation(attachTo) {
-		attachTo.setImmediate = function () {
-			var handle = tasks.addFromSetImmediateArguments(arguments);
-
-			process.nextTick(function () {
-				tasks.runIfPresent(handle);
-			});
-
-			return handle;
-		};
-	}
-
-	function installMessageChannelImplementation(attachTo) {
-		var channel = new global.MessageChannel();
-		channel.port1.onmessage = function (event) {
-			var handle = event.data;
-			tasks.runIfPresent(handle);
-		};
-		attachTo.setImmediate = function () {
-			var handle = tasks.addFromSetImmediateArguments(arguments);
-
-			channel.port2.postMessage(handle);
-
-			return handle;
-		};
-	}
-
-	function installPostMessageImplementation(attachTo) {
-		var MESSAGE_PREFIX = "com.setImmediate" + Math.random();
-
-		function isStringAndStartsWith(string, putativeStart) {
-			return typeof string === "string" && string.substring(0, putativeStart.length) === putativeStart;
-		}
-
-		function onGlobalMessage(event) {
-			if (event.source === global && isStringAndStartsWith(event.data, MESSAGE_PREFIX)) {
-				var handle = event.data.substring(MESSAGE_PREFIX.length);
-				tasks.runIfPresent(handle);
-			}
-		}
-		if (global.addEventListener) {
-			global.addEventListener("message", onGlobalMessage, false);
-		} else {
-			global.attachEvent("onmessage", onGlobalMessage);
-		}
-
-		attachTo.setImmediate = function () {
-			var handle = tasks.addFromSetImmediateArguments(arguments);
-
-			global.postMessage(MESSAGE_PREFIX + handle, "*");
-
-			return handle;
-		};
-	}
-
-	function installReadyStateChangeImplementation(attachTo) {
-		attachTo.setImmediate = function () {
-			var handle = tasks.addFromSetImmediateArguments(arguments);
-
-			var scriptEl = global.document.createElement("script");
-			scriptEl.onreadystatechange = function () {
-				tasks.runIfPresent(handle);
-
-				scriptEl.onreadystatechange = null;
-				scriptEl.parentNode.removeChild(scriptEl);
-				scriptEl = null;
-			};
-			global.document.documentElement.appendChild(scriptEl);
-
-			return handle;
-		};
-	}
-
-	function installSetTimeoutImplementation(attachTo) {
-		attachTo.setImmediate = function () {
-			var handle = tasks.addFromSetImmediateArguments(arguments);
-
-			global.setTimeout(function () {
-				tasks.runIfPresent(handle);
-			}, 0);
-
-			return handle;
-		};
-	}
-
-	if (!global.setImmediate) {
-		var attachTo = typeof Object.getPrototypeOf === "function" && "setTimeout" in Object.getPrototypeOf(global) ?
-						  Object.getPrototypeOf(global)
-						: global;
-
-		if ((typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
-			installSetTimeoutImplementation(attachTo);
-		} else {
-			if (canUseNextTick()) {
-				installNextTickImplementation(attachTo);
-			} else if (canUsePostMessage()) {
-				installPostMessageImplementation(attachTo);
-			} else if (canUseMessageChannel()) {
-				installMessageChannelImplementation(attachTo);
-			} else if (canUseReadyStateChange()) {
-				installReadyStateChangeImplementation(attachTo);
-			} else {
-				installSetTimeoutImplementation(attachTo);
-			}
-		}
-
-		attachTo.clearImmediate = tasks.remove;
-	}
-}(typeof global === "object" && global ? global : this));
-
 /**
  * Fabric.js returns a Fabric constructor which exposes standard pub/sub as well as request/fulfill, command/notify
  * 				and enqueue, dequeue, peek, handle and release.  You would usually only have one of these per application
@@ -209,12 +10,15 @@ if (typeof exports !== 'undefined') {
  *        but that cost in very few instnaces is merited by the encapsulation gains
  * @returns {Fabric} Fabric constructor
 **/
+var global;
+if (typeof exports !== 'undefined') {
+	global = exports;
+} else {
+	global = self;
+}
 
 (function() {
-	var _u_ = _u_ || {};
-	_u_.extend =  _u_.extend || function(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; };
-	_u_.isString = _u_.isString || function(item) {return (item && {}.toString.call(item) === '[object String]');};
-
+	
 	/**
 	 * createRegex is a function to take a urn style string and convert it into a regular expression
 	 * for matching wild card subscriptions or peeks
@@ -244,10 +48,8 @@ if (typeof exports !== 'undefined') {
 		return regex;
 	}
 
-	_u_.createRegex = _u_.createRegex || createRegex;
+	_.createRegex = _.createRegex || createRegex;
 
-	// Linked Hash Map, in memory implementation
-	var LinkedHashMap=function(){this._size=0;this._map={};this._Entry=function(key,value){this.prev=null;this.next=null;this.key=key;this.value=value};this._head=this._tail=null};var _Iterator=function(start,property){this.entry=start===null?null:start;this.property=property};_Iterator.prototype={hasNext:function(){return this.entry!==null},next:function(){if(this.entry===null){return null}var value=this.entry[this.property];this.entry=this.entry.next;return value}};LinkedHashMap.prototype={put:function(key,value){var entry;if(!this.containsKey(key)){entry=new this._Entry(key,value);if(this._size===0){this._head=entry;this._tail=entry}else{this._tail.next=entry;entry.prev=this._tail;this._tail=entry}this._size++}else{entry=this._map[key];entry.value=value}this._map[key]=entry},remove:function(key){var entry;if(this.containsKey(key)){this._size--;entry=this._map[key];delete this._map[key];if(entry===this._head){this._head=entry.next;this._head.prev=null}else if(entry===this._tail){this._tail=entry.prev;this._tail.next=null}else{entry.prev.next=entry.next;entry.next.prev=entry.prev}}else{entry=null}return entry===null?null:entry.value},containsKey:function(key){return this._map.hasOwnProperty(key)},containsValue:function(value){for(var key in this._map){if(this._map.hasOwnProperty(key)){if(this._map[key].value===value){return true}}}return false},get:function(key){return this.containsKey(key)?this._map[key].value:null},clear:function(){this._size=0;this._map={};this._head=this._tail=null},keys:function(from){var keys=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){keys.push(cur.key)}return keys},values:function(from){var values=[],start=null;if(from){start=this.containsKey(from)?this._map[from]:null}else{start=this._head}for(var cur=start;cur!=null;cur=cur.next){values.push(cur.value)}return values},iterator:function(from,type){var property="value";if(type&&(type==="key"||type==="keys")){property="key"}var entry=this.containsKey(from)?this._map[from]:null;return new _Iterator(entry,property)},size:function(){return this._size}};
 	/**
 	 * Represents a Fabric Object
 	 * @constructor
@@ -294,7 +96,7 @@ if (typeof exports !== 'undefined') {
 			if (args.persistenceProvider) {
 				store = args.persistenceProvider;
 			} else {
-				store = new LinkedHashMap();
+				store = new _.LinkedHashMap();
 			}
 		}
 
@@ -415,7 +217,7 @@ if (typeof exports !== 'undefined') {
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
 
 			//stash the regex so we don't have to create it every time...
-			bindings[args.urn].regex = _u_.createRegex({urn : args.urn});
+			bindings[args.urn].regex = _.createRegex({urn : args.urn});
 
 			//and also stash the subscription itself under its binding urn "channel"
 			bindings[args.urn].subs.push(args);
@@ -446,7 +248,7 @@ if (typeof exports !== 'undefined') {
 		this.unsubscribe = function(args) {
 			args = args || {};
 
-			if (_u_.isString(args)) {
+			if (_.isString(args)) {
 				// just passed the subscription ID/key
 				args = subscriptions[args] || {};
 			}
@@ -728,7 +530,7 @@ if (typeof exports !== 'undefined') {
 			queue[args.urn] = queue[args.urn] || {items:[]};
 
 			//stash the regex so we don't have to create it every time...
-			queue[args.urn].regex = _u_.createRegex({urn : args.urn});
+			queue[args.urn].regex = _.createRegex({urn : args.urn});
 
 			//and also stash the subscription itself under its binding urn "channel"
 			queue[args.urn].items.push(args);
@@ -823,7 +625,7 @@ if (typeof exports !== 'undefined') {
 			//like call your callback, take it out of the queue and stick it into the processing temp holder
 			if(message) {
 				var timeout = setTimeout(function() {
-					queue[match] = queue[match] || {items:[], regex: _u_.createRegex({urn : match})};
+					queue[match] = queue[match] || {items:[], regex: _.createRegex({urn : match})};
 					queue[match].items.unshift(message);
 					delete processing[message.key];
 				}, peekTimeout);
@@ -903,7 +705,7 @@ if (typeof exports !== 'undefined') {
 				count = -1;
 				to = null;
 			} else if (arguments.length === 2) {
-				if (_u_.isArray(count)) {
+				if (_.isArray(count)) {
 					to = count;
 					count = -1;
 				} else {
@@ -950,8 +752,8 @@ if (typeof exports !== 'undefined') {
 			}
 			if(Object.defineProperties) {
 				Object.defineProperties(Fabric.prototype, {
-				  "name"     : {writable:false},
-				  "toString" : {writable:false}
+					"name"     : {writable:false},
+					"toString" : {writable:false}
 				});
 			}
 			
@@ -967,12 +769,12 @@ if (typeof exports !== 'undefined') {
 	};
 
 	//a few tiny methods can live on the prototype since they don't need access to the privates
-	_u_.extend(Fabric.prototype, {
+	_.extend(Fabric.prototype, {
 		name     : "Fabric",
 		toString : function() {
 			return "[object Fabric]";
 		}
 	});
-
-	global.Fabric = Fabric;
+	global._ = global._ || {};
+	global._.Fabric = Fabric;
 })();

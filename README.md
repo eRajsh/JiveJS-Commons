@@ -12,10 +12,10 @@ Tested in Chrome only and known to contain non compatible code for previous vers
 ### Example:
 
 ```
-//Stashes on the global _u_ on the property Dfd... 
+//Stashes on the global _ on the property Dfd... 
 //The closure also returns the Dfd constructor and could be munged to work in AMD/Common if we gave a...
 
-var dfd = new _u_.Dfd();
+var dfd = new _.Dfd();
 
 var pro = dfd.promise();
 
@@ -75,11 +75,11 @@ Idem to Promise on the browser compatability and the future timeline.  This baby
 ### Example
 
 ```
-//Stashes on the global _u_ on the property State... 
+//Stashes on the global _ on the property State... 
 //The closure also returns the State constructor and could be munged to work in AMD/Common if we gave a...
 
 //you construct it up with the states it contains
-var state = new _u_.State({
+var state = new _.State({
   initState: "start",
   states: ["start", "middle", "end", "dead"]
 })
@@ -124,7 +124,7 @@ Idem on the browser support... catching a pattern yet?  This beauty exposes a me
 ### Example
 
 ```
-//fabric is a global, we might move it to be on the _u_ namespace but for now its easy to new up
+//fabric is a global, we might move it to be on the _ namespace but for now its easy to new up
 var fabric = new Fabric();
 
 //basic usage is pretty easy:

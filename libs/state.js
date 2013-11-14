@@ -431,8 +431,8 @@
 	});
 	
 	//set this to the utility namespace 
-	global._u_ = global._u_ || {};
-	global._u_.State = State;
+	global._ = global._ || {};
+	global._.State = State;
 
 	//and also return the Constructor so that it could be saved and used directly
 	return State;
