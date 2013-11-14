@@ -1,10 +1,5 @@
 (function () {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+
 	/**
 	 * Linked hash map class that has a similar interface to a Java Map.
 	 * Values/Keys are maintained in insertion order using a doubly linked list.
@@ -198,6 +193,5 @@
 		}
 	};
 
-	global._ = global._ || {};
-	global._.LinkedHashMap = LinkedHashMap;
+	_.LinkedHashMap = LinkedHashMap;
 }());

@@ -1,11 +1,4 @@
-"use strict";
 
-var global;
-if (typeof exports !== 'undefined') {
-	global = exports;
-} else {
-	global = self;
-}
 
 //setImmediate Poly
 (function (global, undefined) {

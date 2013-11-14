@@ -1,4 +1,4 @@
-"use strict";
+
 
 /**
  * Promise.js returns a Deferred object which supports the jQuery deferred api but without
@@ -13,12 +13,7 @@
  * @returns {Dfd} Deferred constructor
 **/
 (function() {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+	"use strict";
 
 	/**
 	 * callback receives a scope and data as well as a list of callbacks to execute
@@ -550,10 +545,9 @@
 	Dfd.when = Dfd.prototype.when;
 	
 	//set this to the utility namespace 
-	global._ = global._ || {};
-	global._.Dfd = Dfd;
-	global._.dfd = new Dfd();
-	global._.dfd.resolve("Only to be used for WHEN magic!!!!");
+	_.Dfd = Dfd;
+	_.dfd = new Dfd();
+	_.dfd.resolve("Only to be used for WHEN magic!!!!");
 
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;

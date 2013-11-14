@@ -1,12 +1,7 @@
-"use strict";
+
 
 (function () {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+	"use strict";
 	
 	Map.prototype = Object.create(Object.prototype);
 	Map.prototype.get = function (key) {
@@ -97,7 +92,6 @@
 
 		return this;
 	};
-	global._ = global._ || {};
-	global._.Map = Map;
+	_.Map = Map;
 })();
 

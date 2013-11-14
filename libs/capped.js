@@ -1,12 +1,5 @@
-"use strict";
-
 (function () {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+	"use strict";
 
 	Capped.prototype = Object.create(Array.prototype);
 	Capped.prototype.toString = function () {
@@ -53,6 +46,6 @@
 		
 		return that;
 	}
-	global._ = global._ || {};
-	global._.Capped = Capped;
+	
+	_.Capped = Capped;
 })();

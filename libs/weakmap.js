@@ -1,12 +1,7 @@
-"use strict";
+
 
 (function () {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+	"use strict";
 
 	WeakMap.prototype = Object.create(Object.prototype);
 	WeakMap.prototype.get = function (key) {
@@ -92,7 +87,6 @@
 
 		return that;
 	};
-	global._ = global._ || {};
-	global._.WeakMap = WeakMap;
+	_.WeakMap = WeakMap;
 })();
 

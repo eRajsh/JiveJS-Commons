@@ -1,13 +1,7 @@
-"use strict";
+
 
 (function () {
-
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
+	"use strict";
 
 	Set.prototype = Object.create(Object.prototype);
 	
@@ -74,7 +68,6 @@
 		}
 		return this;
 	};
-	global._ = global._ || {};
-	global._.Set = Set;
+	_.Set = Set;
 })();
 

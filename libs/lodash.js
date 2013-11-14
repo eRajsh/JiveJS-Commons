@@ -7,8 +7,7 @@
  * Copyright 2009-2013 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  * Available under MIT license <http://lodash.com/license>
  */
-;(function() {
-
+var _ = (function() {
 	/** Used as a safe reference for `undefined` in pre ES5 environments */
 	var undefined;
 
@@ -6949,4 +6948,5 @@
 		// in a browser or Rhino
 		root._ = _;
 	}
+	return _;
 }.call(this));

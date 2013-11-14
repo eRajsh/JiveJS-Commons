@@ -1,4 +1,4 @@
-(function() {
+var _ = function() {
     var undefined;
     var arrayPool = [], objectPool = [];
     var idCounter = 0;
@@ -2326,18 +2326,11 @@
     } else {
         root._ = _;
     }
-}).call(this);
-
-"use strict";
+    return _;
+}.call(this);
 
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
-    var _ = global._ || {};
+    "use strict";
     var i = 0;
     _.__i__ = function() {
         return i++;
@@ -3222,16 +3215,6 @@
     return _;
 })();
 
-"use strict";
-
-var global;
-
-if (typeof exports !== "undefined") {
-    global = exports;
-} else {
-    global = self;
-}
-
 (function(global, undefined) {
     "use strict";
     var tasks = function() {
@@ -3388,15 +3371,8 @@ if (typeof exports !== "undefined") {
     }
 })(typeof global === "object" && global ? global : this);
 
-"use strict";
-
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
+    "use strict";
     Set.prototype = Object.create(Object.prototype);
     Set.prototype.get = function(key) {
         return this.find(key);
@@ -3475,19 +3451,11 @@ if (typeof exports !== "undefined") {
         }
         return this;
     }
-    global._ = global._ || {};
-    global._.Set = Set;
+    _.Set = Set;
 })();
 
-"use strict";
-
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
+    "use strict";
     Map.prototype = Object.create(Object.prototype);
     Map.prototype.get = function(key) {
         var res = this.find(key);
@@ -3595,19 +3563,11 @@ if (typeof exports !== "undefined") {
         }
         return this;
     }
-    global._ = global._ || {};
-    global._.Map = Map;
+    _.Map = Map;
 })();
 
-"use strict";
-
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
+    "use strict";
     WeakMap.prototype = Object.create(Object.prototype);
     WeakMap.prototype.get = function(key) {
         var res = this.find(key);
@@ -3708,19 +3668,11 @@ if (typeof exports !== "undefined") {
         }
         return that;
     }
-    global._ = global._ || {};
-    global._.WeakMap = WeakMap;
+    _.WeakMap = WeakMap;
 })();
 
-"use strict";
-
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
+    "use strict";
     Capped.prototype = Object.create(Array.prototype);
     Capped.prototype.toString = function() {
         return "[object Capped]";
@@ -3769,19 +3721,11 @@ if (typeof exports !== "undefined") {
         }
         return that;
     }
-    global._ = global._ || {};
-    global._.Capped = Capped;
+    _.Capped = Capped;
 })();
 
-"use strict";
-
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
+    "use strict";
     function callback(scope, data, cbs) {
         for (var i = 0; i < cbs.length; i++) {
             setImmediate(function(i) {
@@ -4055,22 +3999,15 @@ if (typeof exports !== "undefined") {
         }
     });
     Dfd.when = Dfd.prototype.when;
-    global._ = global._ || {};
-    global._.Dfd = Dfd;
-    global._.dfd = new Dfd();
-    global._.dfd.resolve("Only to be used for WHEN magic!!!!");
+    _.Dfd = Dfd;
+    _.dfd = new Dfd();
+    _.dfd.resolve("Only to be used for WHEN magic!!!!");
     return Dfd;
 })();
 
 "use strict";
 
 (function() {
-    var global;
-    if (typeof exports !== "undefined") {
-        global = exports;
-    } else {
-        global = self;
-    }
     (function(global, undefined) {
         "use strict";
         var tasks = function() {
@@ -4383,22 +4320,142 @@ if (typeof exports !== "undefined") {
             return pro;
         }
     });
-    global._ = global._ || {};
-    global._.State = State;
+    _.State = State;
     return State;
 })();
 
-"use strict";
-
-var global;
-
-if (typeof exports !== "undefined") {
-    global = exports;
-} else {
-    global = self;
-}
+(function() {
+    var LinkedHashMap = function() {
+        this._size = 0;
+        this._map = {};
+        this._Entry = function(key, value) {
+            this.prev = null;
+            this.next = null;
+            this.key = key;
+            this.value = value;
+        };
+        this._head = this._tail = null;
+    };
+    var _Iterator = function(start, property) {
+        this.entry = start === null ? null : start;
+        this.property = property;
+    };
+    _Iterator.prototype = {
+        hasNext: function() {
+            return this.entry !== null;
+        },
+        next: function() {
+            if (this.entry === null) {
+                return null;
+            }
+            var value = this.entry[this.property];
+            this.entry = this.entry.next;
+            return value;
+        }
+    };
+    LinkedHashMap.prototype = {
+        put: function(key, value) {
+            var entry;
+            if (!this.containsKey(key)) {
+                entry = new this._Entry(key, value);
+                if (this._size === 0) {
+                    this._head = entry;
+                    this._tail = entry;
+                } else {
+                    this._tail.next = entry;
+                    entry.prev = this._tail;
+                    this._tail = entry;
+                }
+                this._size++;
+            } else {
+                entry = this._map[key];
+                entry.value = value;
+            }
+            this._map[key] = entry;
+        },
+        remove: function(key) {
+            var entry;
+            if (this.containsKey(key)) {
+                this._size--;
+                entry = this._map[key];
+                delete this._map[key];
+                if (entry === this._head) {
+                    this._head = entry.next;
+                    this._head.prev = null;
+                } else if (entry === this._tail) {
+                    this._tail = entry.prev;
+                    this._tail.next = null;
+                } else {
+                    entry.prev.next = entry.next;
+                    entry.next.prev = entry.prev;
+                }
+            } else {
+                entry = null;
+            }
+            return entry === null ? null : entry.value;
+        },
+        containsKey: function(key) {
+            return this._map.hasOwnProperty(key);
+        },
+        containsValue: function(value) {
+            for (var key in this._map) {
+                if (this._map.hasOwnProperty(key)) {
+                    if (this._map[key].value === value) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        },
+        get: function(key) {
+            return this.containsKey(key) ? this._map[key].value : null;
+        },
+        clear: function() {
+            this._size = 0;
+            this._map = {};
+            this._head = this._tail = null;
+        },
+        keys: function(from) {
+            var keys = [], start = null;
+            if (from) {
+                start = this.containsKey(from) ? this._map[from] : null;
+            } else {
+                start = this._head;
+            }
+            for (var cur = start; cur != null; cur = cur.next) {
+                keys.push(cur.key);
+            }
+            return keys;
+        },
+        values: function(from) {
+            var values = [], start = null;
+            if (from) {
+                start = this.containsKey(from) ? this._map[from] : null;
+            } else {
+                start = this._head;
+            }
+            for (var cur = start; cur != null; cur = cur.next) {
+                values.push(cur.value);
+            }
+            return values;
+        },
+        iterator: function(from, type) {
+            var property = "value";
+            if (type && (type === "key" || type === "keys")) {
+                property = "key";
+            }
+            var entry = this.containsKey(from) ? this._map[from] : null;
+            return new _Iterator(entry, property);
+        },
+        size: function() {
+            return this._size;
+        }
+    };
+    _.LinkedHashMap = LinkedHashMap;
+})();
 
 (function() {
+    "use strict";
     function createRegex(args) {
         var parts = args.urn.split(":");
         var reg = [];
@@ -4841,7 +4898,6 @@ if (typeof exports !== "undefined") {
             return "[object Fabric]";
         }
     });
-    global._ = global._ || {};
-    global._.Fabric = Fabric;
+    _.Fabric = Fabric;
 })();
 //# sourceMappingURL=jive.js.map

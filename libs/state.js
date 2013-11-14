@@ -12,12 +12,6 @@
  * @returns {State} State constructor
 **/
 (function() {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
 
 	//setImmediate Poly
 	(function (global, undefined) {
@@ -431,8 +425,7 @@
 	});
 	
 	//set this to the utility namespace 
-	global._ = global._ || {};
-	global._.State = State;
+	_.State = State;
 
 	//and also return the Constructor so that it could be saved and used directly
 	return State;

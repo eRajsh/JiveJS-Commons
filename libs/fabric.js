@@ -1,4 +1,4 @@
-"use strict";
+
 
 /**
  * Fabric.js returns a Fabric constructor which exposes standard pub/sub as well as request/fulfill, command/notify
@@ -10,15 +10,10 @@
  *        but that cost in very few instnaces is merited by the encapsulation gains
  * @returns {Fabric} Fabric constructor
 **/
-var global;
-if (typeof exports !== 'undefined') {
-	global = exports;
-} else {
-	global = self;
-}
+
 
 (function() {
-	
+	"use strict";
 	/**
 	 * createRegex is a function to take a urn style string and convert it into a regular expression
 	 * for matching wild card subscriptions or peeks
@@ -775,6 +770,5 @@ if (typeof exports !== 'undefined') {
 			return "[object Fabric]";
 		}
 	});
-	global._ = global._ || {};
-	global._.Fabric = Fabric;
+	_.Fabric = Fabric;
 })();

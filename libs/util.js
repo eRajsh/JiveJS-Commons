@@ -1,4 +1,3 @@
-"use strict";
 
 /**
  * Utils.js returns a utility object on and also sets it on the self._ namesapce
@@ -9,14 +8,7 @@
  * @returns {object} utilities object
  **/
 (function() {
-	var global;
-	if (typeof exports !== 'undefined') {
-		global = exports;
-	} else {
-		global = self;
-	}
-
-	var _ = global._ || {};
+	"use strict";
 
 	/**
 	 * This is a particularly fun little trick for a globally unique ID generator.
