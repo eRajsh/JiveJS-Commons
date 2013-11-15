@@ -1,6 +1,3 @@
-
-
-//setImmediate Poly
 (function (global, undefined) {
 	"use strict";
 
@@ -172,7 +169,7 @@
 						  Object.getPrototypeOf(global)
 						: global;
 
-		if ((typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
+		if ((typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode) || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
 			installSetTimeoutImplementation(attachTo);
 		} else {
 			if (canUseNextTick()) {
@@ -190,6 +187,4 @@
 
 		attachTo.clearImmediate = tasks.remove;
 	}
-}(typeof global === "object" && global ? global : this));
-
-
+}(typeof self === "object" && self ? self : this));

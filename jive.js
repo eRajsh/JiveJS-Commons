@@ -3352,7 +3352,7 @@ var _ = function() {
     }
     if (!global.setImmediate) {
         var attachTo = typeof Object.getPrototypeOf === "function" && "setTimeout" in Object.getPrototypeOf(global) ? Object.getPrototypeOf(global) : global;
-        if (typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode || typeof Worker === "undefined" || typeof WebSocket === "undefined") {
+        if (typeof self !== "undefined" && self.Jive && self.Jive.Features && self.Jive.Features.RetardMode || typeof Worker === "undefined" || typeof WebSocket === "undefined") {
             installSetTimeoutImplementation(attachTo);
         } else {
             if (canUseNextTick()) {
@@ -3369,7 +3369,7 @@ var _ = function() {
         }
         attachTo.clearImmediate = tasks.remove;
     }
-})(typeof global === "object" && global ? global : this);
+})(typeof self === "object" && self ? self : this);
 
 (function() {
     "use strict";
