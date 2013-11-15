@@ -1,37 +1,47 @@
 (function () {
-
-	var FilesystemAPIProvider = (function (Q) {
-		function makeErrorHandler(deferred, finalDeferred) {
+	var window = window || {};
+	var countdown = function(n, cb) {
+		var args = [];
+		return function() {
+			for (var i = 0; i < arguments.length; ++i)
+				args.push(arguments[i]);
+			n -= 1;
+			if (n == 0)
+				cb.apply(this, args);
+		};
+	}
+	var FilesystemAPIProvider = (function () {
+		function makeErrorHandler(dfd, finalDfd) {
 			return function (e) {
 				if (e.code == 1) {
-					deferred.resolve(undefined);
+					dfd.resolve(undefined);
 				} else {
-					if (finalDeferred)
-						finalDeferred.reject(e);
+					if (finalDfd)
+						finalDfd.reject(e);
 					else
-						deferred.reject(e);
+						dfd.reject(e);
 				}
 			}
 		}
 
 		function readDirEntries(reader, result) {
-			var deferred = Q.defer();
+			var dfd = new _.Dfd()
 
-			_readDirEntries(reader, result, deferred);
+			_readDirEntries(reader, result, dfd);
 
-			return deferred.promise;
+			return dfd.promise();
 		}
 
-		function _readDirEntries(reader, result, deferred) {
+		function _readDirEntries(reader, result, dfd) {
 			reader.readEntries(function (entries) {
 				if (entries.length == 0) {
-					deferred.resolve(result);
+					dfd.resolve(result);
 				} else {
 					result = result.concat(entries);
-					_readDirEntries(reader, result, deferred);
+					_readDirEntries(reader, result, dfd);
 				}
 			}, function (err) {
-				deferred.reject(err);
+				dfd.reject(err);
 			});
 		}
 
@@ -47,8 +57,8 @@
 		}
 
 		FSAPI.prototype = {
-			getContents: function (path, options) {
-				var deferred = Q.defer();
+			get: function (path, options) {
+				var dfd = new _.Dfd();
 				path = this._prefix + path;
 				this._fs.root.getFile(path, {}, function (fileEntry) {
 					fileEntry.file(function (file) {
@@ -66,23 +76,23 @@
 							}
 
 							if (err) {
-								deferred.reject(err);
+								dfd.reject(err);
 							} else {
-								deferred.resolve(data);
+								dfd.resolve(data);
 							}
 						};
 
 						reader.readAsText(file);
-					}, makeErrorHandler(deferred));
-				}, makeErrorHandler(deferred));
+					}, makeErrorHandler(dfd));
+				}, makeErrorHandler(dfd));
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
 			// create a file at path
 			// and write `data` to it
-			setContents: function (path, data, options) {
-				var deferred = Q.defer();
+			set: function (path, data, options) {
+				var dfd = new _.Dfd();
 
 				if (options && options.json)
 					data = JSON.stringify(data);
@@ -95,38 +105,29 @@
 						var blob;
 						fileWriter.onwriteend = function (e) {
 							fileWriter.onwriteend = function () {
-								deferred.resolve();
+								dfd.resolve();
 							};
 							fileWriter.truncate(blob.size);
 						}
 
-						fileWriter.onerror = makeErrorHandler(deferred);
+						fileWriter.onerror = makeErrorHandler(dfd);
 
-						if (data instanceof Blob) {
-							blob = data;
-						} else {
-							blob = new Blob([data], {
-								type: 'text/plain'
-							});
-						}
+						blob = new Blob([data], {
+							type: 'text/plain'
+						});
 
 						fileWriter.write(blob);
-					}, makeErrorHandler(deferred));
-				}, makeErrorHandler(deferred));
+					}, makeErrorHandler(dfd));
+				}, makeErrorHandler(dfd));
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			ls: function (docKey) {
-				var isRoot = false;
-				if (!docKey) {
-					docKey = this._prefix;
-					isRoot = true;
-				} else docKey = this._prefix + docKey + "-attachments";
+			list: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
 
-				var deferred = Q.defer();
-
-				this._fs.root.getDirectory(docKey, {
+				this._fs.root.getDirectory(this._prefix, {
 						create: false
 					},
 					function (entry) {
@@ -135,83 +136,85 @@
 							var listing = [];
 							entries.forEach(function (entry) {
 								if (!entry.isDirectory) {
-									listing.push(entry.name);
+									if(options.prefix) {
+										if(entry.name.indexOf(options.prefix) === 0) {
+											listing.push(entry.name);
+										}
+									} else {
+										listing.push(entry.name);
+									}
 								}
 							});
-							deferred.resolve(listing);
+							dfd.resolve(listing);
 						});
 					}, function (error) {
-						deferred.reject(error);
+						dfd.reject(error);
 					});
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			clear: function () {
-				var deferred = Q.defer();
+			clear: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
 				var failed = false;
 				var ecb = function (err) {
 					failed = true;
-					deferred.reject(err);
+					dfd.reject(err);
 				}
 
 				this._fs.root.getDirectory(this._prefix, {},
 					function (entry) {
 						var reader = entry.createReader();
 						reader.readEntries(function (entries) {
-							var latch =
-								utils.countdown(entries.length, function () {
-									if (!failed)
-										deferred.resolve();
-								});
+							var latch = countdown(entries.length, function () {
+								if (!failed) {
+									dfd.resolve();
+								}
+							});
 
 							entries.forEach(function (entry) {
 								if (entry.isDirectory) {
 									entry.removeRecursively(latch, ecb);
 								} else {
-									entry.remove(latch, ecb);
+									if(options.prefix) {
+										if(entry.name.indexOf(options.prefix) === 0) {
+											entry.remove(latch, ecb);
+										}
+									} else {
+										entry.remove(latch, ecb);
+									}
 								}
 							});
 
 							if (entries.length == 0)
-								deferred.resolve();
+								dfd.resolve();
 						}, ecb);
 					}, ecb);
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			rm: function (path) {
-				var deferred = Q.defer();
-				var finalDeferred = Q.defer();
+			remove: function (path) {
+				var dfd = new _.Dfd();
+				var finalDfd = new _.Dfd();
 
 				// remove attachments that go along with the path
 				path = this._prefix + path;
-				var attachmentsDir = path + "-attachments";
 
 				this._fs.root.getFile(path, {
 						create: false
 					},
 					function (entry) {
 						entry.remove(function () {
-							deferred.promise.then(finalDeferred.resolve);
+							dfd.done(finalDfd.resolve);
 						}, function (err) {
-							finalDeferred.reject(err);
+							finalDfd.reject(err);
 						});
 					},
-					makeErrorHandler(finalDeferred));
+					makeErrorHandler(finalDfd));
 
-				this._fs.root.getDirectory(attachmentsDir, {},
-					function (entry) {
-						entry.removeRecursively(function () {
-							deferred.resolve();
-						}, function (err) {
-							finalDeferred.reject(err);
-						});
-					},
-					makeErrorHandler(deferred, finalDeferred));
-
-				return finalDeferred.promise;
+				return finalDfd.promise();
 			},
 
 			getCapacity: function () {
@@ -221,235 +224,172 @@
 
 		return {
 			init: function (config) {
-				var deferred = Q.defer();
-				window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
-				var persistentStorage = navigator.persistentStorage || navigator.webkitPersistentStorage;
+				var dfd = new _.Dfd();
+
+				self.requestFileSystem = self.requestFileSystem || self.webkitRequestFileSystem;
+				var persistentStorage = navigator.persistentStorage = navigator.persistentStorage || navigator.webkitPersistentStorage;
+				var temporaryStorage = navigator.temporaryStorage = navigator.temporaryStorage || navigator.webkitTemporaryStorage;
+				self.resolveLocalFileSystemURL = self.resolveLocalFileSystemURL || self.webkitResolveLocalFileSystemURL;
 
 				if (!requestFileSystem) {
-					deferred.reject("No FS API");
-					return deferred.promise;
+					dfd.reject("No FSAPI");
+					return dfd.promise();
 				}
 
 				var prefix = config.name + '/';
-
-				persistentStorage.requestQuota(config.size,
-					function (numBytes) {
-						requestFileSystem(window.PERSISTENT, numBytes,
-							function (fs) {
-								fs.root.getDirectory(config.name, {
-										create: true
-									},
-									function () {
-										deferred.resolve(new FSAPI(fs, numBytes, prefix));
-									}, function (err) {
-										console.error(err);
-										deferred.reject(err);
-									});
-							}, function (err) {
-								// TODO: implement various error messages.
-								console.error(err);
-								deferred.reject(err);
-							});
+				persistentStorage.requestQuota(config.size, function (numBytes) {
+					requestFileSystem(PERSISTENT, numBytes, function (fs) {
+						fs.root.getDirectory(config.name, { create: true }, function () {
+							dfd.resolve(new FSAPI(fs, numBytes, prefix));
+						}, function (err) {
+							dfd.reject(err);
+						});
 					}, function (err) {
-						// TODO: implement various error messages.
-						console.error(err);
-						deferred.reject(err);
+						dfd.reject(err);
 					});
-
-				return deferred.promise;
+				}, function (err) {
+					dfd.reject(err);
+				});
+				return dfd.promise();
 			}
 		}
-	})(Q);
+	})();
 
-	var IndexedDBProvider = (function (Q) {
+	var IndexedDBProvider = (function () {
 		var URL = window.URL || window.webkitURL;
-
-		var convertToBase64 = utils.convertToBase64;
-		var dataURLToBlob = utils.dataURLToBlob;
 
 		function IDB(db) {
 			this._db = db;
 			this.type = 'IndexedDB';
 
-			var transaction = this._db.transaction(['attachments'], 'readwrite');
-			this._supportsBlobs = true;
-			try {
-				transaction.objectStore('attachments')
-					.put(Blob(["sdf"], {
-						type: "text/plain"
-					}), "featurecheck");
-			} catch (e) {
-				this._supportsBlobs = false;
-			}
+			this._supportsBlobs = false;
 		}
 
 		// TODO: normalize returns and errors.
 		IDB.prototype = {
-			getContents: function (docKey) {
-				var deferred = Q.defer();
+			get: function (docKey) {
+				var dfd = new _.Dfd();
 				var transaction = this._db.transaction(['files'], 'readonly');
 
 				var get = transaction.objectStore('files').get(docKey);
 				get.onsuccess = function (e) {
-					deferred.resolve(e.target.result);
+					dfd.resolve(e.target.result);
 				};
 
-				get.onerror = function (e) {
-					deferred.reject(e);
-				};
+				get.onerror = dfd.reject;
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			setContents: function (docKey, data) {
-				var deferred = Q.defer();
+			set: function (docKey, data) {
+				var dfd = new _.Dfd();
 				var transaction = this._db.transaction(['files'], 'readwrite');
 
 				var put = transaction.objectStore('files').put(data, docKey);
-				put.onsuccess = function (e) {
-					deferred.resolve(e);
-				};
+				put.onsuccess = dfd.resolve;
 
-				put.onerror = function (e) {
-					deferred.reject(e);
-				};
+				put.onerror = dfd.reject;
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			rm: function (docKey) {
-				var deferred = Q.defer();
-				var finalDeferred = Q.defer();
+			remove: function (docKey) {
+				var dfd = new _.Dfd();
 
-				var transaction = this._db.transaction(['files', 'attachments'], 'readwrite');
+				var transaction = this._db.transaction(['files'], 'readwrite');
 
 				var del = transaction.objectStore('files').delete(docKey);
 
-				del.onsuccess = function (e) {
-					deferred.promise.then(function () {
-						finalDeferred.resolve();
-					});
-				};
+				del.onsuccess = dfd.resolve;
 
-				del.onerror = function (e) {
-					deferred.promise.
-					catch (function () {
-						finalDeferred.reject(e);
-					});
-				};
+				del.onerror = dfd.reject;
 
-				var attachmentsStore = transaction.objectStore('attachments');
-				var index = attachmentsStore.index('fname');
-				var cursor = index.openCursor(IDBKeyRange.only(docKey));
-				cursor.onsuccess = function (e) {
-					var cursor = e.target.result;
-					if (cursor) {
-						cursor.delete();
-						cursor.
-						continue ();
-					} else {
-						deferred.resolve();
-					}
-				};
-
-				cursor.onerror = function (e) {
-					deferred.reject(e);
-				}
-
-				return finalDeferred.promise;
+				return dfd.promise();
 			},
 
-			ls: function (docKey) {
-				var deferred = Q.defer();
+			list: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
 
-				if (!docKey) {
-					// list docs
-					var store = 'files';
-				} else {
-					// list attachments
-					var store = 'attachments';
-				}
-
-				var transaction = this._db.transaction([store], 'readonly');
+				var transaction = this._db.transaction(['files'], 'readonly');
 				var cursor = transaction.objectStore(store).openCursor();
 				var listing = [];
 
 				cursor.onsuccess = function (e) {
 					var cursor = e.target.result;
 					if (cursor) {
-						listing.push(!docKey ? cursor.key : cursor.key.split('/')[1]);
-						cursor.
-						continue ();
+
+						if(options.prefix) {
+							if(cursor.key.indexOf(options.prefix) === 0) {
+								listing.push(cursor.key);
+							}
+						} else {
+							listing.push(cursor.key);
+						}
+
+						listing.push(cursor.key);
+						cursor.continue();
 					} else {
-						deferred.resolve(listing);
+						dfd.resolve(listing);
 					}
 				};
 
-				cursor.onerror = function (e) {
-					deferred.reject(e);
-				};
+				cursor.onerror = dfd.reject;
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			clear: function () {
-				var deferred = Q.defer();
-				var finalDeferred = Q.defer();
+			clear: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
 
-				var t = this._db.transaction(['attachments', 'files'], 'readwrite');
+				var t = this._db.transaction(['files'], 'readwrite');
 
+				if(!options.prefix) {
+					var req1 = t.objectStore('files').clear();
+					req1.onsuccess = dfd.resolve;
 
-				var req1 = t.objectStore('attachments').clear();
-				var req2 = t.objectStore('files').clear();
+					req1.onerror = dfd.reject;
+				} else {
+					var scope = this;
+					this.list(options).done(function(listing) {
 
-				req1.onsuccess = function () {
-					deferred.promise.then(finalDeferred.resolve);
-				};
+						var dfds = [true];
+						listing.forEach(function(item) {
+							dfds.push(scope.remove(item));
+						});
 
-				req2.onsuccess = function () {
-					deferred.resolve();
-				};
+						_.Dfd.when(dfds).done(dfd.resolve).fail(dfd.reject);
 
-				req1.onerror = function (err) {
-					finalDeferred.reject(err);
-				};
-
-				req2.onerror = function (err) {
-					finalDeferred.reject(err);
-				};
-
-				return finalDeferred.promise;
+					}).fail(dfd.reject);
+				}
+				
+				return dfd.promise();
 			}
 		};
 
 		return {
 			init: function (config) {
-				var deferred = Q.defer();
+				var dfd = new _.Dfd();
 
 				var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB,
 					IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.OIDBTransaction || window.msIDBTransaction,
 					dbVersion = 2;
 
 				if (!indexedDB || !IDBTransaction) {
-					deferred.reject("No IndexedDB");
-					return deferred.promise;
+					dfd.reject("No IndexedDB");
+					return dfd.promise();
 				}
 
 				var request = indexedDB.open(config.name, dbVersion);
 
 				function createObjectStore(db) {
 					db.createObjectStore("files");
-					var attachStore = db.createObjectStore("attachments", {
-						keyPath: 'path'
-					});
-					attachStore.createIndex('fname', 'fname', {
-						unique: false
-					})
 				}
 
 				// TODO: normalize errors
 				request.onerror = function (event) {
-					deferred.reject(event);
+					dfd.reject(event);
 				};
 
 				request.onsuccess = function (event) {
@@ -465,13 +405,13 @@
 							var setVersion = db.setVersion(dbVersion);
 							setVersion.onsuccess = function () {
 								createObjectStore(db);
-								deferred.resolve();
+								dfd.resolve();
 							};
 						} else {
-							deferred.resolve(new IDB(db));
+							dfd.resolve(new IDB(db));
 						}
 					} else {
-						deferred.resolve(new IDB(db));
+						dfd.resolve(new IDB(db));
 					}
 				}
 
@@ -479,25 +419,13 @@
 					createObjectStore(event.target.result);
 				};
 
-				return deferred.promise;
+				return dfd.promise();
 			}
 		}
-	})(Q);
+	})();
 
-	var LocalStorageProvider = (function (Q) {
-		return {
-			init: function () {
-				return Q({
-					type: 'LocalStorage'
-				});
-			}
-		}
-	})(Q);
-
-	var WebSQLProvider = (function (Q) {
+	var WebSQLProvider = (function () {
 		var URL = window.URL || window.webkitURL;
-		var convertToBase64 = utils.convertToBase64;
-		var dataURLToBlob = utils.dataURLToBlob;
 
 		function WSQL(db) {
 			this._db = db;
@@ -505,30 +433,29 @@
 		}
 
 		WSQL.prototype = {
-			getContents: function (docKey, options) {
-				var deferred = Q.defer();
+			get: function (docKey, options) {
+				var dfd = new _.Dfd();
 				this._db.transaction(function (tx) {
 					tx.executeSql('SELECT value FROM files WHERE fname = ?', [docKey],
 						function (tx, res) {
 							if (res.rows.length == 0) {
-								deferred.resolve(undefined);
+								dfd.resolve(undefined);
 							} else {
 								var data = res.rows.item(0).value;
 								if (options && options.json)
 									data = JSON.parse(data);
-								deferred.resolve(data);
+								dfd.resolve(data);
 							}
 						});
 				}, function (err) {
-					consol.log(err);
-					deferred.reject(err);
+					dfd.reject(err);
 				});
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			setContents: function (docKey, data, options) {
-				var deferred = Q.defer();
+			set: function (docKey, data, options) {
+				var dfd = new _.Dfd();
 				if (options && options.json)
 					data = JSON.stringify(data);
 
@@ -536,143 +463,194 @@
 					tx.executeSql(
 						'INSERT OR REPLACE INTO files (fname, value) VALUES(?, ?)', [docKey, data]);
 				}, function (err) {
-					console.log(err);
-					deferred.reject(err);
+					dfd.reject(err);
 				}, function () {
-					deferred.resolve();
+					dfd.resolve();
 				});
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			rm: function (docKey) {
-				var deferred = Q.defer();
+			remove: function (docKey) {
+				var dfd = new _.Dfd();
 
 				this._db.transaction(function (tx) {
 					tx.executeSql('DELETE FROM files WHERE fname = ?', [docKey]);
-					tx.executeSql('DELETE FROM attachments WHERE fname = ?', [docKey]);
 				}, function (err) {
-					console.log(err);
-					deferred.reject(err);
+					dfd.reject(err);
 				}, function () {
-					deferred.resolve();
+					dfd.resolve();
 				});
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			ls: function (docKey) {
-				var deferred = Q.defer();
+			list: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
 
-				var select;
-				var field;
-				if (!docKey) {
-					select = 'SELECT fname FROM files';
-					field = 'fname';
-				} else {
-					select = 'SELECT akey FROM attachments WHERE fname = ?';
-					field = 'akey';
+				var select = 'SELECT fname FROM files';
+				var vals = []; 
+
+				if(options.prefix) {
+					select += ' WHERE fname LIKE ?'
+					vals = [options.prefix+'%']
 				}
 
 				this._db.transaction(function (tx) {
-					tx.executeSql(select, docKey ? [docKey] : [],
+					tx.executeSql(select, vals,
 						function (tx, res) {
 							var listing = [];
 							for (var i = 0; i < res.rows.length; ++i) {
-								listing.push(res.rows.item(i)[field]);
+								listing.push(res.rows.item(i)['fname']);
 							}
 
-							deferred.resolve(listing);
+							dfd.resolve(listing);
 						}, function (err) {
-							deferred.reject(err);
+							dfd.reject(err);
 						});
 				});
 
-				return deferred.promise;
+				return dfd.promise();
 			},
 
-			clear: function () {
-				var deffered1 = Q.defer();
-				var deffered2 = Q.defer();
+			clear: function (options) {
+				options = options || {};
+				var dfd = new _.Dfd();
+
+				var query = 'DELETE FROM files';
+				var vals = []; 
+
+				if(options.prefix) {
+					query += ' WHERE fname LIKE ?'
+					vals = [options.prefix+'%']
+				}
 
 				this._db.transaction(function (tx) {
-					tx.executeSql('DELETE FROM files', function () {
-						deffered1.resolve();
+					tx.executeSql(query, vals, function () {
+						dfd.resolve();
 					});
-					tx.executeSql('DELETE FROM attachments', function () {
-						deffered2.resolve();
-					});
+					
 				}, function (err) {
-					deffered1.reject(err);
-					deffered2.reject(err);
+					dfd.reject(err);
 				});
 
-				return Q.all([deffered1, deffered2]);
+				return dfd.promise();
 			}
 		};
 
 		return {
 			init: function (config) {
 				var openDb = window.openDatabase;
-				var deferred = Q.defer();
+				var dfd = new _.Dfd();
 				if (!openDb) {
-					deferred.reject("No WebSQL");
-					return deferred.promise;
+					dfd.reject("No WebSQL");
+					return dfd.promise();
 				}
 
 				var db = openDb(config.name, '1.0', 'large local storage', config.size);
 
 				db.transaction(function (tx) {
 					tx.executeSql('CREATE TABLE IF NOT EXISTS files (fname unique, value)');
-					tx.executeSql('CREATE TABLE IF NOT EXISTS attachments (fname, akey, value)');
-					tx.executeSql('CREATE INDEX IF NOT EXISTS fname_index ON attachments (fname)');
-					tx.executeSql('CREATE INDEX IF NOT EXISTS akey_index ON attachments (akey)');
-					tx.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS uniq_attach ON attachments (fname, akey)')
 				}, function (err) {
-					deferred.reject(err);
+					dfd.reject(err);
 				}, function () {
-					deferred.resolve(new WSQL(db));
+					dfd.resolve(new WSQL(db));
 				});
 
-				return deferred.promise;
+				return dfd.promise();
 			}
 		}
-	})(Q);
+	})();
 
-	var LargeLocalStorage = (function (Q) {
-		var sessionMeta = localStorage.getItem('LargeLocalStorage-meta');
-		if (sessionMeta)
-			sessionMeta = JSON.parse(sessionMeta);
-		else
-			sessionMeta = {};
-
-		function defaults(options, defaultOptions) {
-			for (var k in defaultOptions) {
-				if (options[k] === undefined)
-					options[k] = defaultOptions[k];
+	var LocalStorageProvider = (function () {
+		function LS(options) {
+			if(!options.type) {
+				options.type = "LocalStorage";
 			}
-
-			return options;
+			this.type = options.type;
+			if(this.type === "SessionStorage") {
+				this.store = sessionStorage;
+			} else {
+				this.store = localStorage;
+			}
+			this._prefix = options.name + ":";
 		}
 
-		function getImpl(type) {
-			switch (type) {
-			case 'FileSystemAPI':
-				return FilesystemAPIProvider.init();
-			case 'IndexedDB':
-				return IndexedDBProvider.init();
-			case 'WebSQL':
-				return WebSQLProvider.init();
-			case 'LocalStorage':
-				return LocalStorageProvider.init();
+		LS.prototype = {
+			get: function(docKey, options) {
+				var dfd = new _.Dfd();
+				dfd.resolve(this.store.getItem(this._prefix + docKey));
+				return dfd.promise();
+			},
+
+			set: function(docKey, data, options) {
+				var dfd = new _.Dfd();
+				this.store.setItem(this._prefix + docKey, data);
+				dfd.resolve();
+				return dfd.promise();
+			},
+
+			remove: function(docKey, options) {
+				var dfd = new _.Dfd();
+				this.store.remove(this._prefix + docKey);
+				dfd.resolve();
+				return dfd.promise();
+			}, 
+
+			list: function(options) {
+				options = options || {};
+				var dfd = new _.Dfd();
+				var listing = Object.keys(this.store);
+				var ret = [];
+				var prefix = this._prefix;
+				if(options.prefix) {
+					prefix += options.prefix;
+				}
+				listing.forEach(function(item) {
+					if(item.indexOf(prefix) === 0) {
+						ret.push(item.substr(this._prefix.length - 1));
+					}
+				});
+				dfd.resolve(ret);
+				return dfd.promise();
+			},
+
+			clear: function(options) {
+				options = options || {};
+				var dfd = new _.Dfd();
+				var listing = Object.keys(this.store);
+				var prefix = this._prefix;
+				if(options.prefix) {
+					prefix += options.prefix;
+				}
+				listing.forEach(function(item) {
+					if(item.indexOf(prefix) === 0) {
+						this.store.remove(item);
+					}
+				});
+				dfd.resolve();
+				return dfd.promise();
 			}
 		}
+
+		return {
+			init: function (config) {
+				var dfd = new _.Dfd();
+				dfd.resolve(new LS(config));
+				return dfd.promise();
+			}
+		}
+	})();
+
+	var LargeLocalStorage = (function () {
 
 		var providers = {
 			FileSystemAPI: FilesystemAPIProvider,
 			IndexedDB: IndexedDBProvider,
 			WebSQL: WebSQLProvider,
-			LocalStorage: LocalStorageProvider
+			LocalStorage: LocalStorageProvider,
+			SessionStorage: LocalStorageProvider
 		}
 
 		var defaultConfig = {
@@ -682,82 +660,78 @@
 
 		function selectImplementation(config) {
 			if (!config) config = {};
-			config = defaults(config, defaultConfig);
+			config = _.defaults(config, defaultConfig);
 
 			if (config.forceProvider) {
 				return providers[config.forceProvider].init(config);
 			}
 
-			return FilesystemAPIProvider.init(config).then(function (impl) {
-				return Q(impl);
-			}, function () {
-				return IndexedDBProvider.init(config);
-			}).then(function (impl) {
-				return Q(impl);
-			}, function () {
-				return WebSQLProvider.init(config);
-			}).then(function (impl) {
-				return Q(impl);
-			}, function () {
-				console.error('Unable to create any storage implementations.  Using LocalStorage');
-				return LocalStorageProvider.init(config);
+			var dfd = new _.Dfd();
+
+			FilesystemAPIProvider.init(config).done(function(ret) {
+				dfd.resolve(ret)
+			}).fail(function() {
+				IndexedDBProvider.init(config).done(function(ret) {
+					dfd.resolve(ret)
+				}).fail(function() {
+					WebSQLProvider.init(config).done(function(ret) {
+						dfd.resolve(ret)
+					}).fail(function() {
+						LocalStorageProvider.init(config).done(function(ret) {
+							dfd.resolve(ret)
+						}).fail(function() {
+							dfd.reject("I have nothing.... leave me alone :(");
+						});
+					});
+				});
 			});
+
+			return dfd.promise();
 		}
 
 		function LargeLocalStorage(config) {
 			var scope = this;
-			var deferred = Q.defer();
-			selectImplementation(config).then(function (impl) {
-				console.log('Selected: ' + impl.type);
+			var dfd = new _.Dfd();
+			selectImplementation(config).done(function (impl) {
 				scope._impl = impl;
-				deferred.resolve(scope);
-			}).
-			catch (function (e) {
-				// This should be impossible
-				console.log(e);
-				deferred.reject('No storage provider found');
+				dfd.resolve(scope);
+			}).fail(function(e) {
+				dfd.reject('No storage provider found');
 			});
 
-			
-			scope.initialized = deferred.promise;
-
+			scope.initialized = dfd.promise();
 			return scope;
 		}
 
 		LargeLocalStorage.prototype = {
 			
 			ready: function () {
-				return this._impl != null;
+				return this.initialized;
 			},
 
-			
-			ls: function (docKey) {
+			list: function (docKey) {
 				this._checkAvailability();
-				return this._impl.ls(docKey);
+				return this._impl.list(docKey);
 			},
 
-			
-			rm: function (docKey) {
+			remove: function (docKey) {
 				this._checkAvailability();
-				return this._impl.rm(docKey);
+				return this._impl.remove(docKey);
 			},
 
-			
 			clear: function () {
 				this._checkAvailability();
 				return this._impl.clear();
 			},
 
-			
-			getContents: function (docKey, options) {
+			get: function (docKey, options) {
 				this._checkAvailability();
-				return this._impl.getContents(docKey, options);
+				return this._impl.get(docKey, options);
 			},
 
-			
-			setContents: function (docKey, data, options) {
+			set: function (docKey, data, options) {
 				this._checkAvailability();
-				return this._impl.setContents(docKey, data, options);
+				return this._impl.set(docKey, data, options);
 			},
 
 			getCapacity: function () {
@@ -776,14 +750,14 @@
 					};
 				}
 			}
+
 		};
 
-		LargeLocalStorage.contrib = {};
-
 		return LargeLocalStorage;
-	})(Q);
+	})();
 
+	_.LargeLocalStorage = LargeLocalStorage;
 	return LargeLocalStorage;
 
-
 })();
+

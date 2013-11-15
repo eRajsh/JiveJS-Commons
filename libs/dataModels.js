@@ -24,14 +24,17 @@
 			} else {
 
 				ajax(args, scope).done(function(ret){
-				
+
 					if(scope._options._store.localStorage) {
+						if(args.method === "GET") {
+							args.method = "POST";
+						}
 						local(args, scope).done(resolveFunc).fail(rejectFunc);
 					} else {
 						dfd.resolve(ret);
 					}
 
-				}).fail(failFunc);
+				}).fail(rejectFunc);
 			}
 		} else if(scope._options._store.localStorage) {
 			local(args, scope).done(resolveFunc).fail(rejectFunc);
@@ -41,7 +44,55 @@
 	};
 
 	var local = function(args, scope) {
-		//self.Jive.Storage.set
+		switch(args.method) {
+			case "GET":
+				return self.Jive.Store.get(args.urn);
+			break;
+
+			case "POST":
+				return self.Jive.Store.set(args.urn, args.data);
+			break;
+
+			case "PUT":
+				return self.Jive.Store.set(args.urn, args.data);
+			break;
+
+			case "PATCH":
+				var dfd = new _.Dfd();
+				var xhr = self.Jive.Store.get(args.urn);
+				xhr.done(function(ret) {
+					_.extend(ret, args.data);
+					self.Jive.Store.set(args.urn, ret).done(dfd.resolve).fail(dfd.reject);
+				}).fail(dfd.reject);
+				return dfd.promise();
+			break;
+
+			case "DELETE":
+				return self.Jive.Store.remove(args.urn);
+			break;
+
+			case "HEAD":
+				//TODO figure out meta storage as different from "data" storage
+				var dfd = new _.Dfd();
+				var xhr = self.Jive.Store.get(args.urn);
+				xhr.done(function(ret) {
+					dfd.resolve({
+						lastModified: ret.lastModified,
+						eTag: ret.eTag,
+						ttl: ret.ttl,
+						expires: ret.expires
+					})
+				}).fail(dfd.reject);
+				return dfd.promise();
+			break;
+
+			case "OPTIONS":
+			default:
+				var dfd = new _.Dfd();
+				dfd.resolve();
+				return dfd.promise();
+			break;
+		}
 	}
 
 	var ajax = function(args, scope) {
@@ -79,8 +130,6 @@
 		return dfd.promise();
 	}
 
-	var pubsub = self.Jive.Jazz;
-
 	var initialize = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
@@ -89,7 +138,9 @@
 			scope[key] = args[key];
 		}
 
-		scope._options._persisted = scope.toJSON();
+		scope._options.pubsub = self.Jive.Jazz;
+
+		scope._options.persisted = scope.toJSON();
 	};
 
 	var Model = function(data, options) {
@@ -117,7 +168,7 @@
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 		
-		if(args.force || (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
+		if(args.force || !scope._options.ttl || (scope._options.ttl && new Date().getTime() > scope._options.ttl)) {
 			store({ method: "GET", urn: scope.urn, data: args }, scope).done(function(ret) {
 				if(_.isNormalObject(ret.data)) {
 					for(var key in ret.data) {
@@ -127,11 +178,11 @@
 					scope._persisted = scope.toJSON();
 
 					if(ret.headers['Cache-Control'] !== "no-cache" && ret.headers['Expires']) {
-						scope._options._ttl = new Date(ret.headers['Expires']).getTime();
-						scope._options._lastModified = new Date(ret.headers['Last-Modified']).getTime(); 
+						scope._options.ttl = new Date(ret.headers['Expires']).getTime();
+						scope._options.lastModified = new Date(ret.headers['Last-Modified']).getTime(); 
 					}
 					
-					pubsub.publish({
+					scope._options.pubsub.publish({
 						urn: scope.urn + ":gotted"
 					});
 
@@ -155,9 +206,9 @@
 				scope[key] = args[key];
 			}
 
-			scope._options._persisted = scope.toJSON();
+			scope._options.persisted = scope.toJSON();
 
-			pubsub.publish({
+			scope._options.pubsub.publish({
 				urn: scope.urn + ":posted",
 				data: args
 			});
@@ -177,9 +228,9 @@
 				scope[key] = args[key];
 			}
 
-			scope._options._persisted = scope.toJSON();
+			scope._options.persisted = scope.toJSON();
 
-			pubsub.publish({
+			scope._options.pubsub.publish({
 				urn: scope.urn + ":putted",
 				data: scope.toJSON()
 			});
@@ -199,9 +250,9 @@
 				scope[key] = args[key];
 			}
 
-			scope._options._persisted = scope.toJSON();
+			scope._options.persisted = scope.toJSON();
 
-			pubsub.publish({
+			scope._options.pubsub.publish({
 				urn: scope.urn + ":patched",
 				data: args
 			});
@@ -221,7 +272,7 @@
 				delete scope[key];
 			}
 
-			pubsub.publish({
+			scope._options.pubsub.publish({
 				urn: scope.urn + ":deleted",
 				data: args
 			});
@@ -264,7 +315,7 @@
 		scope = scope || this;
 		args = args || {};
 
-		var sub = pubsub.subscribe({
+		var sub = scope._options.pubsub.subscribe({
 			urn: scope.urn + ":" + args.event
 		});
 
@@ -276,7 +327,7 @@
 		args = args || {};
 
 		if(typeof args.sub !== "undefined" && typeof args.sub.id !== "undefined"){
-			pubsub.unsubscribe({
+			scope._options.pubsub.unsubscribe({
 				id: args.sub.id
 			});
 			return true;
@@ -295,18 +346,18 @@
 	Model.prototype.changes = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
-		return scope._options._changes;
+		return scope._options.changes;
 	};
 
 	Model.prototype.changed = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
 		
-		scope._options._changes = _.dirtyKeys(scope._persisted, scope.toJSON());
-		console.log(scope._options._changes);
-		pubsub.publish({
+		scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
+		console.log(scope._options.changes);
+		scope._options.pubsub.publish({
 			urn: scope.urn + ":changed",
-			data: scope._options._changes
+			data: scope._options.changes
 		});
 	};
 
@@ -316,20 +367,20 @@
 
 		scope[args.key] = args.val;
 
-		scope._options._changes = scope._options._changes || {};
-		scope._options._changes[args.key] = {
-			aVal: scope._options._persisted[args.key],
+		scope._options.changes = scope._options.changes || {};
+		scope._options.changes[args.key] = {
+			aVal: scope._options.persisted[args.key],
 			bVal: scope[args.val]
 		};
 		
-		pubsub.publish({
+		scope._options.pubsub.publish({
 			urn: scope.urn + ":setted",
 			data: args
 		});
 		
-		pubsub.publish({
+		scope._options.pubsub.publish({
 			urn: scope.urn + ":changed",
-			data: scope._options._changes
+			data: scope._options.changes
 		});
 	};
 	//END SAVING CHANGE STUFFS
@@ -338,7 +389,8 @@
 	Model.prototype.toJSON = Model.prototype.valueOf = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
-		var excludes = _.clone(scope._options._excludes);
+		
+		var excludes = _.clone(scope._options.excludes);
 		
 		if(args.excludes) {
 			_.extend(excludes, args.excludes);
@@ -351,7 +403,7 @@
 			}
 		}
 
-		for(var key in scope._options._refs) {
+		for(var key in scope._options.refs) {
 			temp[key] = temp[key].urn;
 		}
 
@@ -364,14 +416,14 @@
 		args.vm = args.vm || "default";
 		var ret;
 
-		var keys = scope._options._vms[args.vm];
+		var keys = scope._options.vms[args.vm];
 		if(!keys || keys === "*") {
-			return _.clone(scope, true, scope._options._excludes);
+			return _.clone(scope, true, scope._options.excludes);
 		} else {
 			ret = {};
 			
 			keys.forEach(function(key) {
-				if(scope._options._refs[key]) {
+				if(scope._options.refs[key]) {
 					ret[key] = scope[key].toVM(args);
 				} else {
 					ret[key] = _.clone(scope[key], true, {});
@@ -395,37 +447,37 @@
 			options = options || {};
 
 			scope._options = {
-				_excludes: {
+				excludes: {
 					_options: true
 				}
 			};
 
 			//PARSE SCHEMA
-			scope._options._urn = schema.urn;
+			scope._options.urn = schema.urn;
 			if(typeof schema.store === "undefined") {
 				if (typeof window !== 'undefined') {
 					if(document.localStorage) {
-						scope._options._store = {"localStorage": "Jive:Data"};
+						scope._options.store = {"localStorage": "Jive:Data"};
 					} else {
-						scope._options._store = {"memory":"Jive.Data"};
+						scope._options.store = {"memory":"Jive.Data"};
 					}
 				} else {
-					scope._options._store = {"mongo":"mongoConnectionUrl"};
+					scope._options.store = {"mongo":"mongoConnectionUrl"};
 				}
 			} else {
-				scope._options._store = schema.store;
+				scope._options.store = schema.store;
 			}
 			if(typeof schema.vms === "undefined") {
 				schema.vms = {
 					"default": "*"
 				};
 			}
-			scope._options._vms = schema.vms;
+			scope._options.vms = schema.vms;
 
-			scope._options._refs = schema.refs;
-			_.extend(scope._options._excludes, scope._options._refs);
+			scope._options.refs = schema.refs;
+			_.extend(scope._options.excludes, scope._options.refs);
 			//END PARSE SCHEMA
-			//
+
 			initialize();
 			scope.initialize(data);
 			return scope;
@@ -436,7 +488,7 @@
 		return newModel;
 	};
 	//END MODEL STATIC TO CREATE SUBCLASSES
-
+	self.Jive = self.Jive || {};
 	self.Jive.Model = Model;
 
 })();

@@ -4325,6 +4325,1050 @@ var _ = function() {
 })();
 
 (function() {
+    var window = window || {};
+    var countdown = function(n, cb) {
+        var args = [];
+        return function() {
+            for (var i = 0; i < arguments.length; ++i) args.push(arguments[i]);
+            n -= 1;
+            if (n == 0) cb.apply(this, args);
+        };
+    };
+    var FilesystemAPIProvider = function() {
+        function makeErrorHandler(dfd, finalDfd) {
+            return function(e) {
+                if (e.code == 1) {
+                    dfd.resolve(undefined);
+                } else {
+                    if (finalDfd) finalDfd.reject(e); else dfd.reject(e);
+                }
+            };
+        }
+        function readDirEntries(reader, result) {
+            var dfd = new _.Dfd();
+            _readDirEntries(reader, result, dfd);
+            return dfd.promise();
+        }
+        function _readDirEntries(reader, result, dfd) {
+            reader.readEntries(function(entries) {
+                if (entries.length == 0) {
+                    dfd.resolve(result);
+                } else {
+                    result = result.concat(entries);
+                    _readDirEntries(reader, result, dfd);
+                }
+            }, function(err) {
+                dfd.reject(err);
+            });
+        }
+        function entryToFile(entry, cb, eb) {
+            entry.file(cb, eb);
+        }
+        function FSAPI(fs, numBytes, prefix) {
+            this._fs = fs;
+            this._capacity = numBytes;
+            this._prefix = prefix;
+            this.type = "FilesystemAPI";
+        }
+        FSAPI.prototype = {
+            get: function(path, options) {
+                var dfd = new _.Dfd();
+                path = this._prefix + path;
+                this._fs.root.getFile(path, {}, function(fileEntry) {
+                    fileEntry.file(function(file) {
+                        var reader = new FileReader();
+                        reader.onloadend = function(e) {
+                            var data = e.target.result;
+                            var err;
+                            if (options && options.json) {
+                                try {
+                                    data = JSON.parse(data);
+                                } catch (e) {
+                                    err = new Error("unable to parse JSON for " + path);
+                                }
+                            }
+                            if (err) {
+                                dfd.reject(err);
+                            } else {
+                                dfd.resolve(data);
+                            }
+                        };
+                        reader.readAsText(file);
+                    }, makeErrorHandler(dfd));
+                }, makeErrorHandler(dfd));
+                return dfd.promise();
+            },
+            set: function(path, data, options) {
+                var dfd = new _.Dfd();
+                if (options && options.json) data = JSON.stringify(data);
+                path = this._prefix + path;
+                this._fs.root.getFile(path, {
+                    create: true
+                }, function(fileEntry) {
+                    fileEntry.createWriter(function(fileWriter) {
+                        var blob;
+                        fileWriter.onwriteend = function(e) {
+                            fileWriter.onwriteend = function() {
+                                dfd.resolve();
+                            };
+                            fileWriter.truncate(blob.size);
+                        };
+                        fileWriter.onerror = makeErrorHandler(dfd);
+                        blob = new Blob([ data ], {
+                            type: "text/plain"
+                        });
+                        fileWriter.write(blob);
+                    }, makeErrorHandler(dfd));
+                }, makeErrorHandler(dfd));
+                return dfd.promise();
+            },
+            list: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                this._fs.root.getDirectory(this._prefix, {
+                    create: false
+                }, function(entry) {
+                    var reader = entry.createReader();
+                    readDirEntries(reader, []).then(function(entries) {
+                        var listing = [];
+                        entries.forEach(function(entry) {
+                            if (!entry.isDirectory) {
+                                if (options.prefix) {
+                                    if (entry.name.indexOf(options.prefix) === 0) {
+                                        listing.push(entry.name);
+                                    }
+                                } else {
+                                    listing.push(entry.name);
+                                }
+                            }
+                        });
+                        dfd.resolve(listing);
+                    });
+                }, function(error) {
+                    dfd.reject(error);
+                });
+                return dfd.promise();
+            },
+            clear: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var failed = false;
+                var ecb = function(err) {
+                    failed = true;
+                    dfd.reject(err);
+                };
+                this._fs.root.getDirectory(this._prefix, {}, function(entry) {
+                    var reader = entry.createReader();
+                    reader.readEntries(function(entries) {
+                        var latch = countdown(entries.length, function() {
+                            if (!failed) {
+                                dfd.resolve();
+                            }
+                        });
+                        entries.forEach(function(entry) {
+                            if (entry.isDirectory) {
+                                entry.removeRecursively(latch, ecb);
+                            } else {
+                                if (options.prefix) {
+                                    if (entry.name.indexOf(options.prefix) === 0) {
+                                        entry.remove(latch, ecb);
+                                    }
+                                } else {
+                                    entry.remove(latch, ecb);
+                                }
+                            }
+                        });
+                        if (entries.length == 0) dfd.resolve();
+                    }, ecb);
+                }, ecb);
+                return dfd.promise();
+            },
+            remove: function(path) {
+                var dfd = new _.Dfd();
+                var finalDfd = new _.Dfd();
+                path = this._prefix + path;
+                this._fs.root.getFile(path, {
+                    create: false
+                }, function(entry) {
+                    entry.remove(function() {
+                        dfd.done(finalDfd.resolve);
+                    }, function(err) {
+                        finalDfd.reject(err);
+                    });
+                }, makeErrorHandler(finalDfd));
+                return finalDfd.promise();
+            },
+            getCapacity: function() {
+                return this._capacity;
+            }
+        };
+        return {
+            init: function(config) {
+                var dfd = new _.Dfd();
+                self.requestFileSystem = self.requestFileSystem || self.webkitRequestFileSystem;
+                var persistentStorage = navigator.persistentStorage = navigator.persistentStorage || navigator.webkitPersistentStorage;
+                var temporaryStorage = navigator.temporaryStorage = navigator.temporaryStorage || navigator.webkitTemporaryStorage;
+                self.resolveLocalFileSystemURL = self.resolveLocalFileSystemURL || self.webkitResolveLocalFileSystemURL;
+                if (!requestFileSystem) {
+                    dfd.reject("No FSAPI");
+                    return dfd.promise();
+                }
+                var prefix = config.name + "/";
+                persistentStorage.requestQuota(config.size, function(numBytes) {
+                    requestFileSystem(PERSISTENT, numBytes, function(fs) {
+                        fs.root.getDirectory(config.name, {
+                            create: true
+                        }, function() {
+                            dfd.resolve(new FSAPI(fs, numBytes, prefix));
+                        }, function(err) {
+                            dfd.reject(err);
+                        });
+                    }, function(err) {
+                        dfd.reject(err);
+                    });
+                }, function(err) {
+                    dfd.reject(err);
+                });
+                return dfd.promise();
+            }
+        };
+    }();
+    var IndexedDBProvider = function() {
+        var URL = window.URL || window.webkitURL;
+        function IDB(db) {
+            this._db = db;
+            this.type = "IndexedDB";
+            this._supportsBlobs = false;
+        }
+        IDB.prototype = {
+            get: function(docKey) {
+                var dfd = new _.Dfd();
+                var transaction = this._db.transaction([ "files" ], "readonly");
+                var get = transaction.objectStore("files").get(docKey);
+                get.onsuccess = function(e) {
+                    dfd.resolve(e.target.result);
+                };
+                get.onerror = dfd.reject;
+                return dfd.promise();
+            },
+            set: function(docKey, data) {
+                var dfd = new _.Dfd();
+                var transaction = this._db.transaction([ "files" ], "readwrite");
+                var put = transaction.objectStore("files").put(data, docKey);
+                put.onsuccess = dfd.resolve;
+                put.onerror = dfd.reject;
+                return dfd.promise();
+            },
+            remove: function(docKey) {
+                var dfd = new _.Dfd();
+                var transaction = this._db.transaction([ "files" ], "readwrite");
+                var del = transaction.objectStore("files").delete(docKey);
+                del.onsuccess = dfd.resolve;
+                del.onerror = dfd.reject;
+                return dfd.promise();
+            },
+            list: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var transaction = this._db.transaction([ "files" ], "readonly");
+                var cursor = transaction.objectStore(store).openCursor();
+                var listing = [];
+                cursor.onsuccess = function(e) {
+                    var cursor = e.target.result;
+                    if (cursor) {
+                        if (options.prefix) {
+                            if (cursor.key.indexOf(options.prefix) === 0) {
+                                listing.push(cursor.key);
+                            }
+                        } else {
+                            listing.push(cursor.key);
+                        }
+                        listing.push(cursor.key);
+                        cursor.continue();
+                    } else {
+                        dfd.resolve(listing);
+                    }
+                };
+                cursor.onerror = dfd.reject;
+                return dfd.promise();
+            },
+            clear: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var t = this._db.transaction([ "files" ], "readwrite");
+                if (!options.prefix) {
+                    var req1 = t.objectStore("files").clear();
+                    req1.onsuccess = dfd.resolve;
+                    req1.onerror = dfd.reject;
+                } else {
+                    var scope = this;
+                    this.list(options).done(function(listing) {
+                        var dfds = [ true ];
+                        listing.forEach(function(item) {
+                            dfds.push(scope.remove(item));
+                        });
+                        _.Dfd.when(dfds).done(dfd.resolve).fail(dfd.reject);
+                    }).fail(dfd.reject);
+                }
+                return dfd.promise();
+            }
+        };
+        return {
+            init: function(config) {
+                var dfd = new _.Dfd();
+                var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB, IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.OIDBTransaction || window.msIDBTransaction, dbVersion = 2;
+                if (!indexedDB || !IDBTransaction) {
+                    dfd.reject("No IndexedDB");
+                    return dfd.promise();
+                }
+                var request = indexedDB.open(config.name, dbVersion);
+                function createObjectStore(db) {
+                    db.createObjectStore("files");
+                }
+                request.onerror = function(event) {
+                    dfd.reject(event);
+                };
+                request.onsuccess = function(event) {
+                    var db = request.result;
+                    db.onerror = function(event) {
+                        console.log(event);
+                    };
+                    if (db.setVersion) {
+                        if (db.version != dbVersion) {
+                            var setVersion = db.setVersion(dbVersion);
+                            setVersion.onsuccess = function() {
+                                createObjectStore(db);
+                                dfd.resolve();
+                            };
+                        } else {
+                            dfd.resolve(new IDB(db));
+                        }
+                    } else {
+                        dfd.resolve(new IDB(db));
+                    }
+                };
+                request.onupgradeneeded = function(event) {
+                    createObjectStore(event.target.result);
+                };
+                return dfd.promise();
+            }
+        };
+    }();
+    var WebSQLProvider = function() {
+        var URL = window.URL || window.webkitURL;
+        function WSQL(db) {
+            this._db = db;
+            this.type = "WebSQL";
+        }
+        WSQL.prototype = {
+            get: function(docKey, options) {
+                var dfd = new _.Dfd();
+                this._db.transaction(function(tx) {
+                    tx.executeSql("SELECT value FROM files WHERE fname = ?", [ docKey ], function(tx, res) {
+                        if (res.rows.length == 0) {
+                            dfd.resolve(undefined);
+                        } else {
+                            var data = res.rows.item(0).value;
+                            if (options && options.json) data = JSON.parse(data);
+                            dfd.resolve(data);
+                        }
+                    });
+                }, function(err) {
+                    dfd.reject(err);
+                });
+                return dfd.promise();
+            },
+            set: function(docKey, data, options) {
+                var dfd = new _.Dfd();
+                if (options && options.json) data = JSON.stringify(data);
+                this._db.transaction(function(tx) {
+                    tx.executeSql("INSERT OR REPLACE INTO files (fname, value) VALUES(?, ?)", [ docKey, data ]);
+                }, function(err) {
+                    dfd.reject(err);
+                }, function() {
+                    dfd.resolve();
+                });
+                return dfd.promise();
+            },
+            remove: function(docKey) {
+                var dfd = new _.Dfd();
+                this._db.transaction(function(tx) {
+                    tx.executeSql("DELETE FROM files WHERE fname = ?", [ docKey ]);
+                }, function(err) {
+                    dfd.reject(err);
+                }, function() {
+                    dfd.resolve();
+                });
+                return dfd.promise();
+            },
+            list: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var select = "SELECT fname FROM files";
+                var vals = [];
+                if (options.prefix) {
+                    select += " WHERE fname LIKE ?";
+                    vals = [ options.prefix + "%" ];
+                }
+                this._db.transaction(function(tx) {
+                    tx.executeSql(select, vals, function(tx, res) {
+                        var listing = [];
+                        for (var i = 0; i < res.rows.length; ++i) {
+                            listing.push(res.rows.item(i)["fname"]);
+                        }
+                        dfd.resolve(listing);
+                    }, function(err) {
+                        dfd.reject(err);
+                    });
+                });
+                return dfd.promise();
+            },
+            clear: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var query = "DELETE FROM files";
+                var vals = [];
+                if (options.prefix) {
+                    query += " WHERE fname LIKE ?";
+                    vals = [ options.prefix + "%" ];
+                }
+                this._db.transaction(function(tx) {
+                    tx.executeSql(query, vals, function() {
+                        dfd.resolve();
+                    });
+                }, function(err) {
+                    dfd.reject(err);
+                });
+                return dfd.promise();
+            }
+        };
+        return {
+            init: function(config) {
+                var openDb = window.openDatabase;
+                var dfd = new _.Dfd();
+                if (!openDb) {
+                    dfd.reject("No WebSQL");
+                    return dfd.promise();
+                }
+                var db = openDb(config.name, "1.0", "large local storage", config.size);
+                db.transaction(function(tx) {
+                    tx.executeSql("CREATE TABLE IF NOT EXISTS files (fname unique, value)");
+                }, function(err) {
+                    dfd.reject(err);
+                }, function() {
+                    dfd.resolve(new WSQL(db));
+                });
+                return dfd.promise();
+            }
+        };
+    }();
+    var LocalStorageProvider = function() {
+        function LS(options) {
+            if (!options.type) {
+                options.type = "LocalStorage";
+            }
+            this.type = options.type;
+            if (this.type === "SessionStorage") {
+                this.store = sessionStorage;
+            } else {
+                this.store = localStorage;
+            }
+            this._prefix = options.name + ":";
+        }
+        LS.prototype = {
+            get: function(docKey, options) {
+                var dfd = new _.Dfd();
+                dfd.resolve(this.store.getItem(this._prefix + docKey));
+                return dfd.promise();
+            },
+            set: function(docKey, data, options) {
+                var dfd = new _.Dfd();
+                this.store.setItem(this._prefix + docKey, data);
+                dfd.resolve();
+                return dfd.promise();
+            },
+            remove: function(docKey, options) {
+                var dfd = new _.Dfd();
+                this.store.remove(this._prefix + docKey);
+                dfd.resolve();
+                return dfd.promise();
+            },
+            list: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var listing = Object.keys(this.store);
+                var ret = [];
+                var prefix = this._prefix;
+                if (options.prefix) {
+                    prefix += options.prefix;
+                }
+                listing.forEach(function(item) {
+                    if (item.indexOf(prefix) === 0) {
+                        ret.push(item.substr(this._prefix.length - 1));
+                    }
+                });
+                dfd.resolve(ret);
+                return dfd.promise();
+            },
+            clear: function(options) {
+                options = options || {};
+                var dfd = new _.Dfd();
+                var listing = Object.keys(this.store);
+                var prefix = this._prefix;
+                if (options.prefix) {
+                    prefix += options.prefix;
+                }
+                listing.forEach(function(item) {
+                    if (item.indexOf(prefix) === 0) {
+                        this.store.remove(item);
+                    }
+                });
+                dfd.resolve();
+                return dfd.promise();
+            }
+        };
+        return {
+            init: function(config) {
+                var dfd = new _.Dfd();
+                dfd.resolve(new LS(config));
+                return dfd.promise();
+            }
+        };
+    }();
+    var LargeLocalStorage = function() {
+        var providers = {
+            FileSystemAPI: FilesystemAPIProvider,
+            IndexedDB: IndexedDBProvider,
+            WebSQL: WebSQLProvider,
+            LocalStorage: LocalStorageProvider,
+            SessionStorage: LocalStorageProvider
+        };
+        var defaultConfig = {
+            size: 10 * 1024 * 1024,
+            name: "lls"
+        };
+        function selectImplementation(config) {
+            if (!config) config = {};
+            config = _.defaults(config, defaultConfig);
+            if (config.forceProvider) {
+                return providers[config.forceProvider].init(config);
+            }
+            var dfd = new _.Dfd();
+            FilesystemAPIProvider.init(config).done(function(ret) {
+                dfd.resolve(ret);
+            }).fail(function() {
+                IndexedDBProvider.init(config).done(function(ret) {
+                    dfd.resolve(ret);
+                }).fail(function() {
+                    WebSQLProvider.init(config).done(function(ret) {
+                        dfd.resolve(ret);
+                    }).fail(function() {
+                        LocalStorageProvider.init(config).done(function(ret) {
+                            dfd.resolve(ret);
+                        }).fail(function() {
+                            dfd.reject("I have nothing.... leave me alone :(");
+                        });
+                    });
+                });
+            });
+            return dfd.promise();
+        }
+        function LargeLocalStorage(config) {
+            var scope = this;
+            var dfd = new _.Dfd();
+            selectImplementation(config).done(function(impl) {
+                scope._impl = impl;
+                dfd.resolve(scope);
+            }).fail(function(e) {
+                dfd.reject("No storage provider found");
+            });
+            scope.initialized = dfd.promise();
+            return scope;
+        }
+        LargeLocalStorage.prototype = {
+            ready: function() {
+                return this.initialized;
+            },
+            list: function(docKey) {
+                this._checkAvailability();
+                return this._impl.list(docKey);
+            },
+            remove: function(docKey) {
+                this._checkAvailability();
+                return this._impl.remove(docKey);
+            },
+            clear: function() {
+                this._checkAvailability();
+                return this._impl.clear();
+            },
+            get: function(docKey, options) {
+                this._checkAvailability();
+                return this._impl.get(docKey, options);
+            },
+            set: function(docKey, data, options) {
+                this._checkAvailability();
+                return this._impl.set(docKey, data, options);
+            },
+            getCapacity: function() {
+                this._checkAvailability();
+                if (this._impl.getCapacity) return this._impl.getCapacity(); else return -1;
+            },
+            _checkAvailability: function() {
+                if (!this._impl) {
+                    throw {
+                        msg: "No storage implementation is available yet.  The user most likely has not granted you app access to FileSystemAPI or IndexedDB",
+                        code: "NO_IMPLEMENTATION"
+                    };
+                }
+            }
+        };
+        return LargeLocalStorage;
+    }();
+    _.LargeLocalStorage = LargeLocalStorage;
+    return LargeLocalStorage;
+})();
+
+(function() {
+    var store = function(args, scope) {
+        var dfd = new _.Dfd();
+        var resolveFunc = function(ret) {
+            dfd.resolve(ret);
+        };
+        var rejectFunc = function(ret) {
+            dfd.reject(ret);
+        };
+        scope = scope || this;
+        if (typeof args === "undefined" || !args.method || !args.urn) {
+            dfd.reject("Must Supply args object with method, url, and data");
+            return dfd.promise();
+        }
+        args.data = args.data || {};
+        args.method = args.method.toUpperCase();
+        if (scope._options._store.remote) {
+            if (args.method === "GET" && scope._options._store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
+                local(args, scope).done(resolveFunc).fail(rejectFunc);
+            } else {
+                ajax(args, scope).done(function(ret) {
+                    if (scope._options._store.localStorage) {
+                        if (args.method === "GET") {
+                            args.method = "POST";
+                        }
+                        local(args, scope).done(resolveFunc).fail(rejectFunc);
+                    } else {
+                        dfd.resolve(ret);
+                    }
+                }).fail(rejectFunc);
+            }
+        } else if (scope._options._store.localStorage) {
+            local(args, scope).done(resolveFunc).fail(rejectFunc);
+        }
+        return dfd.promise();
+    };
+    var local = function(args, scope) {
+        switch (args.method) {
+          case "GET":
+            return self.Jive.Store.get(args.urn);
+            break;
+
+          case "POST":
+            return self.Jive.Store.set(args.urn, args.data);
+            break;
+
+          case "PUT":
+            return self.Jive.Store.set(args.urn, args.data);
+            break;
+
+          case "PATCH":
+            var dfd = new _.Dfd();
+            var xhr = self.Jive.Store.get(args.urn);
+            xhr.done(function(ret) {
+                _.extend(ret, args.data);
+                self.Jive.Store.set(args.urn, ret).done(dfd.resolve).fail(dfd.reject);
+            }).fail(dfd.reject);
+            return dfd.promise();
+            break;
+
+          case "DELETE":
+            return self.Jive.Store.remove(args.urn);
+            break;
+
+          case "HEAD":
+            var dfd = new _.Dfd();
+            var xhr = self.Jive.Store.get(args.urn);
+            xhr.done(function(ret) {
+                dfd.resolve({
+                    lastModified: ret.lastModified,
+                    eTag: ret.eTag,
+                    ttl: ret.ttl,
+                    expires: ret.expires
+                });
+            }).fail(dfd.reject);
+            return dfd.promise();
+            break;
+
+          case "OPTIONS":
+          default:
+            var dfd = new _.Dfd();
+            dfd.resolve();
+            return dfd.promise();
+            break;
+        }
+    };
+    var ajax = function(args, scope) {
+        scope = scope || this;
+        var dfd = new _.Dfd();
+        if ((args.method == "POST" || args.method == "PUT" || args.method == "PATCH") && args.data) {
+            args.data = JSON.stringify(args.data);
+        } else if ((args.method == "GET" || args.method == "DELETE") && args.data) {
+            args.urn += "?" + $.param(args.data);
+        }
+        $.ajax({
+            url: scope._options._store.remote.trim("/") + "/" + args.urn,
+            beforeSend: function(xhr) {
+                xhr.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+            },
+            type: args.method,
+            data: args.data,
+            dataType: "json"
+        }).done(function(data, status, jqXhr) {
+            dfd.resolve({
+                data: data,
+                status: jqXhr.status,
+                headers: jqXhr.getAllResponseHeaders()
+            });
+        }).fail(function(jqXhr, status, error) {
+            dfd.reject({
+                e: error,
+                status: jqXhr.status,
+                headers: jqXhr.getAllResponseHeaders()
+            });
+        });
+        return dfd.promise();
+    };
+    var initialize = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        for (var key in args) {
+            scope[key] = args[key];
+        }
+        scope._options.pubsub = self.Jive.Jazz;
+        scope._options.persisted = scope.toJSON();
+    };
+    var Model = function(data, options) {
+        var scope = this;
+        data = data || {};
+        options = options || {};
+        scope._options = {
+            _excludes: {
+                _options: true
+            }
+        };
+        scope.initialize(data);
+        return scope;
+    };
+    Model.prototype = Object.create(Object.prototype);
+    Model.prototype.initialize = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+    };
+    Model.prototype.get = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        if (args.force || !scope._options.ttl || scope._options.ttl && new Date().getTime() > scope._options.ttl) {
+            store({
+                method: "GET",
+                urn: scope.urn,
+                data: args
+            }, scope).done(function(ret) {
+                if (_.isNormalObject(ret.data)) {
+                    for (var key in ret.data) {
+                        scope[key] = ret.data[key];
+                    }
+                    scope._persisted = scope.toJSON();
+                    if (ret.headers["Cache-Control"] !== "no-cache" && ret.headers["Expires"]) {
+                        scope._options.ttl = new Date(ret.headers["Expires"]).getTime();
+                        scope._options.lastModified = new Date(ret.headers["Last-Modified"]).getTime();
+                    }
+                    scope._options.pubsub.publish({
+                        urn: scope.urn + ":gotted"
+                    });
+                    dfd.resolve(scope);
+                }
+            }).fail(function(ret) {
+                dfd.reject(ret.error);
+            });
+        } else {
+            dfd.resolve(scope);
+        }
+        return dfd.promise();
+    };
+    Model.prototype.post = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "POST",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            for (var key in args) {
+                scope[key] = args[key];
+            }
+            scope._options.persisted = scope.toJSON();
+            scope._options.pubsub.publish({
+                urn: scope.urn + ":posted",
+                data: args
+            });
+            dfd.resolve(scope);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype.put = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "PUT",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            for (var key in args) {
+                scope[key] = args[key];
+            }
+            scope._options.persisted = scope.toJSON();
+            scope._options.pubsub.publish({
+                urn: scope.urn + ":putted",
+                data: scope.toJSON()
+            });
+            dfd.resolve(scope);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype.patch = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "PATCH",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            for (var key in args) {
+                scope[key] = args[key];
+            }
+            scope._options.persisted = scope.toJSON();
+            scope._options.pubsub.publish({
+                urn: scope.urn + ":patched",
+                data: args
+            });
+            dfd.resolve(scope);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype["delete"] = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "DELETE",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            for (var key in scope) {
+                delete scope[key];
+            }
+            scope._options.pubsub.publish({
+                urn: scope.urn + ":deleted",
+                data: args
+            });
+            dfd.resolve(scope);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype.options = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "OPTIONS",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            for (var key in args) {
+                scope.options[key] = args[key];
+            }
+            dfd.resolve(scope);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype.head = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var dfd = new _.Dfd();
+        store({
+            method: "HEAD",
+            urn: scope.urn,
+            data: args
+        }, scope).done(function(ret) {
+            dfd.resolve(ret.headers);
+        }).fail(function(ret) {
+            dfd.reject(ret.error);
+        });
+    };
+    Model.prototype.on = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var sub = scope._options.pubsub.subscribe({
+            urn: scope.urn + ":" + args.event
+        });
+        return sub;
+    };
+    Model.prototype.off = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        if (typeof args.sub !== "undefined" && typeof args.sub.id !== "undefined") {
+            scope._options.pubsub.unsubscribe({
+                id: args.sub.id
+            });
+            return true;
+        } else {
+            return false;
+        }
+    };
+    Model.prototype.validate = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+    };
+    Model.prototype.changes = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        return scope._options.changes;
+    };
+    Model.prototype.changed = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
+        console.log(scope._options.changes);
+        scope._options.pubsub.publish({
+            urn: scope.urn + ":changed",
+            data: scope._options.changes
+        });
+    };
+    Model.prototype.set = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        scope[args.key] = args.val;
+        scope._options.changes = scope._options.changes || {};
+        scope._options.changes[args.key] = {
+            aVal: scope._options.persisted[args.key],
+            bVal: scope[args.val]
+        };
+        scope._options.pubsub.publish({
+            urn: scope.urn + ":setted",
+            data: args
+        });
+        scope._options.pubsub.publish({
+            urn: scope.urn + ":changed",
+            data: scope._options.changes
+        });
+    };
+    Model.prototype.toJSON = Model.prototype.valueOf = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var excludes = _.clone(scope._options.excludes);
+        if (args.excludes) {
+            _.extend(excludes, args.excludes);
+        }
+        var temp = {};
+        for (var key in scope) {
+            if (!excludes[key]) {
+                temp[key] = scope[key];
+            }
+        }
+        for (var key in scope._options.refs) {
+            temp[key] = temp[key].urn;
+        }
+        temp = _.clone(temp, true);
+    };
+    Model.prototype.toVM = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        args.vm = args.vm || "default";
+        var ret;
+        var keys = scope._options.vms[args.vm];
+        if (!keys || keys === "*") {
+            return _.clone(scope, true, scope._options.excludes);
+        } else {
+            ret = {};
+            keys.forEach(function(key) {
+                if (scope._options.refs[key]) {
+                    ret[key] = scope[key].toVM(args);
+                } else {
+                    ret[key] = _.clone(scope[key], true, {});
+                }
+            });
+            return ret;
+        }
+    };
+    Model.create = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        var schema = args.schema;
+        var newModel = function(data, options) {
+            var scope = this;
+            data = data || {};
+            options = options || {};
+            scope._options = {
+                excludes: {
+                    _options: true
+                }
+            };
+            scope._options.urn = schema.urn;
+            if (typeof schema.store === "undefined") {
+                if (typeof window !== "undefined") {
+                    if (document.localStorage) {
+                        scope._options.store = {
+                            localStorage: "Jive:Data"
+                        };
+                    } else {
+                        scope._options.store = {
+                            memory: "Jive.Data"
+                        };
+                    }
+                } else {
+                    scope._options.store = {
+                        mongo: "mongoConnectionUrl"
+                    };
+                }
+            } else {
+                scope._options.store = schema.store;
+            }
+            if (typeof schema.vms === "undefined") {
+                schema.vms = {
+                    "default": "*"
+                };
+            }
+            scope._options.vms = schema.vms;
+            scope._options.refs = schema.refs;
+            _.extend(scope._options.excludes, scope._options.refs);
+            initialize();
+            scope.initialize(data);
+            return scope;
+        };
+        newModel.prototype = Object.create(Model.prototype);
+        return newModel;
+    };
+    self.Jive = self.Jive || {};
+    self.Jive.Model = Model;
+})();
+
+(function() {
     var LinkedHashMap = function() {
         this._size = 0;
         this._map = {};

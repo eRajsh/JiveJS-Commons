@@ -47,6 +47,8 @@ JIVEJS_DEPS = libs/lodash.js \
 	libs/capped.js \
 	libs/promise.js \
 	libs/state.js \
+	libs/localStore.js \
+	libs/dataModels.js \
 	libs/linkedhashmap.js \
 	libs/fabric.js
 MINIFY=$(JIVEJS)
