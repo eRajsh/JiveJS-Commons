@@ -4943,8 +4943,9 @@ var _ = function() {
             return dfd.promise();
         }
         args.data = args.data || {};
+        args.remote = args.remote || true;
         args.method = args.method.toUpperCase();
-        if (scope._options._store.remote) {
+        if (scope._options._store.remote && args.remote) {
             if (args.method === "GET" && scope._options._store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
                 local(args, scope).done(resolveFunc).fail(rejectFunc);
             } else {
@@ -5045,14 +5046,60 @@ var _ = function() {
         });
         return dfd.promise();
     };
+    var postFunc = function(event, ret) {
+        scope = scope || this;
+        for (var key in ret) {
+            scope[key] = ret[key];
+        }
+        scope._options.persisted = scope.toJSON();
+        scope._options.pubsub.publish({
+            urn: scope.urn + ":" + event,
+            data: ret
+        });
+    };
+    var deleteFunc = function(ret) {
+        for (var key in scope) {
+            delete scope[key];
+        }
+        scope._options.subs.forEach(function(sub) {
+            scope.off({
+                sub: sub
+            });
+        });
+        scope._options.pubsub.publish({
+            urn: scope.urn + ":deleted",
+            data: args
+        });
+    };
     var initialize = function(args, scope) {
         scope = scope || this;
         args = args || {};
         for (var key in args) {
             scope[key] = args[key];
         }
+        scope._options.subs = [];
         scope._options.pubsub = self.Jive.Jazz;
+        scope._options.postFunc = postFunc.bind(scope, "posted");
+        scope._options.putFunc = postFunc.bind(scope, "putted");
+        scope._options.patchFunc = postFunc.bind(scope, "patched");
+        scope._options.deleteFunc = deleteFunc.bind(scope);
         scope._options.persisted = scope.toJSON();
+        scope.on("post").progress(function(ret) {
+            console.log("WTF is ret in POST?", ret);
+            scope._options.postFunc;
+        });
+        scope.on("put").progress(function(ret) {
+            console.log("WTF is ret in PUT?", ret);
+            scope._options.putFunc;
+        });
+        scope.on("patch").progress(function(ret) {
+            console.log("WTF is ret in PATCH?", ret);
+            scope._options.patchFunc;
+        });
+        scope.on("delete").progress(function(ret) {
+            console.log("WTF is ret in DELETE?", ret);
+            scope._options.deleteFunc();
+        });
     };
     var Model = function(data, options) {
         var scope = this;
@@ -5106,119 +5153,67 @@ var _ = function() {
     Model.prototype.post = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        var dfd = new _.Dfd();
-        store({
+        return store({
             method: "POST",
             urn: scope.urn,
             data: args
-        }, scope).done(function(ret) {
-            for (var key in args) {
-                scope[key] = args[key];
-            }
-            scope._options.persisted = scope.toJSON();
-            scope._options.pubsub.publish({
-                urn: scope.urn + ":posted",
-                data: args
-            });
-            dfd.resolve(scope);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
-        });
+        }, scope).done(scope._options.postFunc);
     };
     Model.prototype.put = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        store({
+        return store({
             method: "PUT",
             urn: scope.urn,
             data: args
-        }, scope).done(function(ret) {
-            for (var key in args) {
-                scope[key] = args[key];
-            }
-            scope._options.persisted = scope.toJSON();
-            scope._options.pubsub.publish({
-                urn: scope.urn + ":putted",
-                data: scope.toJSON()
-            });
-            dfd.resolve(scope);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
-        });
+        }, scope).done(scope._options.putFunc);
     };
     Model.prototype.patch = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        store({
+        return store({
             method: "PATCH",
             urn: scope.urn,
             data: args
-        }, scope).done(function(ret) {
-            for (var key in args) {
-                scope[key] = args[key];
-            }
-            scope._options.persisted = scope.toJSON();
-            scope._options.pubsub.publish({
-                urn: scope.urn + ":patched",
-                data: args
-            });
-            dfd.resolve(scope);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
-        });
+        }, scope).done(scope._options.patchFunc);
     };
     Model.prototype["delete"] = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        store({
+        return store({
             method: "DELETE",
             urn: scope.urn,
             data: args
-        }, scope).done(function(ret) {
-            for (var key in scope) {
-                delete scope[key];
-            }
-            scope._options.pubsub.publish({
-                urn: scope.urn + ":deleted",
-                data: args
-            });
-            dfd.resolve(scope);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
-        });
+        }, scope).done(scope._options.deleteFunc);
     };
     Model.prototype.options = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        store({
+        return store({
             method: "OPTIONS",
             urn: scope.urn,
             data: args
         }, scope).done(function(ret) {
             for (var key in args) {
-                scope.options[key] = args[key];
+                scope._options[key] = args[key];
             }
             dfd.resolve(scope);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
         });
     };
     Model.prototype.head = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        store({
+        return store({
             method: "HEAD",
             urn: scope.urn,
             data: args
         }, scope).done(function(ret) {
             dfd.resolve(ret.headers);
-        }).fail(function(ret) {
-            dfd.reject(ret.error);
         });
     };
     Model.prototype.on = function(args, scope) {
@@ -5227,6 +5222,7 @@ var _ = function() {
         var sub = scope._options.pubsub.subscribe({
             urn: scope.urn + ":" + args.event
         });
+        scope._options.subs.push(sub);
         return sub;
     };
     Model.prototype.off = function(args, scope) {
@@ -5236,6 +5232,7 @@ var _ = function() {
             scope._options.pubsub.unsubscribe({
                 id: args.sub.id
             });
+            scope._options.subs = _.without(scope._options.subs, sub);
             return true;
         } else {
             return false;
@@ -5292,7 +5289,9 @@ var _ = function() {
             }
         }
         for (var key in scope._options.refs) {
-            temp[key] = temp[key].urn;
+            if (temp[key] && temp[key].urn) {
+                temp[key] = temp[key].urn;
+            }
         }
         temp = _.clone(temp, true);
     };
@@ -5316,10 +5315,72 @@ var _ = function() {
             return ret;
         }
     };
-    Model.create = function(args, scope) {
-        scope = scope || this;
-        args = args || {};
-        var schema = args.schema;
+    var parseSchema = function(schema, scope) {
+        scope._options.urn = schema.urn;
+        if (typeof schema.store === "undefined") {
+            if (typeof window !== "undefined") {
+                if (document.localStorage) {
+                    scope._options.store = {
+                        localStorage: "Jive:Data"
+                    };
+                } else {
+                    scope._options.store = {
+                        memory: "Jive.Data"
+                    };
+                }
+            } else {
+                scope._options.store = {
+                    mongo: "mongoConnectionUrl"
+                };
+            }
+        } else {
+            scope._options.store = schema.store;
+        }
+        if (typeof schema.vms === "undefined") {
+            schema.vms = {
+                "default": "*"
+            };
+        }
+        scope._options.vms = schema.vms;
+        scope._options.refs = schema.refs;
+        _.extend(scope._options.excludes, scope._options.refs);
+        for (var key in schema.keys) {
+            if (_.isFunction(schema.keys[key].default)) {
+                scope[key] = schema.keys[key].default();
+            } else {
+                switch (schema.keys[key].type) {
+                  case "object":
+                    scope[key] = schema.keys[key].default || {};
+                    break;
+
+                  case "array":
+                    scope[key] = schema.keys[key].default || [];
+                    break;
+
+                  case "boolean":
+                    scope[key] = schema.keys[key].default || false;
+                    break;
+
+                  case "string":
+                    scope[key] = schema.keys[key].default || "";
+                    break;
+
+                  case "number":
+                    scope[key] = schema.keys[key].default || NaN;
+                    break;
+
+                  case "date":
+                    scope[key] = schema.keys[key].default || 0;
+                    break;
+
+                  case "regex":
+                    scope[key] = schema.keys[key].default || new Regex();
+                    break;
+                }
+            }
+        }
+    };
+    Model.create = function(schema) {
         var newModel = function(data, options) {
             var scope = this;
             data = data || {};
@@ -5329,43 +5390,15 @@ var _ = function() {
                     _options: true
                 }
             };
-            scope._options.urn = schema.urn;
-            if (typeof schema.store === "undefined") {
-                if (typeof window !== "undefined") {
-                    if (document.localStorage) {
-                        scope._options.store = {
-                            localStorage: "Jive:Data"
-                        };
-                    } else {
-                        scope._options.store = {
-                            memory: "Jive.Data"
-                        };
-                    }
-                } else {
-                    scope._options.store = {
-                        mongo: "mongoConnectionUrl"
-                    };
-                }
-            } else {
-                scope._options.store = schema.store;
-            }
-            if (typeof schema.vms === "undefined") {
-                schema.vms = {
-                    "default": "*"
-                };
-            }
-            scope._options.vms = schema.vms;
-            scope._options.refs = schema.refs;
-            _.extend(scope._options.excludes, scope._options.refs);
-            initialize();
+            parseSchema(schema, scope);
+            initialize(data, scope);
             scope.initialize(data);
             return scope;
         };
         newModel.prototype = Object.create(Model.prototype);
         return newModel;
     };
-    self.Jive = self.Jive || {};
-    self.Jive.Model = Model;
+    _.newModel = Model;
 })();
 
 (function() {
@@ -5561,14 +5594,23 @@ var _ = function() {
                     }, args);
                 }
             } else {
+                args.dfd.notify({
+                    data: args.data,
+                    matches: args.matches,
+                    raw: args.raw,
+                    binding: args.binding,
+                    key: args.key
+                });
                 setImmediate(function(args) {
-                    args.cb.call(null, {
-                        data: args.data,
-                        matches: args.matches,
-                        raw: args.raw,
-                        binding: args.binding,
-                        key: args.key
-                    });
+                    if (args.cb) {
+                        args.cb.call(null, {
+                            data: args.data,
+                            matches: args.matches,
+                            raw: args.raw,
+                            binding: args.binding,
+                            key: args.key
+                        });
+                    }
                 }, {
                     cb: args.cb,
                     data: args.data,
@@ -5590,6 +5632,7 @@ var _ = function() {
                     triggerPublishSeed.binding = args.loc;
                     triggerPublishSeed.raw = args.data;
                     triggerPublishSeed.cb = args.subs[i].callback;
+                    triggerPublishSeed.dfd = args.subs[i].dfd;
                     triggerPublishSeed.index = i + 1;
                     triggerPublishSeed.key = args.key;
                     cb(triggerPublishSeed);
@@ -5612,15 +5655,20 @@ var _ = function() {
         this.subscribe = function(args) {
             args = args || {};
             args.key = "subscription_" + this.__i__();
+            args.dfd = new _.Dfd();
             bindings[args.urn] = bindings[args.urn] || {
                 subs: []
             };
-            bindings[args.urn].regex = _.createRegex({
+            bindings[args.urn].regex = bindings[args.urn].regex || _.createRegex({
                 urn: args.urn
             });
             bindings[args.urn].subs.push(args);
             subscriptions[args.key] = args;
-            return args;
+            var ret = args.dfd.promise();
+            ret.key = args.key;
+            ret.id = args.id;
+            ret.callback = args.callback;
+            return ret;
         };
         this.unsubscribe = function(args) {
             args = args || {};

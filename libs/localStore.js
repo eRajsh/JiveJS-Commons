@@ -363,7 +363,7 @@
 
 					}).fail(dfd.reject);
 				}
-				
+
 				return dfd.promise();
 			}
 		};
@@ -490,7 +490,7 @@
 				var dfd = new _.Dfd();
 
 				var select = 'SELECT fname FROM files';
-				var vals = []; 
+				var vals = [];
 
 				if(options.prefix) {
 					select += ' WHERE fname LIKE ?'
@@ -519,7 +519,7 @@
 				var dfd = new _.Dfd();
 
 				var query = 'DELETE FROM files';
-				var vals = []; 
+				var vals = [];
 
 				if(options.prefix) {
 					query += ' WHERE fname LIKE ?'
@@ -530,7 +530,7 @@
 					tx.executeSql(query, vals, function () {
 						dfd.resolve();
 					});
-					
+
 				}, function (err) {
 					dfd.reject(err);
 				});
@@ -596,7 +596,7 @@
 				this.store.remove(this._prefix + docKey);
 				dfd.resolve();
 				return dfd.promise();
-			}, 
+			},
 
 			list: function(options) {
 				options = options || {};
@@ -704,7 +704,7 @@
 		}
 
 		LargeLocalStorage.prototype = {
-			
+
 			ready: function () {
 				return this.initialized;
 			},

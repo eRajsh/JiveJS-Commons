@@ -238,6 +238,67 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 			});
 		});
 
+		it("the object subscribe returns has a dfd that gets notified when events occur", function() {
+			var calls = [];
+
+			var fabric = new _.Fabric({
+				debugMode: true
+			});
+
+			var sub = fabric.subscribe({
+				urn: "promisified:fabric"
+			});
+
+			runs(function() {
+				sub.progress(function(e) {
+					calls.push(e);
+
+					expect(e.data).toEqual("test");
+				});
+
+				fabric.publish({
+					urn: "promisified:fabric",
+					data: "test"
+				});
+
+				setTimeout(function() {
+					fabric.publish({
+						urn: "promisified:fabric",
+						data: "test"
+					});
+				}, 200);
+			});
+
+			waitsFor(function() {
+				return calls.length == 2;
+			});
+
+			runs(function() {
+				fabric.unsubscribe(sub);
+
+				fabric.subscribe({
+					urn: "promisified:fabric"
+				}).progress(function(e) {
+					calls.push(e);
+
+					expect(e.data).toEqual("promises rock");
+				});
+
+				fabric.publish({
+					urn: "promisified:fabric",
+					data: "promises rock"
+				});
+			});
+
+			waitsFor(function() {
+				return calls.length == 3;
+			});
+
+			runs(function() {
+				expect(calls.length).toEqual(3);
+			});
+		});
+
 		it("publish can be called sync as well as the default async for the callback distribution, so that the return of the callback is given as the data to the next callback", function() {
 			var fabric = new _.Fabric({
 				debugMode: true

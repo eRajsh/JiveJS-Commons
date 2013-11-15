@@ -134,8 +134,11 @@
 					}, args);
 				}
 			} else {
+				args.dfd.notify({data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 				setImmediate(function(args) {
-					args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
+					if(args.cb) {
+						args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
+					}
 				}, {cb: args.cb, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
 			return null;
@@ -168,6 +171,7 @@
 					triggerPublishSeed.binding = args.loc;
 					triggerPublishSeed.raw = args.data;
 					triggerPublishSeed.cb = args.subs[i].callback;
+					triggerPublishSeed.dfd = args.subs[i].dfd;
 					triggerPublishSeed.index = i+1;
 					triggerPublishSeed.key = args.key;
 					cb(triggerPublishSeed);
@@ -207,12 +211,13 @@
 		this.subscribe   = function(args) {
 			args = args || {};
 			args.key = "subscription_"+this.__i__();
+			args.dfd = new _.Dfd();
 
 			//setup the bindings property if it doesn't exist already;
 			bindings[args.urn] = bindings[args.urn] || {subs:[]};
 
 			//stash the regex so we don't have to create it every time...
-			bindings[args.urn].regex = _.createRegex({urn : args.urn});
+			bindings[args.urn].regex = bindings[args.urn].regex || _.createRegex({urn : args.urn});
 
 			//and also stash the subscription itself under its binding urn "channel"
 			bindings[args.urn].subs.push(args);
@@ -220,7 +225,12 @@
 			// Also stash the subscription key for later lookup
 			subscriptions[args.key] = args;
 
-			return args;
+			var ret = args.dfd.promise();
+			ret.key = args.key;
+			ret.id = args.id;
+			ret.callback = args.callback;
+
+			return ret;
 		};
 
 		/**

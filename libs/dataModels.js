@@ -8,16 +8,17 @@
 			dfd.reject(ret);
 		};
 		scope = scope || this;
-		
+
 		if(typeof args === "undefined" || !args.method || !args.urn) {
 			dfd.reject("Must Supply args object with method, url, and data");
 			return dfd.promise();
 		}
 
 		args.data = args.data || {};
+		args.remote = args.remote || true;
 		args.method = args.method.toUpperCase();
-		
-		if(scope._options._store.remote) {
+
+		if(scope._options._store.remote && args.remote) {
 
 			if(args.method === "GET" && scope._options._store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
 				local(args, scope).done(resolveFunc).fail(rejectFunc);
@@ -98,7 +99,7 @@
 	var ajax = function(args, scope) {
 		scope = scope || this;
 		var dfd = new _.Dfd();
-		
+
 		if((args.method == "POST" || args.method == "PUT" || args.method == "PATCH") && args.data) {
 			args.data = JSON.stringify(args.data);
 		} else if((args.method == "GET" || args.method == "DELETE") && args.data){
@@ -128,19 +129,73 @@
 		});
 
 		return dfd.promise();
-	}
+	};
+
+	var postFunc = function(event, ret) {
+		scope = scope || this;
+
+		for(var key in ret) {
+			scope[key] = ret[key];
+		}
+
+		scope._options.persisted = scope.toJSON();
+
+		scope._options.pubsub.publish({
+			urn: scope.urn + ":" + event,
+			data: ret
+		});
+	};
+
+	var deleteFunc = function(ret) {
+		for(var key in scope) {
+			delete scope[key];
+		}
+
+		scope._options.subs.forEach(function(sub) {
+			scope.off({sub: sub});
+		});
+
+		scope._options.pubsub.publish({
+			urn: scope.urn + ":deleted",
+			data: args
+		});
+	};
 
 	var initialize = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
-		
+
 		for(var key in args) {
 			scope[key] = args[key];
 		}
 
+		scope._options.subs = [];
+
 		scope._options.pubsub = self.Jive.Jazz;
 
+		scope._options.postFunc = postFunc.bind(scope, "posted");
+		scope._options.putFunc = postFunc.bind(scope, "putted");
+		scope._options.patchFunc = postFunc.bind(scope, "patched");
+		scope._options.deleteFunc = deleteFunc.bind(scope);
+
 		scope._options.persisted = scope.toJSON();
+
+		scope.on("post").progress(function(ret) {
+			console.log("WTF is ret in POST?", ret);
+			scope._options.postFunc
+		});
+		scope.on("put").progress(function(ret) {
+			console.log("WTF is ret in PUT?", ret);
+			scope._options.putFunc;
+		});
+		scope.on("patch").progress(function(ret) {
+			console.log("WTF is ret in PATCH?", ret);
+			scope._options.patchFunc;
+		});
+		scope.on("delete").progress(function(ret) {
+			console.log("WTF is ret in DELETE?", ret);
+			scope._options.deleteFunc();
+		});
 	};
 
 	var Model = function(data, options) {
@@ -167,7 +222,7 @@
 	Model.prototype.get = function(args, scope) {
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
-		
+
 		if(args.force || !scope._options.ttl || (scope._options.ttl && new Date().getTime() > scope._options.ttl)) {
 			store({ method: "GET", urn: scope.urn, data: args }, scope).done(function(ret) {
 				if(_.isNormalObject(ret.data)) {
@@ -179,9 +234,9 @@
 
 					if(ret.headers['Cache-Control'] !== "no-cache" && ret.headers['Expires']) {
 						scope._options.ttl = new Date(ret.headers['Expires']).getTime();
-						scope._options.lastModified = new Date(ret.headers['Last-Modified']).getTime(); 
+						scope._options.lastModified = new Date(ret.headers['Last-Modified']).getTime();
 					}
-					
+
 					scope._options.pubsub.publish({
 						urn: scope.urn + ":gotted"
 					});
@@ -199,102 +254,40 @@
 
 	Model.prototype.post = function(args, scope) {
 		scope = scope || this; args = args || {};
-		var dfd = new _.Dfd();
-
-		store({ method: "POST", urn: scope.urn, data: args }, scope).done(function(ret) {
-			for(var key in args) {
-				scope[key] = args[key];
-			}
-
-			scope._options.persisted = scope.toJSON();
-
-			scope._options.pubsub.publish({
-				urn: scope.urn + ":posted",
-				data: args
-			});
-
-			dfd.resolve(scope);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
-		});
+		return store({ method: "POST", urn: scope.urn, data: args }, scope).done(scope._options.postFunc);
 	};
 
 	Model.prototype.put = function(args, scope) {
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 
-		store({ method: "PUT", urn: scope.urn, data: args }, scope).done(function(ret) {
-			for(var key in args) {
-				scope[key] = args[key];
-			}
-
-			scope._options.persisted = scope.toJSON();
-
-			scope._options.pubsub.publish({
-				urn: scope.urn + ":putted",
-				data: scope.toJSON()
-			});
-
-			dfd.resolve(scope);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
-		});
+		return store({ method: "PUT", urn: scope.urn, data: args }, scope).done(scope._options.putFunc);
 	};
 
 	Model.prototype.patch = function(args, scope) {
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 
-		store({ method: "PATCH", urn: scope.urn, data: args }, scope).done(function(ret) {
-			for(var key in args) {
-				scope[key] = args[key];
-			}
-
-			scope._options.persisted = scope.toJSON();
-
-			scope._options.pubsub.publish({
-				urn: scope.urn + ":patched",
-				data: args
-			});
-
-			dfd.resolve(scope);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
-		});
+		return store({ method: "PATCH", urn: scope.urn, data: args }, scope).done(scope._options.patchFunc);
 	};
 
 	Model.prototype["delete"] = function(args, scope) {
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 
-		store({ method: "DELETE", urn: scope.urn, data: args }, scope).done(function(ret) {
-			for(var key in scope) {
-				delete scope[key];
-			}
-
-			scope._options.pubsub.publish({
-				urn: scope.urn + ":deleted",
-				data: args
-			});
-
-			dfd.resolve(scope);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
-		});
+		return store({ method: "DELETE", urn: scope.urn, data: args }, scope).done(scope._options.deleteFunc);
 	};
 
 	Model.prototype.options = function(args, scope) {
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 
-		store({ method: "OPTIONS", urn: scope.urn, data: args }, scope).done(function(ret) {
+		return store({ method: "OPTIONS", urn: scope.urn, data: args }, scope).done(function(ret) {
 			for(var key in args) {
-				scope.options[key] = args[key];
+				scope._options[key] = args[key];
 			}
 
 			dfd.resolve(scope);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
 		});
 	};
 
@@ -302,10 +295,8 @@
 		scope = scope || this; args = args || {};
 		var dfd = new _.Dfd();
 
-		store({ method: "HEAD", urn: scope.urn, data: args }, scope).done(function(ret) {
+		return store({ method: "HEAD", urn: scope.urn, data: args }, scope).done(function(ret) {
 			dfd.resolve(ret.headers);
-		}).fail(function(ret) {
-			dfd.reject(ret.error);
 		});
 	};
 	//END RESTY MAGICS
@@ -319,6 +310,8 @@
 			urn: scope.urn + ":" + args.event
 		});
 
+		scope._options.subs.push(sub);
+
 		return sub;
 	};
 
@@ -330,6 +323,8 @@
 			scope._options.pubsub.unsubscribe({
 				id: args.sub.id
 			});
+
+			scope._options.subs = _.without(scope._options.subs, sub);
 			return true;
 		} else {
 			return false;
@@ -352,7 +347,7 @@
 	Model.prototype.changed = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
-		
+
 		scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
 		console.log(scope._options.changes);
 		scope._options.pubsub.publish({
@@ -372,12 +367,12 @@
 			aVal: scope._options.persisted[args.key],
 			bVal: scope[args.val]
 		};
-		
+
 		scope._options.pubsub.publish({
 			urn: scope.urn + ":setted",
 			data: args
 		});
-		
+
 		scope._options.pubsub.publish({
 			urn: scope.urn + ":changed",
 			data: scope._options.changes
@@ -389,9 +384,9 @@
 	Model.prototype.toJSON = Model.prototype.valueOf = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
-		
+
 		var excludes = _.clone(scope._options.excludes);
-		
+
 		if(args.excludes) {
 			_.extend(excludes, args.excludes);
 		}
@@ -404,7 +399,9 @@
 		}
 
 		for(var key in scope._options.refs) {
-			temp[key] = temp[key].urn;
+			if(temp[key] && temp[key].urn) {
+				temp[key] = temp[key].urn;
+			}
 		}
 
 		temp = _.clone(temp, true);
@@ -421,7 +418,7 @@
 			return _.clone(scope, true, scope._options.excludes);
 		} else {
 			ret = {};
-			
+
 			keys.forEach(function(key) {
 				if(scope._options.refs[key]) {
 					ret[key] = scope[key].toVM(args);
@@ -436,11 +433,66 @@
 	//END DATA MUNGING RETURNS
 
 	//MODEL STATIC TO CREATE SUBCLASSES
-	Model.create = function(args, scope) {
-		scope = scope || this;
-		args = args || {};
-		var schema = args.schema;
 
+	var parseSchema = function(schema, scope) {
+		scope._options.urn = schema.urn;
+
+		if(typeof schema.store === "undefined") {
+			if (typeof window !== 'undefined') {
+				if(document.localStorage) {
+					scope._options.store = {"localStorage": "Jive:Data"};
+				} else {
+					scope._options.store = {"memory":"Jive.Data"};
+				}
+			} else {
+				scope._options.store = {"mongo":"mongoConnectionUrl"};
+			}
+		} else {
+			scope._options.store = schema.store;
+		}
+
+		if(typeof schema.vms === "undefined") {
+			schema.vms = {
+				"default": "*"
+			};
+		}
+		scope._options.vms = schema.vms;
+
+		scope._options.refs = schema.refs;
+		_.extend(scope._options.excludes, scope._options.refs);
+
+		for(var key in schema.keys) {
+			if(_.isFunction(schema.keys[key].default)) {
+				scope[key] = schema.keys[key].default();
+			} else {
+				switch(schema.keys[key].type) {
+					case "object":
+						scope[key] = schema.keys[key].default || {};
+					break;
+					case "array":
+						scope[key] = schema.keys[key].default || [];
+					break;
+					case "boolean":
+						scope[key] = schema.keys[key].default || false;
+					break;
+					case "string":
+						scope[key] = schema.keys[key].default || "";
+					break;
+					case "number":
+						scope[key] = schema.keys[key].default || NaN;
+					break;
+					case "date":
+						scope[key] = schema.keys[key].default || 0;
+					break;
+					case "regex":
+						scope[key] = schema.keys[key].default || new Regex();
+					break;
+				}
+			}
+		}
+	};
+
+	Model.create = function(schema) {
 		var newModel = function(data, options) {
 			var scope = this;
 			data = data || {};
@@ -452,33 +504,9 @@
 				}
 			};
 
-			//PARSE SCHEMA
-			scope._options.urn = schema.urn;
-			if(typeof schema.store === "undefined") {
-				if (typeof window !== 'undefined') {
-					if(document.localStorage) {
-						scope._options.store = {"localStorage": "Jive:Data"};
-					} else {
-						scope._options.store = {"memory":"Jive.Data"};
-					}
-				} else {
-					scope._options.store = {"mongo":"mongoConnectionUrl"};
-				}
-			} else {
-				scope._options.store = schema.store;
-			}
-			if(typeof schema.vms === "undefined") {
-				schema.vms = {
-					"default": "*"
-				};
-			}
-			scope._options.vms = schema.vms;
+			parseSchema(schema, scope);
 
-			scope._options.refs = schema.refs;
-			_.extend(scope._options.excludes, scope._options.refs);
-			//END PARSE SCHEMA
-
-			initialize();
+			initialize(data, scope);
 			scope.initialize(data);
 			return scope;
 		};
@@ -488,7 +516,6 @@
 		return newModel;
 	};
 	//END MODEL STATIC TO CREATE SUBCLASSES
-	self.Jive = self.Jive || {};
-	self.Jive.Model = Model;
+	_.newModel = Model;
 
 })();
