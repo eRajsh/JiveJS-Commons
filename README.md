@@ -1,18 +1,65 @@
-JiveJS-Commons - ***PUBLIC***
+JiveJS
 ==============
 
 Common low level libraries created to support the higher level application frameworks and programming patterns.
-* [Promise.js](#promisejs)
-* [State.js](#statejs)
-* [Fabric.js](#fabricjs)
+* [Capped](#Capped)
+* [Fabric](#Fabric)
+* [Promise](#Promise)
+* [State
+
+# Capped
+## A capped array.
+An array like object that provides a way to set a maximum size. If you use the push operator, the size will never exceed the maximum specified.
+
+### Example:
+```
+// Capped gets defined on the global _
+
+var capped = new _.Capped({ size: 10 });
+
+for(var i = 0; i < 20; i++) {
+	capped.push(i);
+}
+
+capped.length; // 10
+capped[0]; // 0
+capped[9]; // 10
+```
+
+The first argument you can pass to the capped constructor is an object. This object has two valid keys:
+	* `size`
+		* `size` is the maximum size of the array
+	* `rotate`
+		* `rotate` is whether or not you want to have the array automatically pop items off the front of the array when its size exceeds the maximum size.
+
+The second argument you can provide to the constructor is a `seed`. If a `seed` is provided, the capped array will be populated with `n` number of undefined elements, exactly like the `Array` constructor.
 
 # Promise.js
-## A library conforming to the Promise/A spec. 
-Tested in Chrome only and known to contain non compatible code for previous versions of IE.  It would be easy to update it to work in those older browsers, but why???  At least for our use case we are using it in Chrome/Chromium based builds at the moment and will be doing backwards compatible builds of this at some point in the future when there is enough booze in the blood to dull the pain of working in IE8. 
-### Example:
+## A library conforming to the Promise/A spec.
+Tested in Chrome, Firefox, Safari, and IE8/9/10.
 
+This is a promise library that is speedy quick, doesn't hold onto scopes everywhere all willy-nilly, and is also quite flexible.
+
+* `_.Dfd` Constructor
+	* Creates a new deferred object
+* `dfd.promise()`
+	* Returns the promise for a given deferred object. The promise object is not able to access some of the deferred's methods, such as resolve and reject.
+* `dfd.resolve(arg)`
+	* Resolves the deferred object. When the deferred object gets resolved, callbacks on `dfd.then`, `dfd.done`, and `dfd.always` will get called with `arg`.
+* `dfd.reject(arg)`
+	* Rejects the deferred object. When the deferred object gets resolved, callbacks on `dfd.then`, `dfd.fail`, and `dfd.always` will get called with `arg`.
+* `dfd.progress(arg)`
+	* Progresses the deferred object (like a resolve but can be called multiple times). When the deferred object gets resolved, callbacks on `dfd.notify` will get called with `arg`.
+* `dfd.done(cb)` and `promise.done(cb)`
+	* Creates a callback for when the deferred object gets resolved. The cb function will get called with the `arg` that the deferred object was resolved with.
+* `dfd.fail(cb)` and `promise.fail(cb)`
+	* Creates a callback for when the deferred object gets rejected. The cb function will get called with the `arg` that the deferred object was rejected with.
+* `dfd.progress(cb)` and `promise.progress(cb)`
+	* Creates a callback for when the deferred object gets notified. The cb function will get called with the `arg` that the deferred object was notified with.
+
+### Example:
 ```
-//Stashes on the global _ on the property Dfd... 
+//Stashes on the global _ on the property Dfd...
 //The closure also returns the Dfd constructor and could be munged to work in AMD/Common if we gave a...
 
 var dfd = new _.Dfd();
@@ -37,15 +84,15 @@ pro.progress(function(data) {
 
 setTimeout(function() {
   dfd.notify("foo");
-  
+
   console.log("state", dfd.state());
-  
+
   dfd.resolve("bar");
 
   pro.done(function(data) {
     console.log("after Done", data);
   });
-  
+
   console.log("state", dfd.state());
 
 }, 500);
@@ -75,7 +122,7 @@ Idem to Promise on the browser compatability and the future timeline.  This baby
 ### Example
 
 ```
-//Stashes on the global _ on the property State... 
+//Stashes on the global _ on the property State...
 //The closure also returns the State constructor and could be munged to work in AMD/Common if we gave a...
 
 //you construct it up with the states it contains

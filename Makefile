@@ -2,7 +2,7 @@
 #  Most Important Rules  #
 ##########################
 
-.PHONY: all build clean
+.PHONY: all build clean test test-browser
 all: build
 
 
@@ -81,3 +81,10 @@ build: $(JIVEJS)
 
 clean: 
 	rm -f jive.js
+
+test:
+	@./node_modules/.bin/jasmine-node \
+		spec/
+
+test-browser:
+	@./node_modules/.bin/serve .

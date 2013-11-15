@@ -1,5 +1,9 @@
 {
 	"name": "jivejs",
 	"version": "1.0.0",
-	"main": "./jive"
+	"main": "./jive",
+	"devDependencies": {
+		"jasmine-node": "*",
+		"serve": "*"
+	}
 }
