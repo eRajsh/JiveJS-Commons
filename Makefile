@@ -84,5 +84,7 @@ clean:
 
 test:
 	@./node_modules/.bin/jasmine-node \
-		--requireJsSetup ./spec/common.js \
 		spec/
+
+test-browser:
+	@./node_modules/.bin/serve .

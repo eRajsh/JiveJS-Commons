@@ -1,0 +1,49 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+	<title>Jasmine Spec Runner</title>
+
+	<link rel="stylesheet" type="text/css" href="/node_modules/jasmine-node/node_modules/jasmine-reporters/ext/jasmine.css">
+	<script type="text/javascript" src="/node_modules/jasmine-node/node_modules/jasmine-reporters/ext/jasmine.js"></script>
+	<script type="text/javascript" src="/node_modules/jasmine-node/node_modules/jasmine-reporters/ext/jasmine-html.js"></script>
+
+	<!-- include source files here... -->
+	<script src="/jive.js"></script>
+	<!-- include spec files here... -->
+	<script src="/spec/capped-spec.js"></script>
+	<script src="/spec/fabric-spec.js"></script>
+	<script src="/spec/map-spec.js"></script>
+	<script src="/spec/promise-spec.js"></script>
+	<script src="/spec/set-spec.js"></script>
+	<script src="/spec/util-spec.js"></script>
+	<script src="/spec/weakmap-spec.js"></script>
+
+
+	<script type="text/javascript">
+		var func = function() {
+			var jasmineEnv = jasmine.getEnv();
+			jasmineEnv.updateInterval = 1000;
+
+			var htmlReporter = new jasmine.TrivialReporter();
+
+			jasmineEnv.addReporter(htmlReporter);
+
+			jasmineEnv.specFilter = function(spec) {
+				return htmlReporter.specFilter(spec);
+			};
+
+			execJasmine();
+
+			function execJasmine() {
+				jasmineEnv.execute();
+			}
+		}
+window.onload = func;
+</script>
+
+</head>
+
+<body>
+</body>
+</html>
