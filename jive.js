@@ -4929,39 +4929,54 @@ var _ = function() {
 })();
 
 (function() {
+    var urns = {};
+    var isCollection = function(urn) {
+        if (urn.match(/^\w+$/)) {
+            return true;
+        } else {
+            return false;
+        }
+    };
+    var findModel = function(urn) {
+        for (var key in urns) {
+            if (urns[key].regex.exec(urn)) {
+                return urns[key].model;
+            }
+        }
+    };
     var store = function(args, scope) {
         var dfd = new _.Dfd();
-        var resolveFunc = function(ret) {
-            dfd.resolve(ret);
-        };
-        var rejectFunc = function(ret) {
-            dfd.reject(ret);
-        };
         scope = scope || this;
+        args.data = args.data || {};
+        args.remote = args.remote || true;
+        args.method = args.method.toUpperCase();
+        if (scope._options.collection === true) {
+            args.urn = args.urn || scope._options.urn;
+        }
         if (typeof args === "undefined" || !args.method || !args.urn) {
             dfd.reject("Must Supply args object with method, url, and data");
             return dfd.promise();
         }
-        args.data = args.data || {};
-        args.remote = args.remote || true;
-        args.method = args.method.toUpperCase();
-        if (scope._options._store.remote && args.remote) {
-            if (args.method === "GET" && scope._options._store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
-                local(args, scope).done(resolveFunc).fail(rejectFunc);
+        if (scope._options.store.remote && args.remote) {
+            if (args.method === "GET" && scope._options.store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
+                local(args, scope).done(dfd.resolve).fail(dfd.reject);
             } else {
                 ajax(args, scope).done(function(ret) {
-                    if (scope._options._store.localStorage) {
+                    if (scope._options.store.localStorage) {
                         if (args.method === "GET") {
                             args.method = "POST";
                         }
-                        local(args, scope).done(resolveFunc).fail(rejectFunc);
+                        local(args, scope).done(function() {
+                            console.log("Local worked!", ret);
+                            dfd.resolve(ret);
+                        }).fail(dfd.reject);
                     } else {
                         dfd.resolve(ret);
                     }
-                }).fail(rejectFunc);
+                }).fail(dfd.reject);
             }
-        } else if (scope._options._store.localStorage) {
-            local(args, scope).done(resolveFunc).fail(rejectFunc);
+        } else if (scope._options.store.localStorage) {
+            local(args, scope).done(dfd.resolve).fail(dfd.reject);
         }
         return dfd.promise();
     };
@@ -5023,8 +5038,9 @@ var _ = function() {
         } else if ((args.method == "GET" || args.method == "DELETE") && args.data) {
             args.urn += "?" + $.param(args.data);
         }
+        var remote = scope._options.store.remote.replace(/\/$/g, "");
         $.ajax({
-            url: scope._options._store.remote.trim("/") + "/" + args.urn,
+            url: remote + "/" + args.urn,
             beforeSend: function(xhr) {
                 xhr.setRequestHeader("Content-Type", "application/json; charset=utf-8");
             },
@@ -5129,8 +5145,19 @@ var _ = function() {
                 data: args
             }, scope).done(function(ret) {
                 if (_.isNormalObject(ret.data)) {
-                    for (var key in ret.data) {
-                        scope[key] = ret.data[key];
+                    if (scope._options.collection === false) {
+                        for (var key in ret.data) {
+                            scope[key] = ret.data[key];
+                        }
+                    } else {
+                        for (var i = 0; i < ret.data.entries.length; i++) {
+                            var model = findModel(ret.data.entries[i].urn);
+                            if (model) {
+                                scope.entries.push(new Model(ret.data.entries[i]));
+                            } else {
+                                console.log("Couldn't find a model registered for", ret.data.entries[i]);
+                            }
+                        }
                     }
                     scope._persisted = scope.toJSON();
                     if (ret.headers["Cache-Control"] !== "no-cache" && ret.headers["Expires"]) {
@@ -5315,8 +5342,15 @@ var _ = function() {
             return ret;
         }
     };
-    var parseSchema = function(schema, scope) {
+    var parseSchema = function(schema, scope, newModel) {
         scope._options.urn = schema.urn;
+        urns[scope._options.urn] = {
+            regex: _.createRegex({
+                urn: scope._options.urn
+            }),
+            model: newModel
+        };
+        scope._options.collection = isCollection(scope._options.urn);
         if (typeof schema.store === "undefined") {
             if (typeof window !== "undefined") {
                 if (document.localStorage) {
@@ -5390,7 +5424,7 @@ var _ = function() {
                     _options: true
                 }
             };
-            parseSchema(schema, scope);
+            parseSchema(schema, scope, newModel);
             initialize(data, scope);
             scope.initialize(data);
             return scope;
