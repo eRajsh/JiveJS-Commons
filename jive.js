@@ -5150,10 +5150,11 @@ var _ = function() {
                             scope[key] = ret.data[key];
                         }
                     } else {
+                        scope.entries = scope.entries || [];
                         for (var i = 0; i < ret.data.entries.length; i++) {
                             var model = findModel(ret.data.entries[i].urn);
                             if (model) {
-                                scope.entries.push(new Model(ret.data.entries[i]));
+                                scope.entries.push(new model(ret.data.entries[i]));
                             } else {
                                 console.log("Couldn't find a model registered for", ret.data.entries[i]);
                             }
@@ -5342,13 +5343,13 @@ var _ = function() {
             return ret;
         }
     };
-    var parseSchema = function(schema, scope, newModel) {
+    var parseSchema = function(schema, scope) {
         scope._options.urn = schema.urn;
         urns[scope._options.urn] = {
             regex: _.createRegex({
                 urn: scope._options.urn
             }),
-            model: newModel
+            model: scope
         };
         scope._options.collection = isCollection(scope._options.urn);
         if (typeof schema.store === "undefined") {
@@ -5419,16 +5420,17 @@ var _ = function() {
             var scope = this;
             data = data || {};
             options = options || {};
-            scope._options = {
-                excludes: {
-                    _options: true
-                }
-            };
-            parseSchema(schema, scope, newModel);
+            scope._options = _.clone(newModel._options);
             initialize(data, scope);
             scope.initialize(data);
             return scope;
         };
+        newModel._options = {
+            excludes: {
+                _options: true
+            }
+        };
+        parseSchema(schema, newModel);
         newModel.prototype = Object.create(Model.prototype);
         return newModel;
     };
