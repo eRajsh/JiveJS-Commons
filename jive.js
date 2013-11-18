@@ -3003,6 +3003,11 @@ var _ = function() {
         },
         escapeHtml: _.escape
     };
+    return _;
+})();
+
+(function() {
+    "use strict";
     _.enableRetardMode = function() {
         if (!Object.keys) {
             Object.keys = function() {
@@ -3212,7 +3217,6 @@ var _ = function() {
             };
         }
     };
-    return _;
 })();
 
 (function(global, undefined) {
@@ -4967,7 +4971,6 @@ var _ = function() {
                             args.method = "POST";
                         }
                         local(args, scope).done(function() {
-                            console.log("Local worked!", ret);
                             dfd.resolve(ret);
                         }).fail(dfd.reject);
                     } else {
@@ -5030,6 +5033,14 @@ var _ = function() {
             break;
         }
     };
+    var rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/gm;
+    var parseHeaders = function(headers) {
+        var responseHeaders = {};
+        while (match = rheaders.exec(headers)) {
+            responseHeaders[match[1].toLowerCase()] = match[2];
+        }
+        return responseHeaders;
+    };
     var ajax = function(args, scope) {
         scope = scope || this;
         var dfd = new _.Dfd();
@@ -5051,13 +5062,13 @@ var _ = function() {
             dfd.resolve({
                 data: data,
                 status: jqXhr.status,
-                headers: jqXhr.getAllResponseHeaders()
+                headers: parseHeaders(jqXhr.getAllResponseHeaders())
             });
         }).fail(function(jqXhr, status, error) {
             dfd.reject({
                 e: error,
                 status: jqXhr.status,
-                headers: jqXhr.getAllResponseHeaders()
+                headers: parseHeaders(jqXhr.getAllResponseHeaders())
             });
         });
         return dfd.promise();
@@ -5090,6 +5101,41 @@ var _ = function() {
     var initialize = function(args, scope) {
         scope = scope || this;
         args = args || {};
+        for (var key in scope._options.keys) {
+            if (_.isFunction(scope._options.keys[key].default)) {
+                scope[key] = scope._options.keys[key].default();
+            } else {
+                switch (scope._options.keys[key].type.toLowerCase()) {
+                  case "object":
+                    scope[key] = scope._options.keys[key].default || {};
+                    break;
+
+                  case "array":
+                    scope[key] = scope._options.keys[key].default || [];
+                    break;
+
+                  case "boolean":
+                    scope[key] = scope._options.keys[key].default || false;
+                    break;
+
+                  case "string":
+                    scope[key] = scope._options.keys[key].default || "";
+                    break;
+
+                  case "number":
+                    scope[key] = scope._options.keys[key].default || NaN;
+                    break;
+
+                  case "date":
+                    scope[key] = scope._options.keys[key].default || 0;
+                    break;
+
+                  case "regex":
+                    scope[key] = scope._options.keys[key].default || new Regex();
+                    break;
+                }
+            }
+        }
         for (var key in args) {
             scope[key] = args[key];
         }
@@ -5161,9 +5207,11 @@ var _ = function() {
                         }
                     }
                     scope._persisted = scope.toJSON();
-                    if (ret.headers["Cache-Control"] !== "no-cache" && ret.headers["Expires"]) {
-                        scope._options.ttl = new Date(ret.headers["Expires"]).getTime();
-                        scope._options.lastModified = new Date(ret.headers["Last-Modified"]).getTime();
+                    if (ret.headers["cache-control"] !== "no-cache" && ret.headers["expires"]) {
+                        scope._options.ttl = new Date(ret.headers["expires"]).getTime();
+                        scope._options.lastModified = new Date(ret.headers["last-modified"]).getTime();
+                    } else {
+                        scope._options.ttl = Date.now();
                     }
                     scope._options.pubsub.publish({
                         urn: scope.urn + ":gotted"
@@ -5244,6 +5292,106 @@ var _ = function() {
             dfd.resolve(ret.headers);
         });
     };
+    var subSelect = function(entry, key) {
+        var keys = key.split(".");
+        var obj = entry.toJSON();
+        for (var i = 0; i < keys.length; i++) {
+            if (typeof obj[keys[i]] !== "undefined") {
+                obj = obj[keys[i]];
+            } else {
+                return null;
+            }
+        }
+        return obj;
+    };
+    var createFromLazyObject = function(obj, lazyObj) {
+        if (typeof lazyObj === undefined) {
+            lazyObj = obj;
+            obj = {};
+        }
+        var ret = obj;
+        for (var key in lazyObj) {
+            var keys = key.split(".");
+            for (var i = 0; i < keys.length - 1; i++) {
+                obj[keys[i]] = obj[keys[i]] || {};
+                obj = obj[keys[i]];
+            }
+            obj[keys[i]] = lazyObj[key];
+        }
+        return ret;
+    };
+    var filterCheck = function(entry, filter) {
+        for (var key in filter) {
+            var obj = subSelect(entry, key);
+            if (obj !== filter[key]) {
+                return false;
+            }
+        }
+        return true;
+    };
+    var sortTheBastard = function(ret, order) {
+        ret = ret || [];
+        var keys = Object.keys(order).reverse();
+        keys.forEach(function(key) {
+            ret = ret.sort(function(a, b) {
+                var aVal = subSelect(a, key);
+                var bVal = subSelect(b, key);
+                if (order[key] !== "desc") {
+                    return aVal === bVal ? 0 : aVal < bVal ? -1 : 1;
+                } else {
+                    return aVal === bVal ? 0 : aVal > bVal ? -1 : 1;
+                }
+            });
+        });
+        return ret;
+    };
+    var subSelectTheBastard = function(entry, selects) {
+        var ret = {};
+        selects.forEach(function(select) {
+            var sub = subSelect(entry, select);
+            if (typeof sub !== "undefined") {
+                var lazyObj = {};
+                lazyObj[select] = sub;
+                createFromLazyObject(ret, lazyObj);
+            }
+        });
+        return ret;
+    };
+    Model.prototype.query = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        args.key = args.key || "entries";
+        var ret = [];
+        for (var i = 0; i < scope[args.key].length; i++) {
+            var entry = scope[args.key][i];
+            if (ret.length === args.limit + (args.offset || 0)) {
+                break;
+            }
+            if (typeof args.filter === "undefined" || args.filter && filterCheck(entry, args.filter)) {
+                var toPush = entry;
+                if (args.select) {
+                    toPush = subSelectTheBastard(entry, args.select);
+                }
+                ret.push(toPush);
+            }
+        }
+        if (args.order) {
+            sortTheBastard(ret, args.order);
+        }
+        if (args.offset) {
+            ret.splice(0, args.offset);
+        }
+        if (args.limit === 1) {
+            ret = ret[0];
+        }
+        return ret;
+    };
+    Model.prototype.queryOne = function(args, scope) {
+        scope = scope || this;
+        args = args || {};
+        args.limit = 1;
+        return scope.query(args, scope);
+    };
     Model.prototype.on = function(args, scope) {
         scope = scope || this;
         args = args || {};
@@ -5311,7 +5459,9 @@ var _ = function() {
             _.extend(excludes, args.excludes);
         }
         var temp = {};
-        for (var key in scope) {
+        var keys = Object.keys(scope);
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
             if (!excludes[key]) {
                 temp[key] = scope[key];
             }
@@ -5322,6 +5472,7 @@ var _ = function() {
             }
         }
         temp = _.clone(temp, true);
+        return temp;
     };
     Model.prototype.toVM = function(args, scope) {
         scope = scope || this;
@@ -5379,41 +5530,7 @@ var _ = function() {
         scope._options.vms = schema.vms;
         scope._options.refs = schema.refs;
         _.extend(scope._options.excludes, scope._options.refs);
-        for (var key in schema.keys) {
-            if (_.isFunction(schema.keys[key].default)) {
-                scope[key] = schema.keys[key].default();
-            } else {
-                switch (schema.keys[key].type) {
-                  case "object":
-                    scope[key] = schema.keys[key].default || {};
-                    break;
-
-                  case "array":
-                    scope[key] = schema.keys[key].default || [];
-                    break;
-
-                  case "boolean":
-                    scope[key] = schema.keys[key].default || false;
-                    break;
-
-                  case "string":
-                    scope[key] = schema.keys[key].default || "";
-                    break;
-
-                  case "number":
-                    scope[key] = schema.keys[key].default || NaN;
-                    break;
-
-                  case "date":
-                    scope[key] = schema.keys[key].default || 0;
-                    break;
-
-                  case "regex":
-                    scope[key] = schema.keys[key].default || new Regex();
-                    break;
-                }
-            }
-        }
+        scope._options.keys = schema.keys || {};
     };
     Model.create = function(schema) {
         var newModel = function(data, options) {
@@ -5430,8 +5547,8 @@ var _ = function() {
                 _options: true
             }
         };
-        parseSchema(schema, newModel);
         newModel.prototype = Object.create(Model.prototype);
+        parseSchema(schema, newModel);
         return newModel;
     };
     _.newModel = Model;
