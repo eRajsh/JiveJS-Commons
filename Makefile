@@ -40,6 +40,7 @@ endif
 JIVEJS=jive.js
 JIVEJS_DEPS = libs/lodash.js \
 	libs/util.js \
+	libs/retarded_utils.js \
 	libs/setImmediate.js \
 	libs/set.js \
 	libs/map.js \
