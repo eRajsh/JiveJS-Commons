@@ -1,14 +1,12 @@
-
-
 (function () {
 	"use strict";
-	
+
 	Map.prototype = Object.create(Object.prototype);
 	Map.prototype.get = function (key) {
 		var res = (this.find(key));
 		if (res) {
 			return res.val;
-		} 
+		}
 		return null;
 	};
 	Map.prototype.has = function (key) {
@@ -26,10 +24,10 @@
 		Object.defineProperty(Map.prototype, "has",      { enumerable:false, writable:false });
 		Object.defineProperty(Map.prototype, "toString", { enumerable:false, writable:false });
 	}
-	
+
 	function Map(seed) {
 		var innerData = [];
-		
+
 		this.find = function (key) {
 			var ret = undefined;
 			for(var i = 0; i < innerData.length; i++) {
@@ -64,7 +62,7 @@
 				}
 			}
 		};
-		
+
 		this.toJSON = function () {
 			return innerData;
 		};
@@ -75,7 +73,7 @@
 			Object.defineProperty(this, "delete", { enumerable:false, writable:false });
 			Object.defineProperty(this, "toJSON", { enumerable:false, writable:false });
 		}
-		
+
 		if (!_.isArray(seed)) {
 			seed = _.pairs(seed);
 		}
