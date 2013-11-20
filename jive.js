@@ -2853,6 +2853,43 @@ var _ = function() {
             return recursiveGenericizeTargetSelectorQueryString(ele.parentNode, qs);
         }
     }
+    _.whiteListDomEvent = function(e, ele) {
+        ele = ele || e.currentTarget;
+        var data = {
+            altKey: e.altKey,
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey,
+            metaKey: e.metaKey,
+            button: e.button,
+            charCode: e.charCode,
+            keyCode: e.keyCode,
+            which: e.which,
+            clientX: e.clientX,
+            clientY: e.clientY,
+            screenX: e.screenX,
+            screenY: e.screenY,
+            x: e.x,
+            y: e.y,
+            offsetX: e.offsetX,
+            offsetY: e.offsetY,
+            pageX: e.pageX,
+            pageY: e.pageY,
+            layerX: e.layerX,
+            layerY: e.layerY,
+            webkitMovementX: e.webkitMovementX,
+            movementX: e.movementX,
+            webkitMovementY: e.webkitMovementY,
+            movementY: e.movementY,
+            timeStamp: e.timeStamp,
+            type: e.type,
+            target: _.genericizeTargetSelectorQueryString(e.target),
+            currentTarget: _.genericizeTargetSelectorQueryString(ele),
+            clipboardData: e.clipboardData,
+            targetValue: e.target.value,
+            currentTargetValue: e.currentTarget.value
+        };
+        return data;
+    };
     _.preallocateXhrs = function(keys) {
         var resp = {
             dfds: {},
