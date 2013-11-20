@@ -11,9 +11,9 @@ if(!_ && typeof require === "function") {
 }
 
 describe("dataModels.js is an awesome library that fulfills our needs of a much less shitty dataModels", function() {
-	it("sets up a global constructor _.newModel", function() {
-		expect(_.newModel).not.toEqual(undefined);
-		expect(_.newModel).toBeTruthy();
+	it("sets up a global constructor _.Model", function() {
+		expect(_.Model).not.toEqual(undefined);
+		expect(_.Model).toBeTruthy();
 	});
 
 	describe("it is constructed with a schema and is awesome", function() {
@@ -44,17 +44,15 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				],
 			},
 			refs: {
-				parent: {type: "urn"}
 			},
 			keys: {}
 		};
 
 		describe("it has a query function", function() {
-			var Collection = _.newModel.create(collectionSchema);
+			var Collection = _.Model.create(collectionSchema);
 			var collection = new Collection();
-			collection.entries = [];
 
-			var Model = _.newModel.create(modelSchema);
+			var Model = _.Model.create(modelSchema);
 
 			for(var i = 0; i < 1001; i++) {
 				collection.entries.push(new Model({name: i, presence: { chat: { code: (i % 4)}}}));
@@ -107,6 +105,18 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1].toJSON()).toEqual({name: 4, presence: { chat: { code: (4 % 4) }}});
 			});
 
+			it("has dot notation for accessing shit that accepts regexps", function(){
+				var results = collection.query({
+					filter: {
+						"presence.chat.code": /0|1/
+					}
+				});
+
+				expect(results.length).toEqual(501);
+				expect(results[0].toJSON()).toEqual({name: 0, presence: { chat: { code: (0 % 4) }}});
+				expect(results[1].toJSON()).toEqual({name: 1, presence: { chat: { code: (1 % 4) }}});
+			});
+
 			it("can select only specific fields", function(){
 				var results = collection.query({
 					filter: {
@@ -137,7 +147,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				var schema = _.clone(modelSchema, true);
 				schema.keys.entities = { type: "array" };
 
-				var Model = _.newModel.create(schema);
+				var Model = _.Model.create(schema);
 				var model = new Model();
 
 				for(var i = 0; i < 5; i++) {

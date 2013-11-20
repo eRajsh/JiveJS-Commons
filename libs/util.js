@@ -682,6 +682,14 @@
 		return (Boolean(item) && Object.prototype.toString.call(item) === '[object Object]');
 	};
 
+	var isUrnRegex = /^[^:]+:.*[^:]$/;
+	_.isUrn = function(urn) {
+		return (_.isString(urn) && isUrnRegex.exec(urn));
+	};
+
+	// For the lazy
+	_.isRegex = _.isRegExp;
+
 	/**
 	 * genericizeTargetSelectorQueryString converts a DOM element into a selector.
 	 *
