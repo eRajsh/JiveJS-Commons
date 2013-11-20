@@ -137,7 +137,7 @@
 
 				if(_.isArray(ref)) {
 					scope[key].forEach(function(item, i) {
-						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof _.newModel)) {
+						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof Model)) {
 							dfds.push(makeForModel(item, true).done(function(ret) {
 								scope[key][i] = ret;
 							}));
@@ -148,7 +148,7 @@
 						}
 					});
 				} else {
-					if(_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof _.newModel)) {
+					if(_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
 						dfds.push(makeForModel(scope[key], true).done(function(ret) {
 							scope[key] = ret;
 						}));

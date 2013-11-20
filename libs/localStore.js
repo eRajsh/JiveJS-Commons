@@ -113,7 +113,7 @@
 						fileWriter.onerror = makeErrorHandler(dfd);
 
 						blob = new Blob([data], {
-							type: 'text/plain'
+							type: 'application/json'
 						});
 
 						fileWriter.write(blob);
@@ -276,7 +276,9 @@
 					dfd.resolve(e.target.result);
 				};
 
-				get.onerror = dfd.reject;
+				get.onerror = function(e) {
+					dfd.reject(e);
+				};
 
 				return dfd.promise();
 			},
@@ -288,7 +290,9 @@
 				var put = transaction.objectStore('files').put(data, docKey);
 				put.onsuccess = dfd.resolve;
 
-				put.onerror = dfd.reject;
+				put.onerror = function(e) {
+					dfd.reject(e);
+				};
 
 				return dfd.promise();
 			},
@@ -302,7 +306,9 @@
 
 				del.onsuccess = dfd.resolve;
 
-				del.onerror = dfd.reject;
+				del.onerror = function(e) {
+					dfd.reject(e);
+				};
 
 				return dfd.promise();
 			},
@@ -334,7 +340,9 @@
 					}
 				};
 
-				cursor.onerror = dfd.reject;
+				cursor.onerror = function(e) {
+					dfd.reject(e);
+				};
 
 				return dfd.promise();
 			},
@@ -349,7 +357,9 @@
 					var req1 = t.objectStore('files').clear();
 					req1.onsuccess = dfd.resolve;
 
-					req1.onerror = dfd.reject;
+					req1.onerror = function(e) {
+						dfd.reject(e);
+					};
 				} else {
 					var scope = this;
 					this.list(options).done(function(listing) {
@@ -359,9 +369,15 @@
 							dfds.push(scope.remove(item));
 						});
 
-						_.Dfd.when(dfds).done(dfd.resolve).fail(dfd.reject);
+						_.Dfd.when(dfds).done(function(ret) {
+							dfd.resolve(ret);
+						}).fail(function(e) {
+							dfd.reject(e);
+						});
 
-					}).fail(dfd.reject);
+					}).fail(function(e) {
+						dfd.reject(e);
+					});
 				}
 
 				return dfd.promise();
