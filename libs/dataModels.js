@@ -655,16 +655,44 @@
 		return ret;
 	};
 
+	var runFilter = function(filter, value) {
+		if(_.isRegExp(filter)) {
+			if(!filter.test(value)) {
+				return false;
+			}
+		} else if(filter !== value) {
+			return false;
+		}
+
+		return true;
+	};
+
 	var filterCheckTheBastard = function(entry, filter) {
 		for(var key in filter) {
-			var obj = subSelect(entry, key);
+			var length;
+			switch(key) {
+				case "$nin":
+					length = 1;
+				case "$in":
+					length = length || 0;
+					for(var valKey in filter[key]) {
+						var val = subSelect(entry, valKey);
+						if(_.isArray(val)) {
+							var intersection = _.intersection(val, filter[key][valKey]);
 
-			if(_.isRegExp(filter[key])) {
-				if(!filter[key].test(obj)) {
-					return false;
-				}
-			} else if(obj !== filter[key]) {
-				return false;
+							if(intersection.length === length) {
+								return false;
+							}
+						}
+					}
+				break;
+
+				default:
+					var val = subSelect(entry, key);
+					if(!runFilter(filter[key], val)) {
+						return false;
+					}
+				break;
 			}
 		}
 

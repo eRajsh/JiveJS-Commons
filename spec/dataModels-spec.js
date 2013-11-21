@@ -27,7 +27,9 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 			vms: {
 				default: "*"
 			},
-			refs: {}
+			refs: {
+				"entries": [{type: "urn"}]
+			}
 		};
 
 		var modelSchema = {
@@ -115,6 +117,48 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results.length).toEqual(501);
 				expect(results[0].toJSON()).toEqual({name: 0, presence: { chat: { code: (0 % 4) }}});
 				expect(results[1].toJSON()).toEqual({name: 1, presence: { chat: { code: (1 % 4) }}});
+			});
+
+			it("has $in functionality for querying", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({name: i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: {
+						$in: {
+							entities: [0]
+						}
+					}
+				});
+
+				expect(results.length).toEqual(251);
+				expect(results[0].toJSON()).toEqual({name: 0, entities: [0, 0]});
+				expect(results[1].toJSON()).toEqual({name: 4, entities: [0, 4]});
+			});
+
+			it("has $nin functionality for querying", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({name: i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: {
+						$nin: {
+							entities: [0]
+						}
+					}
+				});
 			});
 
 			it("can select only specific fields", function(){
