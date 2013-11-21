@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+	<head>
+		<title>Testing the different implimentations of localStore.js</title>
+		<script src="/jive.js"></script>
+	</head>
+	<body></body>
+	<script>
+		var iterations = 500;
+
+		var providers = [
+				"FileSystemAPI",
+				"IndexedDB",
+				"WebSQL",
+				"LocalStorage",
+				"SessionStorage",
+		];
+
+		var obj = {
+			"name": {
+				"first": "Jive",
+				"last": "Testing 11",
+				"lastFirst": "Testing 11, Jive",
+				"firstLast": "Jive Testing 11"
+			},
+			"moodMessage": "Enter a mood message...",
+			"createdDate": 1384891590442,
+			"lastModified": 1384891590450,
+			"urn": "entities:jivetesting11",
+			"_id": "entities:jivetesting11",
+			"email": "jivetesting11@gmail.com",
+			"__v": 0,
+			"sindex": {
+				"nameSearch": {
+					"counts": {
+						"1": 1,
+						"TSTNK": 1
+					},
+					"ngrams": [{
+							"_id": "528bc4c6dc47152a7f00003a",
+							"ngram": ["TSTNK", "1"],
+							"id": "528bc4c6dc47152a7f00003a"
+						}
+					]
+				}
+			},
+			"company": "company:jive",
+			"id": "entities:jivetesting11",
+			"picture": "/public/img/avatar.png",
+			"presence": "presence:entities:jivetesting11",
+			"meta": "meta:entities:jivetesting11",
+			"groups": ["groups:jive"],
+			"tags": []
+		};
+
+		var body = document.body;
+
+		var dfds = [];
+
+		var benchmarkTheBastard = function(provider, cleared, dfd) {
+			var name = provider;
+			if(cleared) {
+				name += " After being cleared";
+			}
+
+			var div = document.createElement("div");
+			div.classList.add(provider);
+			div.innerHTML = '<h2>' + name + '</h2><div class="body">';
+			body.appendChild(div);
+
+			console.log("Creating a new store", provider);
+
+			var large = new _.LargeLocalStorage({
+				forceProvider: provider
+			});
+
+			large.initialized.done(function() {
+				console.log("Initialized ", provider);
+				var startTime = Date.now();
+				var setTime;
+				var getTime;
+				var finishTime;
+
+				var setDfds = [true];
+				var setDfd = new _.Dfd();
+				var getDfds = [setDfd.promise()];
+				var getDfd = new _.Dfd();
+
+				for (var j = 0; j < iterations; j++) {
+					setDfds.push(large.set(j, obj, {json: true}));
+				}
+
+				_.Dfd.when(setDfds).always(function() {
+					setTime = Date.now();
+					setDfd.resolve();
+
+					console.log("Setting finished", setTime);
+
+					for(var j = 0; j < iterations; j++) {
+						getDfds.push(large.get(j, {json: true}));
+					}
+				});
+
+				_.Dfd.when(getDfds).always(function() {
+					getTime = Date.now();
+					getDfd.resolve();
+					console.log("Getting finished", getTime);
+				});
+
+				_.Dfd.when([setDfd, getDfd]).done(function() {
+					finishTime = Date.now();
+
+					console.log("All finished", finishTime);
+
+					var html = "Started at " + startTime + "<br />" + 
+						"set all of them took " + (setTime - startTime) +  "<br/ >" +
+						"got all of them took " + (getTime - setTime) + "<br />" + 
+						"total time was " + (finishTime - startTime);
+
+					div.querySelector(".body").innerHTML = html;
+
+					if(!cleared) {
+						large.clear().done(function() {
+							setTimeout(function() {
+								benchmarkTheBastard(provider, true, dfd);
+							}, 500);
+						});
+					} else {
+						dfd.resolve();
+					}
+				});
+			}).fail(function(e) {
+				console.log("For some reason " + provider + " failed to init", e);
+				dfd.resolve();
+			});
+		};
+
+		for (var i = 0; i < providers.length; i++) {
+			dfds[i] = new _.Dfd();
+
+			if(!dfds[i - 1]) {
+				dfds[i - 1] = new _.Dfd();
+				dfds[i - 1].resolve();
+			}
+
+			(function(i) {
+				dfds[i - 1].always(function() {
+					benchmarkTheBastard(providers[i], false, dfds[i]);
+				});
+			})(i);
+		}
+	</script>
+
+</html>
