@@ -1,4 +1,6 @@
 (function() {
+	"use strict";
+
 	var urns = {};
 	var collections = {};
 
@@ -27,72 +29,35 @@
 		}
 	};
 
-	var findInCollectionOrCreate = function(args, dfd, given) {
-		var collection = findCollection(args.urn);
-		var model = findModel(args.urn);
+	var makeForModelDeferDfds = {};
 
-		if(collection) {
-			var instance = collection.queryOne({ filter: { urn: args.urn }});
+	var getDeffered = function(urn) {
 
-			if(typeof instance !== "undefined") {
-				dfd.resolve(instance);
-			} else {
-				instance = new model(args);
-
-				if(!given) {
-					instance.get().done(function(ret) {
-						dfd.resolve(ret)
-					}).fail(function(e) {
-						dfd.reject(e);
-					});
-				} else {
-					dfd.resolve(instance);
-				}
-			}
+		if(makeForModelDeferDfds[urn]) {
+			return makeForModelDeferDfds[urn];
 		} else {
-			instance = new model(args);
-
-			if(!given) {
-				instance.get().done(function(ret) {
-					dfd.resolve(ret);
-				}).fail(function(e) {
-					dfd.reject(e);
-				});
-			} else {
-				dfd.resolve(instance);
+			for(var key in makeForModelDeferDfds) {
+				if(makeForModelDeferDfds[key].regex.exec(urn)) {
+					return makeForModelDeferDfds[key];
+				}
 			}
 		}
 
 	};
 
-	var makeForModelDeferDfds = {};
+	var makeAndGet = function(args, model, collection, dfd, given) {
+		var instance = new model(args);
 
-	var makeForModelDefer = function(args, given) {
-		if(makeForModelDeferDfds[args.urn]) {
-			return makeForModelDeferDfds[args.urn].promise;
+		if(!given) {
+			instance.get().done(function() {
+				dfd.resolve(instance);
+			}).fail(function(e) {
+				dfd.reject(e);
+			});
 		} else {
-			var dfd = new _.Dfd();
+			collection.insert({entry: instance});
 
-			setTimeout(function() {
-				for(var key in makeForModelDeferDfds) {
-					if(_.isRegExp(makeForModelDeferDfds[key].regex) && makeForModelDeferDfds[key].regex.exec(args.urn)) {
-						makeForModelDeferDfds[key].promise.done(function() {
-							findInCollectionOrCreate(args, dfd, given);
-						});
-
-						// just bust out and stop early
-						return;
-					}
-				}
-
-				makeForModelDeferDfds[args.urn] = {
-					promise: dfd.promise()
-				};
-
-				findInCollectionOrCreate(args, dfd, given);
-			}, 10);
-
-			return dfd.promise();
+			dfd.resolve(instance);
 		}
 	};
 
@@ -101,24 +66,30 @@
 
 		var collection = findCollection(args.urn);
 		var model = findModel(args.urn);
+		var instance;
 
 		if(collection) {
-			var instance = collection.queryOne({ filter: { urn: args.urn }});
+			instance = collection.queryOne({ filter: { urn: args.urn }});
 			if(typeof instance !== "undefined") {
 				dfd.resolve(instance);
 			} else {
-				makeForModelDefer(args, given).done(function(ret) {
-					dfd.resolve(ret)
-				}).fail(function(e) {
-					dfd.reject(e);
-				});
+				var alreadyWaiting = getDeffered(args.urn);
+				if(alreadyWaiting) {
+					alreadyWaiting.promise.done(function(){
+						instance = collection.queryOne({ filter: { urn: args.urn }});
+
+						if(instance) {
+							dfd.resolve(instance);
+						} else {
+							makeAndGet(args, model, collection, dfd, given);
+						}
+					});
+				} else {
+					makeAndGet(args, model, collection, dfd, given);
+				}
 			}
 		} else if(model) {
-			makeForModelDefer(args, given).done(function(ret) {
-				dfd.resolve(ret);
-			}).fail(function(e) {
-				dfd.reject(e);
-			});
+			makeAndGet(args, model, dfd, given);
 		} else {
 			dfd.reject("Couldn't find a model registered for " + args.urn);
 		}
@@ -126,7 +97,9 @@
 		return dfd.promise();
 	};
 
-	var populateRefs = function(scope) {
+	var populateRefs = function(scope, args) {
+		args = args || {};
+
 		var dfd = new _.Dfd();
 
 		var dfds = [true];
@@ -173,7 +146,9 @@
 		scope = scope || this;
 
 		args.data = args.data || {};
-		args.remote = args.remote || true;
+		if(typeof args.remote === "undefined") {
+			args.remote = true;
+		}
 		args.method = args.method.toUpperCase();
 
 		if(scope._options.collection === true) {
@@ -186,29 +161,30 @@
 		}
 
 		if(scope._options.store.remote && args.remote) {
-
-			if(args.method === "GET" && scope._options.store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
+			// TODO: Get this check working (i.e. can we actually use the bastard for local store?)
+			if(args.method === "GET" && scope._options.store.localStorage && (true || scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
 				local(args, scope).done(function(ret) {
-					dfd.resolve(ret);
+					dfd.resolve({data: ret, headers: {}, status: 200, local: true});
 				}).fail(function(e) {
 					dfd.reject(e);
 				});
+
+				if(args.method === "GET") {
+					makeForModelDeferDfds[scope.urn] = {
+						promise: dfd.promise(),
+						regex: new RegExp(scope.urn)
+					};
+				}
 			} else {
+				if(args.method === "GET" && scope._options.collection === true) {
+					makeForModelDeferDfds[scope._options.urn] = {
+						promise: dfd.promise(),
+						regex: collections[scope._options.name].regex
+					};
+				}
 
 				ajax(args, scope).done(function(ret){
-					if(scope._options.store.localStorage) {
-						if(args.method === "GET") {
-							args.method = "POST";
-						}
-						local(args, scope).done(function() {
-							dfd.resolve(ret);
-						}).fail(function(e) {
-							dfd.reject(e);
-						});
-					} else {
-						dfd.resolve(ret);
-					}
-
+					dfd.resolve(ret);
 				}).fail(function(e) {
 					dfd.reject(e);
 				});
@@ -225,25 +201,33 @@
 	};
 
 	var local = function(args, scope) {
+		var urn = args.urn;
+
+		if(scope._options.collection === true) {
+			var urnArray = scope._options.store.localStorage.split(":");
+			urnArray.splice(-1);
+			urn = urnArray.join(":");
+		}
+
 		switch(args.method) {
 			case "GET":
-				return self.Jive.Store.get(args.urn);
+				return self.Jive.Store.get(urn, {json: true});
 			break;
 
 			case "POST":
-				return self.Jive.Store.set(args.urn, args.data);
+				return self.Jive.Store.set(urn, args.data, {json: true});
 			break;
 
 			case "PUT":
-				return self.Jive.Store.set(args.urn, args.data);
+				return self.Jive.Store.set(urn, args.data, {json: true});
 			break;
 
 			case "PATCH":
 				var dfd = new _.Dfd();
-				var xhr = self.Jive.Store.get(args.urn);
+				var xhr = self.Jive.Store.get(urn, {json: true});
 				xhr.done(function(ret) {
 					_.extend(ret, args.data);
-					self.Jive.Store.set(args.urn, ret).done(function(ret) {
+					self.Jive.Store.set(urn, ret, {json: true}).done(function(ret) {
 						dfd.resolve(ret);
 					}).fail(function(e) {
 						dfd.reject(e);
@@ -255,13 +239,13 @@
 			break;
 
 			case "DELETE":
-				return self.Jive.Store.remove(args.urn);
+				return self.Jive.Store.remove(urn);
 			break;
 
 			case "HEAD":
 				//TODO figure out meta storage as different from "data" storage
 				var dfd = new _.Dfd();
-				var xhr = self.Jive.Store.get(args.urn);
+				var xhr = self.Jive.Store.get(urn, {json: true});
 				xhr.done(function(ret) {
 					dfd.resolve({
 						lastModified: ret.lastModified,
@@ -288,6 +272,7 @@
 	var rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg;
 	var parseHeaders = function(headers) {
 		var responseHeaders = {};
+		var match;
 		while ( (match = rheaders.exec( headers )) ) {
 			responseHeaders[ match[1].toLowerCase() ] = match[ 2 ];
 		}
@@ -300,21 +285,24 @@
 		scope = scope || this;
 		var dfd = new _.Dfd();
 
+		var data = args.data || {};
+		var urn = args.urn;
+
 		if((args.method == "POST" || args.method == "PUT" || args.method == "PATCH") && args.data) {
-			args.data = JSON.stringify(args.data);
+			data = JSON.stringify(data);
 		} else if((args.method == "GET" || args.method == "DELETE") && args.data){
-			args.urn += "?" + $.param(args.data);
+			urn += "?" + $.param(data);
 		}
 
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
 
 		$.ajax({
-			url: remote + "/" + args.urn,
+			url: remote + "/" + urn,
 			beforeSend : function (xhr){
 				xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
 			},
 			type: args.method,
-			data: args.data,
+			data: data,
 			dataType: "json"
 		}).done(function(data, status, jqXhr){
 			dfd.resolve({
@@ -333,7 +321,27 @@
 		return dfd.promise();
 	};
 
-	var postFunc = function(event, ret) {
+	var insertFunc = function(args, scope) {
+		scope = scope || this;
+		args = args || {};
+
+		if(args.entry) {
+			var index = scope.entries.indexOf(args.entry.urn);
+			if(index !== -1) {
+				scope.entries[index] = args.entry;
+			} else {
+				scope.entries.push(args.entry);
+			}
+
+			store({ method: "POST", urn: args.entry.urn, data: args.entry._options.persisted, remote: false}, args.entry);
+
+			scope._options.persisted = scope.toJSON();
+
+			store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
+		}
+	};
+
+	var postFunc = function(event, ret, scope) {
 		scope = scope || this;
 
 		for(var key in ret) {
@@ -348,7 +356,9 @@
 		});
 	};
 
-	var deleteFunc = function(ret) {
+	var deleteFunc = function(ret, scope) {
+		scope = scope || this;
+
 		for(var key in scope) {
 			delete scope[key];
 		}
@@ -393,6 +403,7 @@
 		}
 	};
 
+	// We moved this into its own function because chrome was saying it couldn't optimize this bastard.
 	var initializeForInForNotOptimized = function(args, scope) {
 
 		for(var key in scope._options.refs) {
@@ -423,9 +434,9 @@
 				collection: scope
 			};
 
-			scope.urn = scope._options.rootUrn || scope.urn;
+			scope.urn = scope._options.rootUrn || scope.urn || scope._options.urn;
 
-			scope.entries = [];
+			scope.insert = insertFunc.bind(scope);
 		}
 
 		initializeForInForNotOptimized(args, scope);
@@ -434,7 +445,11 @@
 
 		scope._options.subs = [];
 
-		scope._options.pubsub = self.Jive.Jazz;
+		if(typeof self !== "undefined" && self.Jive && self.Jive.Jazz) {
+			scope._options.pubsub = self.Jive.Jazz;
+		} else {
+			scope._options.pubsub = new _.Fabric();
+		}
 
 		scope._options.postFunc = postFunc.bind(scope, "posted");
 		scope._options.putFunc = postFunc.bind(scope, "putted");
@@ -489,13 +504,22 @@
 		if(args.force || !scope._options.ttl || (scope._options.ttl && new Date().getTime() > scope._options.ttl)) {
 			var xhr = store({ method: "GET", urn: scope.urn, data: args }, scope).done(function(ret) {
 				if(_.isNormalObject(ret.data)) {
-					
 					if(scope._options.collection === true) {
 						scope.entries = scope.entries || [];
 
 						for(var i = 0; i < ret.data.entries.length; i++) {
-							var model = findModel(ret.data.entries[i].urn);
-							scope.entries.push(new model(ret.data.entries[i]));
+							if(_.isNormalObject(ret.data.entries[i]) && _.isUrn(ret.data.entries[i].urn)) {
+								var model = findModel(ret.data.entries[i].urn);
+								if(model) {
+									var instance = new model(ret.data.entries[i]);
+									setImmediate(function(instance) {
+										store({ method: "POST", urn: instance.urn, data: instance.toJSON(), remote: false}, instance);
+									}, instance);
+									scope.entries.push(instance);
+								}
+							} else {
+								scope.entries.push(ret.data.entries[i]);
+							}
 						}
 					} else {
 						for(var key in ret.data) {
@@ -510,12 +534,17 @@
 								var index = collection.entries.indexOf(entry);
 								collection.entries[index] = scope;
 							} else {
-								collection.entries.push(scope);
+								var index = collection.entries.indexOf(scope.urn);
+								if(index !== -1) {
+									collection.entries[index] = scope;
+								} else {
+									collection.entries.push(scope);
+								}
 							}
 						}
 					}
 
-					scope._persisted = scope.toJSON();
+					scope._options.persisted = scope.toJSON();
 
 					if(ret.headers['cache-control'] !== "no-cache" && ret.headers['expires']) {
 						scope._options.ttl = new Date(ret.headers['expires']).getTime();
@@ -529,20 +558,19 @@
 						data: scope
 					});
 
-					populateRefs(scope).done(function(ret) {
+					setImmediate(function() {
+						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
+					});
+
+					populateRefs(scope, {local: ret.local}).done(function(ret) {
 						dfd.resolve(scope);
 					});
+				} else {
+					dfd.reject("Ret was noooo good.");
 				}
 			}).fail(function(ret) {
 				dfd.reject(ret.error);
 			});
-
-			if(scope._options.collection === true) {
-				makeForModelDeferDfds[scope._options.urn] = {
-					promise: xhr,
-					regex: collections[scope._options.name].regex
-				};
-			}
 		} else {
 			dfd.resolve(scope);
 		}
@@ -869,7 +897,6 @@
 		args = args || {};
 
 		scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
-		console.log(scope._options.changes);
 		scope.dispatch({
 			event: "changed",
 			data: scope._options.changes
@@ -947,76 +974,74 @@
 
 		args.alreadyToVmed = args.alreadyToVmed || {};
 
-		var ret;
+		var ret = {};
 
 		var keys = scope._options.vms[args.vm];
-		if(keys === "*") {
-			return _.clone(scope.toJSON(args), true);
-		} else {
-			if(scope._options.collection === true) {
-				ret = [];
+		if(keys === "*" || typeof keys === "undefined") {
+			keys = Object.keys(scope);
+		}
 
-				scope.entries.forEach(function(entry) {
-					var vmed;
-					if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
-						args.alreadyToVmed[entry.urn] = {urn: entry.urn};
-						vmed = entry.toVM(args);
+		if(scope._options.collection === true) {
+			ret.entries = [];
 
-						for(var vmedKey in vmed) {
-							args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
-						}
-					} else {
-						vmed = args.alreadyToVmed[entry.urn];
+			scope.entries.forEach(function(entry) {
+				var vmed;
+				if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
+					args.alreadyToVmed[entry.urn] = {urn: entry.urn};
+					vmed = entry.toVM(args);
+
+					for(var vmedKey in vmed) {
+						args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
 					}
+				} else {
+					vmed = args.alreadyToVmed[entry.urn];
+				}
 
-					ret.push(vmed);
-				});
-			} else {
-				ret = {};
+				ret.entries.push(vmed);
+			});
+		} else {
+			args.alreadyToVmed[scope.urn] = ret;
 
-				args.alreadyToVmed[scope.urn] = ret;
-
-				keys.forEach(function(key) {
-					if(scope._options.refs[key]) {
-						if(_.isArray(scope._options.refs[key])) {
-							ret[key] = [];
-							scope[key].forEach(function(entry) {
-								var vmed;
-								if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
-									args.alreadyToVmed[entry.urn] = {urn: entry.urn};
-									vmed = entry.toVM(args);
-
-									for(var vmedKey in vmed) {
-										args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
-									}
-								} else {
-									vmed = args.alreadyToVmed[entry.urn];
-								}
-								ret[key].push(vmed);
-							});
-						} else {
+			keys.forEach(function(key) {
+				if(scope._options.refs[key]) {
+					if(_.isArray(scope._options.refs[key])) {
+						ret[key] = [];
+						scope[key].forEach(function(entry) {
 							var vmed;
-							if(typeof args.alreadyToVmed[scope[key].urn] === "undefined") {
-								args.alreadyToVmed[scope[key].urn] = {urn: scope[key].urn};
-								vmed = scope[key].toVM(args);
+							if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
+								args.alreadyToVmed[entry.urn] = {urn: entry.urn};
+								vmed = entry.toVM(args);
 
 								for(var vmedKey in vmed) {
-									args.alreadyToVmed[scope[key].urn][vmedKey] = vmed[vmedKey];
+									args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
 								}
 							} else {
-								vmed = args.alreadyToVmed[scope[key].urn];
+								vmed = args.alreadyToVmed[entry.urn];
 							}
-							ret[key] = vmed;
-						}
+							ret[key].push(vmed);
+						});
 					} else {
-						var sub = subSelect(scope, key);
-						walkObject(ret, key, sub);
-					}
-				});
-			}
+						var vmed;
+						if(typeof args.alreadyToVmed[scope[key].urn] === "undefined") {
+							args.alreadyToVmed[scope[key].urn] = {urn: scope[key].urn};
+							vmed = scope[key].toVM(args);
 
-			return ret;
+							for(var vmedKey in vmed) {
+								args.alreadyToVmed[scope[key].urn][vmedKey] = vmed[vmedKey];
+							}
+						} else {
+							vmed = args.alreadyToVmed[scope[key].urn];
+						}
+						ret[key] = vmed;
+					}
+				} else {
+					var sub = subSelect(scope, key);
+					walkObject(ret, key, sub);
+				}
+			});
 		}
+
+		return ret;
 	};
 	//END DATA MUNGING RETURNS
 
