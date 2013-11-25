@@ -642,7 +642,7 @@ var _ = function() {
                     return false;
                 }
                 var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor, ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
-                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && ("constructor" in a && "constructor" in b)) {
+                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && "constructor" in a && "constructor" in b) {
                     return false;
                 }
             }
@@ -4148,7 +4148,7 @@ var _ = function() {
         }
         if (!global.setImmediate) {
             var attachTo = typeof Object.getPrototypeOf === "function" && "setTimeout" in Object.getPrototypeOf(global) ? Object.getPrototypeOf(global) : global;
-            if (typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
+            if (typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode || typeof Worker === "undefined" || typeof WebSocket === "undefined") {
                 installSetTimeoutImplementation(attachTo);
             } else {
                 if (canUseNextTick()) {
