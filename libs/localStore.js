@@ -1,5 +1,4 @@
-(function () {
-	var window = window || {};
+(function (self) {
 	var countdown = function(n, cb) {
 		var args = [];
 		return function() {
@@ -94,8 +93,9 @@
 			set: function (path, data, options) {
 				var dfd = new _.Dfd();
 
-				if (options && options.json)
+				if (options && options.json) {
 					data = JSON.stringify(data);
+				}
 
 				path = this._prefix + path;
 				this._fs.root.getFile(path, {
@@ -256,7 +256,7 @@
 	})();
 
 	var IndexedDBProvider = (function () {
-		var URL = window.URL || window.webkitURL;
+		var URL = self.URL || self.webkitURL;
 
 		function IDB(db) {
 			this._db = db;
@@ -267,13 +267,17 @@
 
 		// TODO: normalize returns and errors.
 		IDB.prototype = {
-			get: function (docKey) {
+			get: function (docKey, options) {
 				var dfd = new _.Dfd();
 				var transaction = this._db.transaction(['files'], 'readonly');
 
 				var get = transaction.objectStore('files').get(docKey);
 				get.onsuccess = function (e) {
-					dfd.resolve(e.target.result);
+					var data = e.target.result;
+					if(options && options.json) {
+						data = JSON.parse(data);
+					}
+					dfd.resolve(data);
 				};
 
 				get.onerror = function(e) {
@@ -283,12 +287,18 @@
 				return dfd.promise();
 			},
 
-			set: function (docKey, data) {
+			set: function (docKey, data, options) {
 				var dfd = new _.Dfd();
 				var transaction = this._db.transaction(['files'], 'readwrite');
 
+				if(options && options.json) {
+					data = JSON.stringify(data);
+				}
+
 				var put = transaction.objectStore('files').put(data, docKey);
-				put.onsuccess = dfd.resolve;
+				put.onsuccess = function(e) {
+					dfd.resolve(e.target.result);
+				};
 
 				put.onerror = function(e) {
 					dfd.reject(e);
@@ -304,7 +314,9 @@
 
 				var del = transaction.objectStore('files').delete(docKey);
 
-				del.onsuccess = dfd.resolve;
+				put.onsuccess = function(e) {
+					dfd.resolve(e.target.result);
+				};
 
 				del.onerror = function(e) {
 					dfd.reject(e);
@@ -355,7 +367,9 @@
 
 				if(!options.prefix) {
 					var req1 = t.objectStore('files').clear();
-					req1.onsuccess = dfd.resolve;
+					req1.onsuccess = function(e) {
+						dfd.resolve(e.target.result);
+					};
 
 					req1.onerror = function(e) {
 						dfd.reject(e);
@@ -388,8 +402,8 @@
 			init: function (config) {
 				var dfd = new _.Dfd();
 
-				var indexedDB = window.indexedDB || window.webkitIndexedDB || window.mozIndexedDB || window.OIndexedDB || window.msIndexedDB,
-					IDBTransaction = window.IDBTransaction || window.webkitIDBTransaction || window.OIDBTransaction || window.msIDBTransaction,
+				var indexedDB = self.indexedDB || self.webkitIndexedDB || self.mozIndexedDB || self.OIndexedDB || self.msIndexedDB,
+					IDBTransaction = self.IDBTransaction || self.webkitIDBTransaction || self.OIDBTransaction || self.msIDBTransaction,
 					dbVersion = 2;
 
 				if (!indexedDB || !IDBTransaction) {
@@ -441,7 +455,7 @@
 	})();
 
 	var WebSQLProvider = (function () {
-		var URL = window.URL || window.webkitURL;
+		var URL = self.URL || self.webkitURL;
 
 		function WSQL(db) {
 			this._db = db;
@@ -458,8 +472,9 @@
 								dfd.resolve(undefined);
 							} else {
 								var data = res.rows.item(0).value;
-								if (options && options.json)
+								if (options && options.json) {
 									data = JSON.parse(data);
+								}
 								dfd.resolve(data);
 							}
 						});
@@ -472,8 +487,9 @@
 
 			set: function (docKey, data, options) {
 				var dfd = new _.Dfd();
-				if (options && options.json)
+				if (options && options.json) {
 					data = JSON.stringify(data);
+				}
 
 				this._db.transaction(function (tx) {
 					tx.executeSql(
@@ -557,7 +573,7 @@
 
 		return {
 			init: function (config) {
-				var openDb = window.openDatabase;
+				var openDb = self.openDatabase;
 				var dfd = new _.Dfd();
 				if (!openDb) {
 					dfd.reject("No WebSQL");
@@ -596,12 +612,19 @@
 		LS.prototype = {
 			get: function(docKey, options) {
 				var dfd = new _.Dfd();
-				dfd.resolve(this.store.getItem(this._prefix + docKey));
+				var data = this.store.getItem(this._prefix + docKey);
+				if(options && options.json) {
+					data = JSON.parse(data);
+				}
+				dfd.resolve(data);
 				return dfd.promise();
 			},
 
 			set: function(docKey, data, options) {
 				var dfd = new _.Dfd();
+				if(options && options.json) {
+					data = JSON.stringify(data);
+				}
 				this.store.setItem(this._prefix + docKey, data);
 				dfd.resolve();
 				return dfd.promise();
@@ -609,13 +632,14 @@
 
 			remove: function(docKey, options) {
 				var dfd = new _.Dfd();
-				this.store.remove(this._prefix + docKey);
+				this.store.removeItem(this._prefix + docKey);
 				dfd.resolve();
 				return dfd.promise();
 			},
 
 			list: function(options) {
 				options = options || {};
+				var that = this;
 				var dfd = new _.Dfd();
 				var listing = Object.keys(this.store);
 				var ret = [];
@@ -625,7 +649,7 @@
 				}
 				listing.forEach(function(item) {
 					if(item.indexOf(prefix) === 0) {
-						ret.push(item.substr(this._prefix.length - 1));
+						ret.push(item.substr(that._prefix.length - 1));
 					}
 				});
 				dfd.resolve(ret);
@@ -634,6 +658,7 @@
 
 			clear: function(options) {
 				options = options || {};
+				var that = this;
 				var dfd = new _.Dfd();
 				var listing = Object.keys(this.store);
 				var prefix = this._prefix;
@@ -642,7 +667,7 @@
 				}
 				listing.forEach(function(item) {
 					if(item.indexOf(prefix) === 0) {
-						this.store.remove(item);
+						that.store.removeItem(item);
 					}
 				});
 				dfd.resolve();
@@ -684,16 +709,16 @@
 
 			var dfd = new _.Dfd();
 
-			FilesystemAPIProvider.init(config).done(function(ret) {
+			LocalStorageProvider.init(config).done(function(ret) {
 				dfd.resolve(ret)
 			}).fail(function() {
 				IndexedDBProvider.init(config).done(function(ret) {
 					dfd.resolve(ret)
 				}).fail(function() {
-					WebSQLProvider.init(config).done(function(ret) {
+					FilesystemAPIProvider.init(config).done(function(ret) {
 						dfd.resolve(ret)
 					}).fail(function() {
-						LocalStorageProvider.init(config).done(function(ret) {
+						WebSQLProvider.init(config).done(function(ret) {
 							dfd.resolve(ret)
 						}).fail(function() {
 							dfd.reject("I have nothing.... leave me alone :(");
@@ -775,5 +800,5 @@
 	_.LargeLocalStorage = LargeLocalStorage;
 	return LargeLocalStorage;
 
-})();
+})(typeof self !== "undefined" ? self : this);
 
