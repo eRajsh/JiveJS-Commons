@@ -2,7 +2,7 @@
 #  Most Important Rules  #
 ##########################
 
-.PHONY: all build clean test test-browser
+.PHONY: all build clean test test-browser watch
 all: build
 
 
@@ -91,3 +91,6 @@ test:
 
 test-browser:
 	@./node_modules/.bin/serve .
+
+watch:
+	watch -n .5 $(MAKE)
