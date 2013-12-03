@@ -642,7 +642,7 @@ var _ = function() {
                     return false;
                 }
                 var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor, ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
-                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && "constructor" in a && "constructor" in b) {
+                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && ("constructor" in a && "constructor" in b)) {
                     return false;
                 }
             }
@@ -3043,7 +3043,8 @@ var _ = function() {
             ret = hours + ":" + minutes + " " + AMPM;
             return ret;
         },
-        escapeHtml: _.escape
+        escapeHtml: _.escape,
+        escape: _.escape
     };
     return _;
 })();
@@ -4148,7 +4149,7 @@ var _ = function() {
         }
         if (!global.setImmediate) {
             var attachTo = typeof Object.getPrototypeOf === "function" && "setTimeout" in Object.getPrototypeOf(global) ? Object.getPrototypeOf(global) : global;
-            if (typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode || typeof Worker === "undefined" || typeof WebSocket === "undefined") {
+            if (typeof global !== "undefined" && global.Jive && global.Jive.Features && global.Jive.Features.RetardMode || (typeof Worker === "undefined" || typeof WebSocket === "undefined")) {
                 installSetTimeoutImplementation(attachTo);
             } else {
                 if (canUseNextTick()) {
@@ -4985,14 +4986,14 @@ var _ = function() {
             return false;
         }
     };
-    var findModel = function(urn) {
+    var findModel = function findModel(urn) {
         for (var key in urns) {
             if (urns[key].regex.exec(urn)) {
                 return urns[key].model;
             }
         }
     };
-    var findCollection = function(urn) {
+    var findCollection = function findCollection(urn) {
         for (var key in collections) {
             if (collections[key].regex.exec(urn)) {
                 return collections[key].collection;
@@ -5000,7 +5001,7 @@ var _ = function() {
         }
     };
     var makeForModelDeferDfds = {};
-    var getDeffered = function(urn) {
+    var getDeffered = function getDeffered(urn) {
         if (makeForModelDeferDfds[urn]) {
             return makeForModelDeferDfds[urn];
         } else {
@@ -5011,7 +5012,7 @@ var _ = function() {
             }
         }
     };
-    var makeAndGet = function(args, model, collection, dfd, given) {
+    var makeAndGet = function makeAndGet(args, model, collection, dfd, given) {
         var instance = new model(args);
         if (!given) {
             instance.get().done(function() {
@@ -5026,7 +5027,7 @@ var _ = function() {
             dfd.resolve(instance);
         }
     };
-    var makeForModel = function(args, given) {
+    var makeForModel = function makeForModel(args, given) {
         var dfd = new _.Dfd();
         var collection = findCollection(args.urn);
         var model = findModel(args.urn);
@@ -5065,7 +5066,7 @@ var _ = function() {
         }
         return dfd.promise();
     };
-    var populateRefs = function(scope, args) {
+    var populateRefs = function populateRefs(scope, args) {
         args = args || {};
         var dfd = new _.Dfd();
         var dfds = [ true ];
@@ -5075,28 +5076,40 @@ var _ = function() {
                 if (_.isArray(ref)) {
                     scope[key].forEach(function(item, i) {
                         if (_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof Model)) {
-                            dfds.push(makeForModel(item, true).done(function(ret) {
+                            var eachDfd = new _.Dfd();
+                            makeForModel(item, true).done(function(ret) {
                                 scope[key][i] = ret;
-                            }));
+                                eachDfd.resolve();
+                            });
+                            dfds.push(eachDfd);
                         } else if (_.isUrn(item)) {
-                            dfds.push(makeForModel({
+                            var eachDfd = new _.Dfd();
+                            makeForModel({
                                 urn: item
                             }).done(function(ret) {
                                 scope[key][i] = ret;
-                            }));
+                                eachDfd.resolve();
+                            });
+                            dfds.push(eachDfd);
                         }
                     });
                 } else {
                     if (_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
-                        dfds.push(makeForModel(scope[key], true).done(function(ret) {
+                        var eachDfd = new _.Dfd();
+                        makeForModel(scope[key], true).done(function(ret) {
                             scope[key] = ret;
-                        }));
+                            eachDfd.resolve();
+                        });
+                        dfds.push(eachDfd);
                     } else if (_.isUrn(scope[key])) {
-                        dfds.push(makeForModel({
+                        var eachDfd = new _.Dfd();
+                        makeForModel({
                             urn: scope[key]
                         }).done(function(ret) {
                             scope[key] = ret;
-                        }));
+                            eachDfd.resolve();
+                        });
+                        dfds.push(eachDfd);
                     }
                 }
             })(key);
@@ -5106,7 +5119,7 @@ var _ = function() {
         });
         return dfd.promise();
     };
-    var store = function(args, scope) {
+    var store = function store(args, scope) {
         var dfd = new _.Dfd();
         scope = scope || this;
         args.data = args.data || {};
@@ -5122,7 +5135,7 @@ var _ = function() {
             return dfd.promise();
         }
         if (scope._options.store.remote && args.remote) {
-            if (args.method === "GET" && scope._options.store.localStorage && (true || scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
+            if (args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
                 local(args, scope).done(function(ret) {
                     dfd.resolve({
                         data: ret,
@@ -5147,6 +5160,16 @@ var _ = function() {
                     };
                 }
                 ajax(args, scope).done(function(ret) {
+                    if (args.method === "GET" && scope._options.collection === true) {
+                        self.Jive.SessionBridge.subscribe({
+                            urn: scope.urn,
+                            ETag: ret.data.ETag
+                        });
+                        self.Jive.SessionBridge.subscribe({
+                            urn: scope.urn + ":#",
+                            ETag: ret.data.ETag
+                        });
+                    }
                     dfd.resolve(ret);
                 }).fail(function(e) {
                     dfd.reject(e);
@@ -5161,7 +5184,7 @@ var _ = function() {
         }
         return dfd.promise();
     };
-    var local = function(args, scope) {
+    var local = function local(args, scope) {
         var urn = args.urn;
         if (scope._options.collection === true) {
             var urnArray = scope._options.store.localStorage.split(":");
@@ -5246,11 +5269,11 @@ var _ = function() {
         }
         return responseHeaders;
     };
-    var ajax = function(args, scope) {
+    var ajax = function ajax(args, scope) {
         scope = scope || this;
         var dfd = new _.Dfd();
         var data = args.data || {};
-        var urn = args.urn;
+        var urn = args.data.urn || args.urn;
         if ((args.method == "POST" || args.method == "PUT" || args.method == "PATCH") && args.data) {
             data = JSON.stringify(data);
         } else if ((args.method == "GET" || args.method == "DELETE") && args.data) {
@@ -5280,7 +5303,7 @@ var _ = function() {
         });
         return dfd.promise();
     };
-    var insertFunc = function(args, scope) {
+    var insertFunc = function insertFunc(args, scope) {
         scope = scope || this;
         args = args || {};
         if (args.entry) {
@@ -5305,18 +5328,95 @@ var _ = function() {
             }, scope);
         }
     };
-    var postFunc = function(event, ret, scope) {
+    var eventFunc = function eventFunc(event, ret, scope) {
         scope = scope || this;
-        for (var key in ret) {
-            scope[key] = ret[key];
+        var data = ret.data.body || ret.data;
+        var toRet;
+        if (scope._options.collection === true) {
+            var model = findModel(data.urn);
+            var collection = findCollection(data.urn);
+            var instance = typeof collection !== "undefined" ? collection.queryOne({
+                filter: {
+                    urn: data.urn
+                }
+            }) : undefined;
+            switch (event) {
+              case "posted":
+                if (typeof instance === "undefined" && model) {
+                    instance = new model(data);
+                    insertFunc({
+                        entry: instance
+                    }, collection);
+                    collection._options.persisted = collection.toJSON();
+                } else {
+                    _.extend(instance, data);
+                }
+                break;
+
+              case "putted":
+                if (typeof instance !== "undefined") {
+                    for (var key in instance) {
+                        if (key !== "_options") {
+                            delete instance[key];
+                        }
+                    }
+                }
+
+              case "patched":
+                if (typeof instance !== "undefined") {
+                    _.extend(instance, data);
+                }
+                break;
+            }
+            toRet = instance;
+        } else {
+            switch (event) {
+              case "posted":
+                var model = findModel(data.urn);
+                var collection = findCollection(data.urn);
+                var instance = typeof collection !== "undefined" ? collection.queryOne({
+                    filter: {
+                        urn: data.urn
+                    }
+                }) : scope;
+                if (typeof instance === "undefined" && model) {
+                    instance = new model(data);
+                    if (collection) {
+                        insertFunc({
+                            entry: instance
+                        }, collection);
+                    }
+                    collection._options.persisted = collection.toJSON();
+                } else {
+                    _.extend(instance, data);
+                }
+                toRet = instance;
+                break;
+
+              case "putted":
+                if (typeof scope !== "undefined") {
+                    for (var key in scope) {
+                        if (key !== "_options") {
+                            delete scope[key];
+                        }
+                    }
+                }
+
+              case "patched":
+                _.extend(scope, data);
+                break;
+            }
+            toRet = scope;
         }
-        scope._options.persisted = scope.toJSON();
-        scope.dispatch({
-            event: event,
-            data: ret
+        toRet._options.inited.done(function() {
+            toRet.dispatch({
+                event: event,
+                data: toRet
+            });
         });
+        return toRet;
     };
-    var deleteFunc = function(ret, scope) {
+    var deleteFunc = function deleteFunc(ret, scope) {
         scope = scope || this;
         for (var key in scope) {
             delete scope[key];
@@ -5331,7 +5431,7 @@ var _ = function() {
             data: args
         });
     };
-    var doInitializeDefault = function(scope, key) {
+    var doInitializeDefault = function doInitializeDefault(scope, key) {
         if (_.isFunction(scope._options.keys[key].default)) {
             scope[key] = scope._options.keys[key].default();
         } else {
@@ -5366,7 +5466,7 @@ var _ = function() {
             }
         }
     };
-    var initializeForInForNotOptimized = function(args, scope) {
+    var initializeForInForNotOptimized = function initializeForInForNotOptimized(args, scope) {
         for (var key in scope._options.refs) {
             if (_.isArray(scope._options.refs[key])) {
                 scope[key] = scope[key] || [];
@@ -5377,11 +5477,15 @@ var _ = function() {
         for (var key in scope._options.keys) {
             doInitializeDefault(scope, key);
         }
+        for (var key in scope._options.virtuals) {
+            scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
+            scope.virtuals[key].setter = scope.virtuals[key].setter.bind(scope);
+        }
         for (var key in args) {
             scope[key] = args[key];
         }
     };
-    var initialize = function(args, scope) {
+    var initialize = function initialize(args, scope) {
         scope = scope || this;
         args = args || {};
         if (scope._options.collection === true) {
@@ -5391,44 +5495,52 @@ var _ = function() {
                 }),
                 collection: scope
             };
-            scope.urn = scope._options.rootUrn || scope.urn || scope._options.urn;
+            if (_.isString(scope._options.rootUrn)) {
+                scope.urn = scope._options.rootUrn;
+            } else if (_.isString(scope._options.urn)) {
+                scope.urn = scope._options.urn;
+            }
             scope.insert = insertFunc.bind(scope);
         }
         initializeForInForNotOptimized(args, scope);
-        populateRefs(scope);
+        scope._options.inited = populateRefs(scope);
         scope._options.subs = [];
         if (typeof self !== "undefined" && self.Jive && self.Jive.Jazz) {
             scope._options.pubsub = self.Jive.Jazz;
         } else {
             scope._options.pubsub = new _.Fabric();
         }
-        scope._options.postFunc = postFunc.bind(scope, "posted");
-        scope._options.putFunc = postFunc.bind(scope, "putted");
-        scope._options.patchFunc = postFunc.bind(scope, "patched");
+        scope._options.postFunc = eventFunc.bind(scope, "posted");
+        scope._options.putFunc = eventFunc.bind(scope, "putted");
+        scope._options.patchFunc = eventFunc.bind(scope, "patched");
         scope._options.deleteFunc = deleteFunc.bind(scope);
         scope._options.persisted = scope.toJSON();
         scope.on({
-            event: "post"
+            event: "posted",
+            session: true
         }).progress(function(ret) {
-            console.log("WTF is ret in POST?", ret);
-            scope._options.postFunc;
+            scope._options.postFunc(ret);
         });
         scope.on({
-            event: "put"
+            event: "putted",
+            session: true
         }).progress(function(ret) {
-            console.log("WTF is ret in PUT?", ret);
-            scope._options.putFunc;
+            scope._options.putFunc({
+                data: ret.data.body
+            });
         });
         scope.on({
-            event: "patch"
+            event: "patched",
+            session: true
         }).progress(function(ret) {
-            console.log("WTF is ret in PATCH?", ret);
-            scope._options.patchFunc;
+            scope._options.patchFunc({
+                data: ret.data.body
+            });
         });
         scope.on({
-            event: "delete"
+            event: "deleted",
+            session: true
         }).progress(function(ret) {
-            console.log("WTF is ret in DELETE?", ret);
             scope._options.deleteFunc();
         });
     };
@@ -5524,7 +5636,7 @@ var _ = function() {
                             remote: false
                         }, scope);
                     });
-                    populateRefs(scope, {
+                    scope._options.inited = populateRefs(scope, {
                         local: ret.local
                     }).done(function(ret) {
                         dfd.resolve(scope);
@@ -5547,37 +5659,34 @@ var _ = function() {
             method: "POST",
             urn: scope.urn,
             data: args
-        }, scope).done(scope._options.postFunc);
+        }, scope);
     };
     Model.prototype.put = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        var dfd = new _.Dfd();
         return store({
             method: "PUT",
             urn: scope.urn,
             data: args
-        }, scope).done(scope._options.putFunc);
+        }, scope);
     };
     Model.prototype.patch = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        var dfd = new _.Dfd();
         return store({
             method: "PATCH",
             urn: scope.urn,
             data: args
-        }, scope).done(scope._options.patchFunc);
+        }, scope);
     };
     Model.prototype["delete"] = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        var dfd = new _.Dfd();
         return store({
             method: "DELETE",
             urn: scope.urn,
             data: args
-        }, scope).done(scope._options.deleteFunc);
+        }, scope);
     };
     Model.prototype.options = function(args, scope) {
         scope = scope || this;
@@ -5678,6 +5787,18 @@ var _ = function() {
                 }
                 break;
 
+              case "$all":
+                for (var valKey in filter[key]) {
+                    var val = subSelect(entry, valKey);
+                    if (_.isArray(val)) {
+                        var diffs = _.diffValues(val, filter[key][valKey]);
+                        if (diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+                            return false;
+                        }
+                    }
+                }
+                break;
+
               default:
                 var val = subSelect(entry, key);
                 if (!runFilter(filter[key], val)) {
@@ -5757,7 +5878,7 @@ var _ = function() {
         scope = scope || this;
         args = args || {};
         var urn = scope.urn + ":";
-        if (args.entries) {
+        if (scope._options.collection === true) {
             urn += "*:";
         }
         urn += args.event;
@@ -5769,14 +5890,14 @@ var _ = function() {
     Model.prototype.on = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        var urn;
-        if (scope._options.collection === true) {
-            urn = scope._options.urn + ":";
-        } else {
-            urn = scope.urn + ":";
+        var urn = "";
+        if (args.session === true) {
+            urn += "session:";
         }
-        if (args.entries) {
-            urn += "*:";
+        if (scope._options.collection === true) {
+            urn += scope._options.urn + ":*:";
+        } else {
+            urn += scope.urn + ":";
         }
         urn += args.event;
         var sub = scope._options.pubsub.subscribe({
@@ -5930,9 +6051,15 @@ var _ = function() {
                         }
                         ret[key] = vmed;
                     }
+                } else if (key === "*") {
+                    _.extend(ret, scope.toVM());
+                } else if (_.isNormalObject(scope.virtuals) && scope.virtuals[key] && _.isFunction(scope.virtuals[key].getter)) {
+                    ret[key] = scope.virtuals[key].getter();
                 } else {
                     var sub = subSelect(scope, key);
-                    walkObject(ret, key, sub);
+                    if (typeof sub !== "undefined") {
+                        walkObject(ret, key, sub);
+                    }
                 }
             });
         }
@@ -6085,6 +6212,15 @@ var _ = function() {
         model._options.refs = schema.refs || {};
         for (var key in model._options.refs) {
             model._options.excludes[key] = true;
+        }
+        model._options.virtuals = schema.virtuals;
+        if (typeof model._options.virtuals !== "undefined") {
+            model.prototype.virtuals = {};
+            for (var key in model._options.virtuals) {
+                model.prototype.virtuals[key] = {};
+                model.prototype.virtuals[key].getter = model._options.virtuals[key].getter || function() {};
+                model.prototype.virtuals[key].setter = model._options.virtuals[key].setter || function() {};
+            }
         }
         model._options.keys = schema.keys || {};
         _.updateProp(model, {

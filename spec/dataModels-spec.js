@@ -142,7 +142,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1].toJSON()).toEqual({name: 4, entities: [0, 4]});
 			});
 
-			it("has $nin functionality for querying", function(){
+			it("has $all functionality for querying", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();
 
@@ -154,11 +154,14 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 
 				var results = collection.query({
 					filter: {
-						$nin: {
-							entities: [0]
+						$all: {
+							entities: [0, 8]
 						}
 					}
 				});
+
+				expect(results.length).toEqual(1);
+				expect(results[0].toJSON()).toEqual({name: 8, entities: [0, 8]});
 			});
 
 			it("can select only specific fields", function(){

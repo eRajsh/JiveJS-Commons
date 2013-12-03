@@ -1024,7 +1024,8 @@
 			return ret;
 		},
 
-		escapeHtml: _.escape
+		escapeHtml: _.escape,
+		escape: _.escape,
 	};
 
 	//return the utility object for direct consumption if needed.

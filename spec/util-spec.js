@@ -585,6 +585,28 @@ describe("Util.js Utility class", function() {
 			expect(ret.changed.length).toEqual(0);
 		});
 
+		it("should tell me that nothing changed if values are the same but order is different", function() {
+			var a = ["entities:jmorris", "entities:andrew"];
+			var b = ["entities:andrew", "entities:jmorris"];
+
+			var ret = _.diffValues(a, b);
+
+			expect(ret.removed.length).toEqual(0);
+			expect(ret.added.length).toEqual(0);
+			expect(ret.changed.length).toEqual(0);
+		});
+
+		it("should tell me that some items were removed in an array", function() {
+			var a = ["entities:andrew", "entities:jmorris"];
+			var b = ["entities:andrew"];
+
+			var ret = _.diffValues(a, b);
+
+			expect(ret.removed.length).toEqual(1);
+			expect(ret.added.length).toEqual(0);
+			expect(ret.changed.length).toEqual(0);
+		});
+
 		it("should tell me that some items were removed in an object", function() {
 			var a = {"Blarg": "bazz", "foo": {"cheese": "asiago"}};
 			var b = {"Blarg": "bing", "test": {"cheese": "cheddar"}};

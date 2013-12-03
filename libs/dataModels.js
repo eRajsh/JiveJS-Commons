@@ -13,7 +13,7 @@
 		}
 	};
 
-	var findModel = function(urn) {
+	var findModel = function findModel(urn) {
 		for(var key in urns) {
 			if(urns[key].regex.exec(urn)) {
 				return urns[key].model;
@@ -21,7 +21,7 @@
 		}
 	};
 
-	var findCollection = function(urn) {
+	var findCollection = function findCollection(urn) {
 		for(var key in collections) {
 			if(collections[key].regex.exec(urn)) {
 				return collections[key].collection;
@@ -31,7 +31,7 @@
 
 	var makeForModelDeferDfds = {};
 
-	var getDeffered = function(urn) {
+	var getDeffered = function getDeffered(urn) {
 
 		if(makeForModelDeferDfds[urn]) {
 			return makeForModelDeferDfds[urn];
@@ -45,7 +45,7 @@
 
 	};
 
-	var makeAndGet = function(args, model, collection, dfd, given) {
+	var makeAndGet = function makeAndGet(args, model, collection, dfd, given) {
 		var instance = new model(args);
 
 		if(!given) {
@@ -61,7 +61,7 @@
 		}
 	};
 
-	var makeForModel = function(args, given) {
+	var makeForModel = function makeForModel(args, given) {
 		var dfd = new _.Dfd();
 
 		var collection = findCollection(args.urn);
@@ -97,7 +97,7 @@
 		return dfd.promise();
 	};
 
-	var populateRefs = function(scope, args) {
+	var populateRefs = function populateRefs(scope, args) {
 		args = args || {};
 
 		var dfd = new _.Dfd();
@@ -111,24 +111,44 @@
 				if(_.isArray(ref)) {
 					scope[key].forEach(function(item, i) {
 						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof Model)) {
-							dfds.push(makeForModel(item, true).done(function(ret) {
+							var eachDfd = new _.Dfd();
+
+							makeForModel(item, true).done(function(ret) {
 								scope[key][i] = ret;
-							}));
+								eachDfd.resolve();
+							});
+
+							dfds.push(eachDfd);
 						} else if(_.isUrn(item)) {
-							dfds.push(makeForModel({urn: item}).done(function(ret) {
+							var eachDfd = new _.Dfd();
+
+							makeForModel({urn: item}).done(function(ret) {
 								scope[key][i] = ret;
-							}));
+								eachDfd.resolve();
+							});
+
+							dfds.push(eachDfd);
 						}
 					});
 				} else {
 					if(_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
-						dfds.push(makeForModel(scope[key], true).done(function(ret) {
+						var eachDfd = new _.Dfd();
+
+						makeForModel(scope[key], true).done(function(ret) {
 							scope[key] = ret;
-						}));
+							eachDfd.resolve();
+						});
+
+						dfds.push(eachDfd);
 					} else if(_.isUrn(scope[key])) {
-						dfds.push(makeForModel({urn: scope[key]}).done(function(ret) {
+						var eachDfd = new _.Dfd();
+
+						makeForModel({urn: scope[key]}).done(function(ret) {
 							scope[key] = ret;
-						}));
+							eachDfd.resolve();
+						});
+
+						dfds.push(eachDfd);
 					}
 				}
 			})(key);
@@ -141,7 +161,7 @@
 		return dfd.promise();
 	};
 
-	var store = function(args, scope) {
+	var store = function store(args, scope) {
 		var dfd = new _.Dfd();
 		scope = scope || this;
 
@@ -161,8 +181,8 @@
 		}
 
 		if(scope._options.store.remote && args.remote) {
-			// TODO: Get this check working (i.e. can we actually use the bastard for local store?)
-			if(args.method === "GET" && scope._options.store.localStorage && (true || scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
+			// TODO: either use the TTL bit or we should set a "offline mode" flag somewhere that we check here
+			if(args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
 				local(args, scope).done(function(ret) {
 					dfd.resolve({data: ret, headers: {}, status: 200, local: true});
 				}).fail(function(e) {
@@ -184,6 +204,19 @@
 				}
 
 				ajax(args, scope).done(function(ret){
+					if(args.method === "GET" && scope._options.collection === true) {
+
+						self.Jive.SessionBridge.subscribe({
+							urn: scope.urn,
+							ETag: ret.data.ETag
+						});
+
+						self.Jive.SessionBridge.subscribe({
+							urn: scope.urn + ":#",
+							ETag: ret.data.ETag
+						});
+					}
+
 					dfd.resolve(ret);
 				}).fail(function(e) {
 					dfd.reject(e);
@@ -200,7 +233,7 @@
 		return dfd.promise();
 	};
 
-	var local = function(args, scope) {
+	var local = function local(args, scope) {
 		var urn = args.urn;
 
 		if(scope._options.collection === true) {
@@ -281,12 +314,12 @@
 	};
 
 
-	var ajax = function(args, scope) {
+	var ajax = function ajax(args, scope) {
 		scope = scope || this;
 		var dfd = new _.Dfd();
 
 		var data = args.data || {};
-		var urn = args.urn;
+		var urn = args.data.urn || args.urn;
 
 		if((args.method == "POST" || args.method == "PUT" || args.method == "PATCH") && args.data) {
 			data = JSON.stringify(data);
@@ -321,7 +354,7 @@
 		return dfd.promise();
 	};
 
-	var insertFunc = function(args, scope) {
+	var insertFunc = function insertFunc(args, scope) {
 		scope = scope || this;
 		args = args || {};
 
@@ -341,22 +374,97 @@
 		}
 	};
 
-	var postFunc = function(event, ret, scope) {
+	var eventFunc = function eventFunc(event, ret, scope) {
 		scope = scope || this;
 
-		for(var key in ret) {
-			scope[key] = ret[key];
+		var data = ret.data.body || ret.data;
+		var toRet;
+
+		if(scope._options.collection === true) {
+			var model = findModel(data.urn);
+			var collection = findCollection(data.urn);
+
+			var instance = (typeof collection !== "undefined") ? collection.queryOne({filter: { urn: data.urn }}) : undefined;
+
+			switch(event) {
+				case "posted":
+					if(typeof instance === "undefined" && model) {
+						instance = new model(data);
+
+						insertFunc({entry: instance}, collection);
+
+						collection._options.persisted = collection.toJSON();
+					} else {
+						_.extend(instance, data);
+					}
+				break;
+
+				case "putted":
+					if(typeof instance !== "undefined") {
+						for(var key in instance) {
+							if(key !== "_options") {
+								delete instance[key];
+							}
+						}
+					}
+				case "patched":
+					if(typeof instance !== "undefined") {
+						_.extend(instance, data);
+					}
+				break;
+			}
+
+			toRet = instance;
+		} else {
+			switch(event) {
+				case "posted":
+					var model = findModel(data.urn);
+					var collection = findCollection(data.urn);
+
+					var instance = (typeof collection !== "undefined") ? collection.queryOne({filter: { urn: data.urn }}) : scope;
+
+					if(typeof instance === "undefined" && model) {
+						instance = new model(data);
+
+						if(collection) {
+							insertFunc({entry: instance}, collection);
+						}
+
+						collection._options.persisted = collection.toJSON();
+					} else {
+						_.extend(instance, data);
+					}
+
+					toRet = instance;
+				break;
+
+				case "putted":
+					if(typeof scope !== "undefined") {
+						for(var key in scope) {
+							if(key !== "_options") {
+								delete scope[key];
+							}
+						}
+					}
+				case "patched":
+					_.extend(scope, data);
+				break;
+			}
+
+			toRet = scope;
 		}
 
-		scope._options.persisted = scope.toJSON();
-
-		scope.dispatch({
-			event: event,
-			data: ret
+		toRet._options.inited.done(function() {
+			toRet.dispatch({
+				event: event,
+				data: toRet
+			});
 		});
+
+		return toRet;
 	};
 
-	var deleteFunc = function(ret, scope) {
+	var deleteFunc = function deleteFunc(ret, scope) {
 		scope = scope || this;
 
 		for(var key in scope) {
@@ -373,7 +481,7 @@
 		});
 	};
 
-	var doInitializeDefault = function(scope, key) {
+	var doInitializeDefault = function doInitializeDefault(scope, key) {
 		if(_.isFunction(scope._options.keys[key].default)) {
 			scope[key] = scope._options.keys[key].default();
 		} else {
@@ -404,7 +512,7 @@
 	};
 
 	// We moved this into its own function because chrome was saying it couldn't optimize this bastard.
-	var initializeForInForNotOptimized = function(args, scope) {
+	var initializeForInForNotOptimized = function initializeForInForNotOptimized(args, scope) {
 
 		for(var key in scope._options.refs) {
 			if(_.isArray(scope._options.refs[key])) {
@@ -418,13 +526,18 @@
 			doInitializeDefault(scope, key);
 		}
 
+		for(var key in scope._options.virtuals) {
+			scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
+			scope.virtuals[key].setter = scope.virtuals[key].setter.bind(scope);
+		}
+
 		for(var key in args) {
 			scope[key] = args[key];
 		}
 
 	};
 
-	var initialize = function(args, scope) {
+	var initialize = function initialize(args, scope) {
 		scope = scope || this;
 		args = args || {};
 
@@ -434,14 +547,18 @@
 				collection: scope
 			};
 
-			scope.urn = scope._options.rootUrn || scope.urn || scope._options.urn;
+			if(_.isString(scope._options.rootUrn)) {
+				scope.urn = scope._options.rootUrn;
+			} else if(_.isString(scope._options.urn)) {
+				scope.urn = scope._options.urn;
+			}
 
 			scope.insert = insertFunc.bind(scope);
 		}
 
 		initializeForInForNotOptimized(args, scope);
 
-		populateRefs(scope);
+		scope._options.inited = populateRefs(scope);
 
 		scope._options.subs = [];
 
@@ -451,27 +568,26 @@
 			scope._options.pubsub = new _.Fabric();
 		}
 
-		scope._options.postFunc = postFunc.bind(scope, "posted");
-		scope._options.putFunc = postFunc.bind(scope, "putted");
-		scope._options.patchFunc = postFunc.bind(scope, "patched");
+		scope._options.postFunc = eventFunc.bind(scope, "posted");
+		scope._options.putFunc = eventFunc.bind(scope, "putted");
+		scope._options.patchFunc = eventFunc.bind(scope, "patched");
 		scope._options.deleteFunc = deleteFunc.bind(scope);
 
 		scope._options.persisted = scope.toJSON();
 
-		scope.on({event: "post"}).progress(function(ret) {
-			console.log("WTF is ret in POST?", ret);
-			scope._options.postFunc
+		scope.on({event: "posted", session: true}).progress(function(ret) {
+			scope._options.postFunc(ret);
 		});
-		scope.on({event: "put"}).progress(function(ret) {
-			console.log("WTF is ret in PUT?", ret);
-			scope._options.putFunc;
+
+		scope.on({event: "putted", session: true}).progress(function(ret) {
+			scope._options.putFunc({data: ret.data.body});
 		});
-		scope.on({event: "patch"}).progress(function(ret) {
-			console.log("WTF is ret in PATCH?", ret);
-			scope._options.patchFunc;
+
+		scope.on({event: "patched", session: true}).progress(function(ret) {
+			scope._options.patchFunc({data: ret.data.body});
 		});
-		scope.on({event: "delete"}).progress(function(ret) {
-			console.log("WTF is ret in DELETE?", ret);
+
+		scope.on({event: "deleted", session: true}).progress(function(ret) {
 			scope._options.deleteFunc();
 		});
 	};
@@ -562,7 +678,7 @@
 						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
 					});
 
-					populateRefs(scope, {local: ret.local}).done(function(ret) {
+					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(ret) {
 						dfd.resolve(scope);
 					});
 				} else {
@@ -579,28 +695,22 @@
 
 	Model.prototype.post = function(args, scope) {
 		scope = scope || this; args = args || {};
-		return store({ method: "POST", urn: scope.urn, data: args }, scope).done(scope._options.postFunc);
+		return store({ method: "POST", urn: scope.urn, data: args }, scope);
 	};
 
 	Model.prototype.put = function(args, scope) {
 		scope = scope || this; args = args || {};
-		var dfd = new _.Dfd();
-
-		return store({ method: "PUT", urn: scope.urn, data: args }, scope).done(scope._options.putFunc);
+		return store({ method: "PUT", urn: scope.urn, data: args }, scope);
 	};
 
 	Model.prototype.patch = function(args, scope) {
 		scope = scope || this; args = args || {};
-		var dfd = new _.Dfd();
-
-		return store({ method: "PATCH", urn: scope.urn, data: args }, scope).done(scope._options.patchFunc);
+		return store({ method: "PATCH", urn: scope.urn, data: args }, scope);
 	};
 
 	Model.prototype["delete"] = function(args, scope) {
 		scope = scope || this; args = args || {};
-		var dfd = new _.Dfd();
-
-		return store({ method: "DELETE", urn: scope.urn, data: args }, scope).done(scope._options.deleteFunc);
+		return store({ method: "DELETE", urn: scope.urn, data: args }, scope);
 	};
 
 	Model.prototype.options = function(args, scope) {
@@ -709,6 +819,19 @@
 							var intersection = _.intersection(val, filter[key][valKey]);
 
 							if(intersection.length === length) {
+								return false;
+							}
+						}
+					}
+				break;
+
+				case "$all":
+					for(var valKey in filter[key]) {
+						var val = subSelect(entry, valKey);
+						if(_.isArray(val)) {
+							var diffs = _.diffValues(val, filter[key][valKey]);
+
+							if(diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
 								return false;
 							}
 						}
@@ -825,7 +948,7 @@
 
 		var urn = scope.urn + ":";
 
-		if(args.entries) {
+		if(scope._options.collection === true) {
 			urn += "*:";
 		}
 
@@ -841,15 +964,16 @@
 		scope = scope || this;
 		args = args || {};
 
-		var urn;
-		if(scope._options.collection === true) {
-			urn = scope._options.urn + ":";
-		} else {
-			urn = scope.urn + ":";
+		var urn = "";
+
+		if(args.session === true) {
+			urn += "session:";
 		}
 
-		if(args.entries) {
-			urn += "*:";
+		if(scope._options.collection === true) {
+			urn += scope._options.urn + ":*:";
+		} else {
+			urn += scope.urn + ":";
 		}
 
 		urn += args.event;
@@ -1034,9 +1158,15 @@
 						}
 						ret[key] = vmed;
 					}
+				} else if(key === "*") {
+					_.extend(ret, scope.toVM());
+				} else if(_.isNormalObject(scope.virtuals) && scope.virtuals[key] && _.isFunction(scope.virtuals[key].getter)) {
+					ret[key] = scope.virtuals[key].getter();
 				} else {
 					var sub = subSelect(scope, key);
-					walkObject(ret, key, sub);
+					if(typeof sub !== "undefined") {
+						walkObject(ret, key, sub);
+					}
 				}
 			});
 		}
@@ -1103,6 +1233,17 @@
 		model._options.refs = schema.refs || {};
 		for(var key in model._options.refs) {
 			model._options.excludes[key] = true;
+		}
+
+		model._options.virtuals = schema.virtuals;
+		if(typeof model._options.virtuals !== "undefined") {
+			model.prototype.virtuals = {};
+			for(var key in model._options.virtuals) {
+				model.prototype.virtuals[key] = {};
+
+				model.prototype.virtuals[key].getter = model._options.virtuals[key].getter || function() {};
+				model.prototype.virtuals[key].setter = model._options.virtuals[key].setter || function() {};
+			}
 		}
 
 		model._options.keys = schema.keys || {};
