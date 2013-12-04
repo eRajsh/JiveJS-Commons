@@ -459,6 +459,8 @@
 				event: event,
 				data: toRet
 			});
+
+			toRet.changed();
 		});
 
 		return toRet;
@@ -479,6 +481,8 @@
 			event: "deleted",
 			data: args
 		});
+
+		scope.changed();
 	};
 
 	var doInitializeDefault = function doInitializeDefault(scope, key) {
@@ -524,11 +528,6 @@
 
 		for(var key in scope._options.keys) {
 			doInitializeDefault(scope, key);
-		}
-
-		for(var key in scope._options.virtuals) {
-			scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
-			scope.virtuals[key].setter = scope.virtuals[key].setter.bind(scope);
 		}
 
 		for(var key in args) {
@@ -628,9 +627,9 @@
 								var model = findModel(ret.data.entries[i].urn);
 								if(model) {
 									var instance = new model(ret.data.entries[i]);
-									setImmediate(function(instance) {
+									setTimeout(function(instance) {
 										store({ method: "POST", urn: instance.urn, data: instance.toJSON(), remote: false}, instance);
-									}, instance);
+									}, 0, instance);
 									scope.entries.push(instance);
 								}
 							} else {
@@ -674,9 +673,9 @@
 						data: scope
 					});
 
-					setImmediate(function() {
+					setTimeout(function() {
 						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
-					});
+					}, 0);
 
 					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(ret) {
 						dfd.resolve(scope);
@@ -1020,6 +1019,9 @@
 		scope = scope || this;
 		args = args || {};
 
+		delete scope._options.toVMed;
+		delete scope._options.toJSONed;
+
 		scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
 		scope.dispatch({
 			event: "changed",
@@ -1046,18 +1048,20 @@
 			data: args
 		});
 
-		scope.dispatch({
-			event: "changed",
-			data: scope._options.changes
-		});
+		scope.changed();
 	};
 	//END SAVING CHANGE STUFFS
 
 	//DATA MUNGING RETURNS
+	var toJSONedCache = {};
 	Model.prototype.toJSON = Model.prototype.valueOf = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
 		args.excludes = args.excludes || {};
+
+		if(toJSONedCache[scope.urn]) {
+			return toJSONedCache[scope.urn];
+		}
 
 		var excludes = {};
 		_.extend(excludes, scope._options.excludes, args.excludes);
@@ -1087,16 +1091,23 @@
 			}
 		}
 
+		toJSONedCache[scope.urn] = temp;
+
 		return temp;
 	};
 
+	var toVMedCache = {};
 	Model.prototype.toVM = function(args, scope) {
 		// TODO: Upchain stuff already to VM'd
 		scope = scope || this;
 		args = args || {};
 		args.vm = args.vm || "default";
 
-		args.alreadyToVmed = args.alreadyToVmed || {};
+		toVMedCache[scope.urn] = toVMedCache[scope.urn] || {};
+
+		if(toVMedCache[scope.urn][args.vm]) {
+			return toVMedCache[scope.urn][args.vm];
+		}
 
 		var ret = {};
 
@@ -1110,21 +1121,17 @@
 
 			scope.entries.forEach(function(entry) {
 				var vmed;
-				if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
-					args.alreadyToVmed[entry.urn] = {urn: entry.urn};
-					vmed = entry.toVM(args);
-
-					for(var vmedKey in vmed) {
-						args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
-					}
+				toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
+				if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
+					vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
 				} else {
-					vmed = args.alreadyToVmed[entry.urn];
+					vmed = toVMedCache[entry.urn][args.vm];
 				}
 
 				ret.entries.push(vmed);
 			});
 		} else {
-			args.alreadyToVmed[scope.urn] = ret;
+			toVMedCache[scope.urn][args.vm] = ret;
 
 			keys.forEach(function(key) {
 				if(scope._options.refs[key]) {
@@ -1132,36 +1139,28 @@
 						ret[key] = [];
 						scope[key].forEach(function(entry) {
 							var vmed;
-							if(typeof args.alreadyToVmed[entry.urn] === "undefined") {
-								args.alreadyToVmed[entry.urn] = {urn: entry.urn};
-								vmed = entry.toVM(args);
-
-								for(var vmedKey in vmed) {
-									args.alreadyToVmed[entry.urn][vmedKey] = vmed[vmedKey];
-								}
+							toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
+							if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
+								vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
 							} else {
-								vmed = args.alreadyToVmed[entry.urn];
+								vmed = toVMedCache[entry.urn][args.vm];
 							}
 							ret[key].push(vmed);
 						});
 					} else {
 						var vmed;
-						if(typeof args.alreadyToVmed[scope[key].urn] === "undefined") {
-							args.alreadyToVmed[scope[key].urn] = {urn: scope[key].urn};
-							vmed = scope[key].toVM(args);
-
-							for(var vmedKey in vmed) {
-								args.alreadyToVmed[scope[key].urn][vmedKey] = vmed[vmedKey];
-							}
+						toVMedCache[scope[key].urn] = toVMedCache[scope[key].urn] || {};
+						if(typeof toVMedCache[scope[key].urn][args.vm] === "undefined") {
+							vmed = toVMedCache[scope[key].urn][args.vm] = scope[key].toVM(args);
 						} else {
-							vmed = args.alreadyToVmed[scope[key].urn];
+							vmed = toVMedCache[scope[key].urn][args.vm];
 						}
 						ret[key] = vmed;
 					}
 				} else if(key === "*") {
 					_.extend(ret, scope.toVM());
 				} else if(_.isNormalObject(scope.virtuals) && scope.virtuals[key] && _.isFunction(scope.virtuals[key].getter)) {
-					ret[key] = scope.virtuals[key].getter();
+					ret[key] = scope.virtuals[key].getter(args, scope);
 				} else {
 					var sub = subSelect(scope, key);
 					if(typeof sub !== "undefined") {
@@ -1170,6 +1169,8 @@
 				}
 			});
 		}
+
+		toVMedCache[scope.urn][args.vm] = ret;
 
 		return ret;
 	};
