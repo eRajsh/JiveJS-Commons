@@ -18,24 +18,80 @@
 		var that = this;
 		that.push = function () {
 			var ms = Array.prototype.slice.call(arguments, 0);
-			if (this.length < args.size && args.rotate === false) {
+
+			if(args.rotate === true) {
 				Array.prototype.push.apply(this, ms);
-			} else if ( args.rotate == true) {
-				Array.prototype.push.apply(this, ms);
-			} else {
-				return false;
-			}
-			var toShift = this.length - args.size;
-			
-			if (toShift > 0) {
-				for (var i = toShift-1; i >= 0; i--) {
-					this.shift();
+				var over = this.length - args.size;
+				if (over > 0) {
+					Array.prototype.splice.call(this, 0, over);
 				}
+			} else {
+				var that = this;
+				var diff = args.size - this.length;
+				var toPush = ms.splice(0, diff);
+				Array.prototype.push.apply(that, toPush);
 			}
-			return this;
+			
+			return this.length;
 		};
+
+		that.unshift = function() {
+			var ms = Array.prototype.slice.call(arguments, 0);
+
+			if(args.rotate === true) {
+				Array.prototype.unshift.apply(this, ms);
+				var over = this.length - args.size;
+				if (over > 0) {
+					Array.prototype.splice.call(this, -over, over);
+				}
+			} else {
+				var that = this;
+				var diff = args.size - this.length;
+				var toShift = ms.splice(0, diff);
+				Array.prototype.unshift.apply(that, toShift);
+			}
+			
+			return this.length;
+		};
+
+		that.splice = function() {
+			var ms = Array.prototype.slice.call(arguments, 0);
+			var where = ms.shift();
+			var howMany = ms.shift();
+			var toAdd = ms;
+
+			var ret = Array.prototype.splice.call(this, where, howMany);
+
+			if(args.rotate === true) {
+				toAdd.unshift(0);
+				toAdd.unshift(where);
+				
+				Array.prototype.splice.apply(this, toAdd);
+				
+				var over = this.length - args.size;
+				if (over > 0) {
+					Array.prototype.splice.call(this, -over, over);
+				}
+			} else {
+				var that = this;
+				var diff = args.size - this.length;
+				var toSplice = toAdd.splice(0, diff);
+				toSplice.unshift(0);
+				toSplice.unshift(where);
+				Array.prototype.splice.apply(this, toSplice);
+			}
+			
+			return ret;
+		};
+
 		if(Object.defineProperties) {
 			Object.defineProperty(that, "push", { enumerable:false, writable:false, configurable:false });
+		}
+		if(Object.defineProperties) {
+			Object.defineProperty(that, "unshift", { enumerable:false, writable:false, configurable:false });
+		}
+		if(Object.defineProperties) {
+			Object.defineProperty(that, "splice", { enumerable:false, writable:false, configurable:false });
 		}
 		
 		if(seed) {
