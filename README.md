@@ -1,40 +1,35 @@
-JiveJS
+JiveJS-Commons
 ==============
 
 Common low level libraries created to support the higher level application frameworks and programming patterns.
-* [Capped](#Capped)
-* [Fabric](#Fabric)
-* [Promise](#Promise)
-* [State
+* [Capped](#_cappedsize-rotate-seed)
+* [Promise](#promise)
+* [State](#state)
+* [Fabric](#fabric)
 
-# Capped
-## A capped array.
-An array like object that provides a way to set a maximum size. If you use the push operator, the size will never exceed the maximum specified.
+# _.Capped({size, rotate}, [seed])
+## Description
+An array like object defined on the global _ that provides a way to set a maximum size. If you use the push operator, the size will never exceed the maximum specified.
 
-### Example:
+Paramater | Type | Example | Description
+--- | --- | --- | ---
+size | Key-Value | ``size: 10`` | A key-value pair for the maximum size of the array
+roate | Key-Value | ``rotate: true`` | A key-value pair for whether or not you want to have the array automatically pop items off the front of the array when its size exceeds the maximum size. <b>Default:</b> true. 
+seed | Array | ``['a', 'b', 'c', 'd']`` | If a seed is provided, the capped array will be populated with n number of undefined elements, exactly like the Array constructor.
+
 ```
-// Capped gets defined on the global _
+var capped = new _.Capped({ size: 5, roate: true}, [1,2,3,4,5]);
 
-var capped = new _.Capped({ size: 10 });
+capped; // [1, 2, 3, 4, 5]
 
-for(var i = 0; i < 20; i++) {
+for(var i = 5; i < 10; i++) {
 	capped.push(i);
 }
 
-capped.length; // 10
-capped[0]; // 0
-capped[9]; // 10
+capped.length; // 5
+capped; // [5, 6, 7, 8, 9]
 ```
-
-The first argument you can pass to the capped constructor is an object. This object has two valid keys:
-	* `size`
-		* `size` is the maximum size of the array
-	* `rotate`
-		* `rotate` is whether or not you want to have the array automatically pop items off the front of the array when its size exceeds the maximum size.
-
-The second argument you can provide to the constructor is a `seed`. If a `seed` is provided, the capped array will be populated with `n` number of undefined elements, exactly like the `Array` constructor.
-
-# Promise.js
+# Promise
 ## A library conforming to the Promise/A spec.
 Tested in Chrome, Firefox, Safari, and IE8/9/10.
 
@@ -116,7 +111,7 @@ setTimeout(function() {
 * There is some over securing going on in the code that could be stripped for faster speeds but meh...
 * Callback order is not guaranteed, although it usually hits the always ones first then the done/fail
 
-# State.js
+# State
 ## A library grown out of that exposes a Finite State Machine
 Idem to Promise on the browser compatability and the future timeline.  This baby grew out of the realization that promises and deferred specs are really just artificially handicapped state machines.  They impose an artificial limitation on the amount of states and on the transfer from state to state.  Removing these gives us State.js
 ### Example
@@ -165,7 +160,7 @@ state.on("all", function(data) {console.log("all on", data)}, "on");
 * What you want to do with these state things is your own concern
 * and if you have functions that should react differently based on state, then those functions should query the state and handle themselves differently.
 
-# Fabric.js
+# Fabric
 ## A library exposing a pub/sub - commande/notify - request/response - and enqueue/peek/handle/release API
 Idem on the browser support... catching a pattern yet?  This beauty exposes a message hub/bus/fabric in the client and exposes the API's you'd want for interacting with it.  We elected for a "URI/URN" type method of binding and publishing as opposed to "channel/topic" paradigm... which is really just opinion but fits better in our system.  That plus some AMPQ type wildcard bindings with * and # and you have some fun.
 ### Example
