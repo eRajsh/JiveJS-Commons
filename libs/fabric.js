@@ -129,17 +129,17 @@
 				}
 
 				if(args.next){
-					setImmediate(function(args) {
+					setTimeout(function(args) {
 						cb(args);
-					}, args);
+					}, 0, args);
 				}
 			} else {
 				args.dfd.notify({data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
-				setImmediate(function(args) {
+				setTimeout(function(args) {
 					if(args.cb) {
 						args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 					}
-				}, {cb: args.cb, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
+				}, 0, {cb: args.cb, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
 			return null;
 		}

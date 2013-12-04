@@ -27,9 +27,9 @@
 	**/
 	function callback(scope, data, cbs) {
 		for(var i=0; i<cbs.length; i++) {
-			setImmediate(function(i) {
+			setTimeout(function(i) {
 				cbs[i].call(scope, data);
-			}, i);
+			}, 0, i);
 		}
 	}
 
