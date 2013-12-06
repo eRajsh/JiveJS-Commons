@@ -14,8 +14,8 @@ An array like object defined on the global _ that provides a way to set a maximu
 Paramater | Type | Example | Description
 --- | --- | --- | ---
 size | Key-Value | ``size: 10`` | A key-value pair for the maximum size of the array
-roate | Key-Value | ``rotate: true`` | A key-value pair for whether or not you want to have the array automatically pop items off the front of the array when its size exceeds the maximum size. <b>Default:</b> true. 
-seed | Array | ``['a', 'b', 'c', 'd']`` | If a seed is provided, the capped array will be populated with n number of undefined elements, exactly like the Array constructor.
+roate | Key-Value | ``rotate: true`` | A key-value pair for whether or not you want to have the array automatically pop items off the front of the array when its size exceeds the maximum size. <b>Default:</b> ``true``, when ``false`` it will ignore any additions to the array once full. 
+seed | Array | ``['a', 'b', 'c', 'd']`` | If a seed is provided, the capped array will be populated with the elements of the seed array, exactly like the Array constructor.
 
 ```
 var capped = new _.Capped({ size: 5, roate: true}, [1,2,3,4,5]);
