@@ -3782,7 +3782,6 @@ var _ = function() {
 })();
 
 (function() {
-    "use strict";
     function callback(scope, data, cbs) {
         for (var i = 0; i < cbs.length; i++) {
             setTimeout(function(i) {
@@ -3795,6 +3794,128 @@ var _ = function() {
             cbs = [ cbs ];
         }
         return cbs;
+    }
+    function isPromise(promise) {
+        if (typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
+            return true;
+        }
+        return false;
+    }
+    function isDeferred(deferred) {
+        if (typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
+            return true;
+        }
+        return false;
+    }
+    function assumePromisesState(promise, newDfd) {
+        promise.then(function(resData) {
+            newDfd.resolve(resData);
+        }, function(rejData) {
+            newDfd.reject(rejData);
+        }, function(progData) {
+            newDfd.notify(progData);
+        });
+    }
+    function checkWhatToDoWithRet(data, newDfd, pro, whatToDo) {
+        if (data === pro) {
+            newDfd.reject(new TypeError("Promise then " + whatToDo + " returned the same Promise... OMG!!!! THE SHITS!"));
+        } else if (isPromise(data)) {
+            assumePromisesState(data, newDfd);
+        } else if (_.isNormalObject(data) || _.isFunction(data)) {
+            stealReturnsThen(data, newDfd, pro, whatToDo);
+        } else {
+            if (whatToDo === "notify") {
+                newDfd.notify(data);
+            } else {
+                newDfd.resolve(data);
+            }
+        }
+    }
+    function stealReturnsThen(data, newDfd, pro, whatToDo) {
+        var datasThen;
+        try {
+            datasThen = data.then;
+        } catch (e) {
+            newDfd.reject(e);
+        }
+        if (_.isFunction(datasThen)) {
+            var fCalled = false;
+            try {
+                datasThen.call(data, function(resData) {
+                    if (!fCalled) {
+                        fCalled = true;
+                        checkWhatToDoWithRet(resData, newDfd, pro, "resolve");
+                    }
+                }, function(rejData) {
+                    if (!fCalled) {
+                        fCalled = true;
+                        checkWhatToDoWithRet(rejData, newDfd, pro, "reject");
+                    }
+                }, function(progData) {
+                    checkWhatToDoWithRet(progData, newDfd, pro, "notify");
+                });
+            } catch (e) {
+                if (!fCalled) {
+                    newDfd.reject(e);
+                }
+            }
+        } else if (typeof datasThen !== "undefined") {
+            newDfd.resolve(data);
+        } else {
+            newDfd[whatToDo](data);
+        }
+    }
+    function dF(doneFilter, newDfd, pro) {
+        return function(data) {
+            var finished = false;
+            if (_.isFunction(doneFilter)) {
+                try {
+                    data = doneFilter(data);
+                } catch (e) {
+                    newDfd.reject(e);
+                    finished = true;
+                }
+                if (!finished) {
+                    checkWhatToDoWithRet(data, newDfd, pro, "resolve");
+                }
+            } else {
+                newDfd.resolve(data);
+            }
+        };
+    }
+    function fF(failFilter, newDfd, pro) {
+        return function(data) {
+            var finished = false;
+            if (_.isFunction(failFilter)) {
+                try {
+                    data = failFilter(data);
+                } catch (e) {
+                    newDfd.reject(e);
+                    finished = true;
+                }
+                if (!finished) {
+                    checkWhatToDoWithRet(data, newDfd, pro, "reject");
+                }
+            } else {
+                newDfd.reject(data);
+            }
+        };
+    }
+    function pF(progressFilter, newDfd, pro) {
+        return function(data) {
+            var finished = false;
+            if (_.isFunction(progressFilter)) {
+                try {
+                    data = progressFilter(data);
+                } catch (e) {
+                    newDfd.reject(e);
+                    finished = true;
+                }
+            }
+            if (!finished) {
+                checkWhatToDoWithRet(data, newDfd, pro, "notify");
+            }
+        };
     }
     var Dfd = function(beforeStart, debugMode) {
         this.internalState = 0;
@@ -3862,22 +3983,30 @@ var _ = function() {
             this.progress = dfd.progress.bind(dfd);
             this.always = dfd.always.bind(dfd);
             this.then = dfd.then.bind(dfd);
-            this.state = dfd.state.bind(dfd);
-            if (target && {}.toString.call(target) === "[object Object]") {
+            this.state = this.internalState = function() {
+                return dfd.internalState;
+            };
+            this.internalData = function() {
+                return dfd.internalData;
+            };
+            this.internalWith = function() {
+                return dfd.internalWith;
+            };
+            if (target && _.isNormalObject(target)) {
                 _.extend(target, this);
                 return target;
             }
             return this;
         },
         notify: function(data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalData = data;
                 callback(this.internalWith, this.internalData, this.callbacks.progress);
             }
             return this;
         },
         notifyWith: function(scope, data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalWith = scope;
                 this.internalData = data;
                 callback(this.internalWith, this.internalData, this.callbacks.progress);
@@ -3885,35 +4014,35 @@ var _ = function() {
             return this;
         },
         reject: function(data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalData = data;
-                this.setState(2);
+                this.internalState = 2;
                 callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
             }
             return this;
         },
         rejectWith: function(scope, data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalWith = scope;
                 this.internalData = data;
-                this.setState(2);
+                this.internalState = 2;
                 callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
             }
             return this;
         },
         resolve: function(data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalData = data;
-                this.setState(1);
+                this.internalState = 1;
                 callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
             }
             return this;
         },
         resolveWith: function(scope, data) {
-            if (this.state() == 0) {
+            if (this.internalState === 0) {
                 this.internalWith = scope;
                 this.internalData = data;
-                this.setState(1);
+                this.internalState = 1;
                 callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
             }
             return this;
@@ -3921,7 +4050,7 @@ var _ = function() {
         always: function(cbs) {
             cbs = sanitizeCbs(cbs);
             if (cbs.length > 0) {
-                if (this.state() !== 0) {
+                if (this.internalState !== 0) {
                     callback(this.internalWith, this.internalData, cbs);
                 } else {
                     this.callbacks.always = this.callbacks.always.concat(cbs);
@@ -3932,56 +4061,39 @@ var _ = function() {
         done: function(cbs) {
             cbs = sanitizeCbs(cbs);
             if (cbs.length > 0) {
-                if (this.state() === 1) {
+                if (this.internalState === 1) {
                     callback(this.internalWith, this.internalData, cbs);
                 } else {
                     this.callbacks.done = this.callbacks.done.concat(cbs);
                 }
             }
-            return this.promise();
+            return this._pro;
         },
         fail: function(cbs) {
             cbs = sanitizeCbs(cbs);
             if (cbs.length > 0) {
-                if (this.state() === 2) {
+                if (this.internalState === 2) {
                     callback(this.internalWith, this.internalData, cbs);
                 } else {
                     this.callbacks.fail = this.callbacks.fail.concat(cbs);
                 }
             }
-            return this.promise();
+            return this._pro;
         },
         progress: function(cbs) {
-            if (this.state() === 0) {
+            if (this.internalState === 0) {
                 cbs = sanitizeCbs(cbs);
                 this.callbacks.progress = this.callbacks.progress.concat(cbs);
             }
-            return this.promise();
+            return this._pro;
         },
         then: function(doneFilter, failFilter, progressFilter) {
             var newDfd = new Dfd();
-            var dF = function(data) {
-                if (doneFilter) {
-                    data = doneFilter.call(this, data);
-                }
-                newDfd.resolveWith(this, data);
-            };
-            this.done(dF);
-            var fF = function(data) {
-                if (failFilter) {
-                    var ret = failFilter.call(this, data);
-                }
-                newDfd.rejectWith(this, ret);
-            };
-            this.fail(fF);
-            var pF = function(data) {
-                if (progressFilter) {
-                    var ret = progressFilter.call(this, data);
-                }
-                newDfd.notifyWith(this, ret);
-            };
-            this.progress(pF);
-            return newDfd.promise();
+            var pro = newDfd.promise();
+            this.done(dF(doneFilter, newDfd, pro));
+            this.fail(fF(failFilter, newDfd, pro));
+            this.progress(pF(progressFilter, newDfd, pro));
+            return pro;
         },
         when: function() {
             var args = Array.prototype.slice.call(arguments);
@@ -3998,7 +4110,7 @@ var _ = function() {
                 }
             }
             for (var i = 0; i < promises.length; i++) {
-                if (promises[i].toString() === "[object Promise]" || promises[i].toString() === "[object Deferred]") {
+                if (isPromise(promises[i]) || isDeferred(promises[i])) {
                     var doneFunc = function(i) {
                         return function(data) {
                             whenData[i] = data;
@@ -4047,18 +4159,14 @@ var _ = function() {
         },
         state: function() {
             return this.internalState;
-        },
-        setState: function(newState) {
-            if (newState == 0 || newState == 1 || newState == 2) {
-                this.internalState = newState;
-            }
-            return this.internalState;
         }
     });
     Dfd.when = Dfd.prototype.when;
     _.Dfd = Dfd;
     _.dfd = new Dfd();
     _.dfd.resolve("Only to be used for WHEN magic!!!!");
+    _.isPromise = isPromise;
+    _.isDeferred = isDeferred;
     return Dfd;
 })();
 

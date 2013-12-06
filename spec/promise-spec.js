@@ -479,6 +479,7 @@ describe("Promise.js Deferred Promise class", function() {
 					spy.func6.calls.length == 1;
 			});
 
+
 			runs(function() {
 				expect(spy.func3).toHaveBeenCalledWith(1);
 				expect(spy.func6).toHaveBeenCalledWith(2);
@@ -498,11 +499,12 @@ describe("Promise.js Deferred Promise class", function() {
 				dfd = new _.Dfd();
 				promise = dfd.promise();
 				thenPromise = promise.then(spy.func1, spy.func2, spy.func3);
-				thenPromise.fail(spy.func5);
+				thenPromise.done(spy.func5);
 				dfd.reject(3);
 			});
 
 			waitsFor(function() {
+				console.log(spy.func2.calls.length, spy.func5.calls.length)
 				return spy.func2.calls.length == 1 && spy.func5.calls.length == 1;
 			});
 
