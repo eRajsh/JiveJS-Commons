@@ -851,15 +851,14 @@
 				for (var menuName in menuData) {
 
 					canonicalMenu[menuName] = canonicalMenu[menuName] || {
-						"children": {},
-						"class": "",
-						"name": "",
-						"parentClass": ""
-					};
+						"children": menuData[menuName]['children'],
+						"class": menuData[menuName]['class'],
+						"name": menuData[menuName]['name'],
+						"parentClass": menuData[menuName]['parentClass']
+					};  
+
 					if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {
-						canonicalMenu[menuName]['name'] = menuData[menuName]['name'] || "";
-						canonicalMenu[menuName]['class'] += " " + (menuData[menuName]['class'] || "");
-						canonicalMenu[menuName]['parentClass'] += " " + (menuData[menuName]['parentClass'] || "");
+
 					} else {
 						if (Object.keys(menuData[menuName].children).length === 0 || Object.keys(canonicalMenu[menuName].children).length === 0) {
 							conflictsCounter[menuName] = conflictsCounter[menuName] || 0;
@@ -867,30 +866,22 @@
 							conflictData[menuName + " (" + conflictsCounter[menuName] + ")"] = menuData[menuName];
 						} else {
 							canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, (menuData[menuName].children || {}));
-							canonicalMenu[menuName]['name'] = menuData[menuName]['name'] || "";
-							canonicalMenu[menuName]['class'] += " " + (menuData[menuName]['class'] || "");
-							canonicalMenu[menuName]['parentClass'] += " " + (menuData[menuName]['parentClass'] || "");
 						}
 					}
 				}
 
 				for(var menuName in conflictData) {
 					canonicalMenu[menuName] = canonicalMenu[menuName] || {
-						"children": {},
-						"class": "",
-						"name": "",
-						"parentClass": ""
+						"children": conflictData[menuName]['children'],
+						"class": conflictData[menuName]['class'],
+						"name": conflictData[menuName]['name'],
+						"parentClass": conflictData[menuName]['parentClass']
 					};
 
 					if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {
-						canonicalMenu[menuName]['name'] = conflictData[menuName]['name'] || "";
-						canonicalMenu[menuName]['class'] += " " + (conflictData[menuName]['class'] || "");
-						canonicalMenu[menuName]['parentClass'] += " " + (conflictData[menuName]['parentClass'] || "");
+					
 					} else {
 						canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, (conflictData[menuName].children || {}));
-						canonicalMenu[menuName]['name'] = conflictData[menuName]['name'] || "";
-						canonicalMenu[menuName]['class'] += " " + (conflictData[menuName]['class'] || "");
-						canonicalMenu[menuName]['parentClass'] += " " + (conflictData[menuName]['parentClass'] || "");
 					}
 				}
 			}
