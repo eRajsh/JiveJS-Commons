@@ -832,6 +832,21 @@
 	};
 
 	_.viewHelpers = {
+		roundThreeAndPad: function(number){
+			var numberArray = ("" + Math.round(number * 1000)/1000).split('.');
+
+			if (!numberArray[1]) {
+				numberArray[1] = "000";
+			} else if (numberArray[1].length === 1) {
+				numberArray[1] = "" + numberArray[1] + "00";
+			} else if (numberArray[1].length === 2) {
+				numberArray[1] = "" + numberArray[1] + "0";
+			} 
+
+			return numberArray[0] + "." + numberArray[1];
+		},
+
+
 		/**
 		 * canonicalizeMenu Makes an awesome object for the menu. It's recursive and it returns
 		 * an object with duplicates removed in a special way.
@@ -854,6 +869,7 @@
 						"children": menuData[menuName]['children'],
 						"class": menuData[menuName]['class'],
 						"name": menuData[menuName]['name'],
+						"link": menuData[menuName]['link'],
 						"parentClass": menuData[menuName]['parentClass']
 					};  
 
@@ -875,6 +891,7 @@
 						"children": conflictData[menuName]['children'],
 						"class": conflictData[menuName]['class'],
 						"name": conflictData[menuName]['name'],
+						"link": conflictData[menuName]['link'],
 						"parentClass": conflictData[menuName]['parentClass']
 					};
 
@@ -903,6 +920,7 @@
 					canonicalizedChildren[key].children = _.viewHelpers.canonicalizeMenuChildren(currentChildren[key].children, newChildren[key].children);
 					canonicalizedChildren[key]['class'] = currentChildren[key]['class'] + " " + newChildren[key]['class'];
 					canonicalizedChildren[key]['name'] = currentChildren[key]['name'] + " " + newChildren[key]['name'];
+					canonicalizedChildren[key]['link'] = newChildren[key]['link'];
 				}
 			}
 

@@ -2902,6 +2902,17 @@ var _ = function() {
         return resp;
     };
     _.viewHelpers = {
+        roundThreeAndPad: function(number) {
+            var numberArray = ("" + Math.round(number * 1e3) / 1e3).split(".");
+            if (!numberArray[1]) {
+                numberArray[1] = "000";
+            } else if (numberArray[1].length === 1) {
+                numberArray[1] = "" + numberArray[1] + "00";
+            } else if (numberArray[1].length === 2) {
+                numberArray[1] = "" + numberArray[1] + "0";
+            }
+            return numberArray[0] + "." + numberArray[1];
+        },
         canonicalizeMenu: function(menu) {
             var canonicalMenu = canonicalMenu || {};
             for (var i = 0; i < menu.length; i++) {
@@ -2910,44 +2921,32 @@ var _ = function() {
                 var conflictsCounter = {};
                 for (var menuName in menuData) {
                     canonicalMenu[menuName] = canonicalMenu[menuName] || {
-                        children: {},
-                        "class": "",
-                        name: "",
-                        parentClass: ""
+                        children: menuData[menuName]["children"],
+                        "class": menuData[menuName]["class"],
+                        name: menuData[menuName]["name"],
+                        link: menuData[menuName]["link"],
+                        parentClass: menuData[menuName]["parentClass"]
                     };
-                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {
-                        canonicalMenu[menuName]["name"] = menuData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (menuData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (menuData[menuName]["parentClass"] || "");
-                    } else {
+                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {} else {
                         if (Object.keys(menuData[menuName].children).length === 0 || Object.keys(canonicalMenu[menuName].children).length === 0) {
                             conflictsCounter[menuName] = conflictsCounter[menuName] || 0;
                             conflictsCounter[menuName]++;
                             conflictData[menuName + " (" + conflictsCounter[menuName] + ")"] = menuData[menuName];
                         } else {
                             canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, menuData[menuName].children || {});
-                            canonicalMenu[menuName]["name"] = menuData[menuName]["name"] || "";
-                            canonicalMenu[menuName]["class"] += " " + (menuData[menuName]["class"] || "");
-                            canonicalMenu[menuName]["parentClass"] += " " + (menuData[menuName]["parentClass"] || "");
                         }
                     }
                 }
                 for (var menuName in conflictData) {
                     canonicalMenu[menuName] = canonicalMenu[menuName] || {
-                        children: {},
-                        "class": "",
-                        name: "",
-                        parentClass: ""
+                        children: conflictData[menuName]["children"],
+                        "class": conflictData[menuName]["class"],
+                        name: conflictData[menuName]["name"],
+                        link: conflictData[menuName]["link"],
+                        parentClass: conflictData[menuName]["parentClass"]
                     };
-                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {
-                        canonicalMenu[menuName]["name"] = conflictData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (conflictData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (conflictData[menuName]["parentClass"] || "");
-                    } else {
+                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {} else {
                         canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, conflictData[menuName].children || {});
-                        canonicalMenu[menuName]["name"] = conflictData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (conflictData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (conflictData[menuName]["parentClass"] || "");
                     }
                 }
             }
@@ -2965,6 +2964,7 @@ var _ = function() {
                     canonicalizedChildren[key].children = _.viewHelpers.canonicalizeMenuChildren(currentChildren[key].children, newChildren[key].children);
                     canonicalizedChildren[key]["class"] = currentChildren[key]["class"] + " " + newChildren[key]["class"];
                     canonicalizedChildren[key]["name"] = currentChildren[key]["name"] + " " + newChildren[key]["name"];
+                    canonicalizedChildren[key]["link"] = newChildren[key]["link"];
                 }
             }
             for (key in newChildren) {
@@ -4067,7 +4067,7 @@ var _ = function() {
                     this.callbacks.done = this.callbacks.done.concat(cbs);
                 }
             }
-            return this._pro;
+            return this.promise();
         },
         fail: function(cbs) {
             cbs = sanitizeCbs(cbs);
@@ -4078,14 +4078,14 @@ var _ = function() {
                     this.callbacks.fail = this.callbacks.fail.concat(cbs);
                 }
             }
-            return this._pro;
+            return this.promise();
         },
         progress: function(cbs) {
             if (this.internalState === 0) {
                 cbs = sanitizeCbs(cbs);
                 this.callbacks.progress = this.callbacks.progress.concat(cbs);
             }
-            return this._pro;
+            return this.promise();
         },
         then: function(doneFilter, failFilter, progressFilter) {
             var newDfd = new Dfd();
