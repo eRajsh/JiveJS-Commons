@@ -458,7 +458,7 @@
 					this.callbacks.done = this.callbacks.done.concat(cbs);
 				}
 			}
-			return this._pro;
+			return this.promise();
 		},
 		
 		/**
@@ -484,7 +484,7 @@
 					this.callbacks.fail = this.callbacks.fail.concat(cbs);
 				}
 			}
-			return this._pro;
+			return this.promise();
 		},
 		
 		/**
@@ -501,7 +501,7 @@
 				cbs = sanitizeCbs(cbs);
 				this.callbacks.progress = this.callbacks.progress.concat(cbs);
 			}
-			return this._pro;
+			return this.promise();
 		},
 
 		/**
