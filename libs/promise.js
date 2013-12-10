@@ -25,11 +25,11 @@
 	 * @return {Function} Function to invoke the set of callbacks provided
 	**/
 	function callback(scope, data, cbs) {
-		for(var i=0; i<cbs.length; i++) {
+		cbs.forEach(function(item) {
 			setTimeout(function(i) {
-				cbs[i].call(scope, data);
-			}, 0, i);
-		}
+				item.call(scope, data);
+			}, 1);
+		});
 	};
 
 	/**
@@ -43,7 +43,7 @@
 	function sanitizeCbs(cbs) {
 		if(cbs && {}.toString.call(cbs) !== '[object Array]') {
 			cbs = [cbs]
-			}
+		}
 		return cbs;
 	};
 
@@ -61,126 +61,8 @@
 		return false;
 	};
 
-	function assumePromisesState(promise, newDfd) {
-		promise.then(function(resData) {
-			newDfd.resolve(resData);
-		}, function(rejData) {
-			newDfd.reject(rejData);
-		}, function(progData) {
-			newDfd.notify(progData);
-		});
-	};
+	var internalFilteredDataInstance = {mine:"mine"};
 
-	function checkWhatToDoWithRet(data, newDfd, pro, whatToDo) {
-		if(data === pro) {
-			newDfd.reject(new TypeError("Promise then "+whatToDo+" returned the same Promise... OMG!!!! THE SHITS!"));
-		} else if(isPromise(data)) {
-			assumePromisesState(data, newDfd);
-		} else if(_.isNormalObject(data) || _.isFunction(data)) {
-			stealReturnsThen(data, newDfd, pro, whatToDo);
-		} else {
-			if(whatToDo === "notify") {
-				newDfd.notify(data);
-			} else {
-				newDfd.resolve(data);
-			}
-		}
-	};
-
-	function stealReturnsThen(data, newDfd, pro, whatToDo) {
-		var datasThen;
-	
-		try {
-			datasThen = data.then;
-		} catch(e) {
-			newDfd.reject(e);
-		}
-
-		if(_.isFunction(datasThen)) {
-			var fCalled = false;
-			try {
-				datasThen.call(data, function(resData) {
-					if(!fCalled) {
-						fCalled = true;
-						checkWhatToDoWithRet(resData, newDfd, pro, "resolve");
-					}
-				}, function(rejData) {
-					if(!fCalled) {
-						fCalled = true;
-						checkWhatToDoWithRet(rejData, newDfd, pro, "reject");
-					}
-				}, function(progData) {
-					checkWhatToDoWithRet(progData, newDfd, pro, "notify");
-				});
-			} catch(e) {
-				if(!fCalled) {
-					newDfd.reject(e);
-				}
-			}
-		} else if(typeof datasThen !== "undefined") {
-			newDfd.resolve(data);
-		} else {
-			newDfd[whatToDo](data);
-		}
-	};
-
-	function dF(doneFilter, newDfd, pro) {
-		return function(data) {
-			var finished = false;
-			if (_.isFunction(doneFilter)) {
-				try {
-					data = doneFilter(data);
-				} catch(e) {
-					newDfd.reject(e);
-					finished = true;
-				}
-				if(!finished) {
-					checkWhatToDoWithRet(data, newDfd, pro, "resolve");
-				}
-			} else {
-				newDfd.resolve(data);
-			}
-			
-		}
-	};
-
-	function fF(failFilter, newDfd, pro) {
-		return function(data) {
-			var finished = false;
-			if (_.isFunction(failFilter)) {
-				try {
-					data = failFilter(data);
-				} catch(e) {
-					newDfd.reject(e);
-					finished = true;
-				}
-				if(!finished) {
-					checkWhatToDoWithRet(data, newDfd, pro, "reject");
-				}
-			} else {
-				newDfd.reject(data);
-			}
-			
-		}
-	};
-
-	function pF(progressFilter, newDfd, pro) {
-		return function(data) {
-			var finished = false;
-			if (_.isFunction(progressFilter)) {
-				try {
-					data = progressFilter(data);
-				} catch(e) {
-					newDfd.reject(e);
-					finished = true;
-				}
-			}
-			if(!finished) {
-				checkWhatToDoWithRet(data, newDfd, pro, "notify");
-			}
-		};
-	}
-	
 	/**
 	 * Represents a Deferred Object
 	 * @constructor
@@ -332,13 +214,7 @@
 		**/
 		reject: function(data) {
 			if(this.internalState === 0) {
-				this.internalData = data;
-				this.internalState = 2;
-				callback(
-					this.internalWith, 
-					this.internalData, 
-					this.callbacks.fail.concat(this.callbacks.always)
-				);
+				this.deNestSanitizeTheInsanityAndCall(data, "reject");
 			}
 			return this;
 		},
@@ -355,13 +231,7 @@
 		rejectWith: function(scope, data) {
 			if(this.internalState === 0) {
 				this.internalWith = scope;
-				this.internalData = data;
-				this.internalState = 2;
-				callback(
-					this.internalWith, 
-					this.internalData, 
-					this.callbacks.fail.concat(this.callbacks.always)
-				);
+				this.deNestSanitizeTheInsanityAndCall(data, "reject");
 			}
 			return this;
 		},
@@ -375,13 +245,7 @@
 		**/
 		resolve: function(data) {
 			if(this.internalState === 0) {
-				this.internalData = data;
-				this.internalState = 1;
-				callback(
-					this.internalWith, 
-					this.internalData, 
-					this.callbacks.done.concat(this.callbacks.always)
-				);
+				this.deNestSanitizeTheInsanityAndCall(data, "resolve");
 			}
 			return this;
 		},
@@ -398,13 +262,7 @@
 		resolveWith: function(scope, data) {
 			if(this.internalState === 0) {
 				this.internalWith = scope;
-				this.internalData = data;
-				this.internalState = 1;
-				callback(
-					this.internalWith, 
-					this.internalData, 
-					this.callbacks.done.concat(this.callbacks.always)
-				);
+				this.deNestSanitizeTheInsanityAndCall(data, "resolve");
 			}
 			return this;
 		},
@@ -504,6 +362,131 @@
 			return this.promise();
 		},
 
+		doResolve: function(data) {
+			this.internalData = data;
+			this.internalState = 1;
+			callback(
+				this.internalWith, 
+				this.internalData, 
+				this.callbacks.done.concat(this.callbacks.always)
+			);
+		},
+
+		doReject: function(data) {
+			this.internalData = data;
+			this.internalState = 2;
+			callback(
+				this.internalWith, 
+				this.internalData, 
+				this.callbacks.fail.concat(this.callbacks.always)
+			);
+		},
+
+		doNotify: function(data) {
+			this.internalData = data;
+			callback(
+				this.internalWith, 
+				this.internalData, 
+				this.callbacks.progress
+			);
+		},
+
+		deNestSanitizeTheInsanityAndCall: function(data, what) {
+			var that = this;
+			var xhr, datasThen;
+
+			if(data === this.promise()) {
+				that.doReject(new TypeError("Promise Tried to Resolve with Self"));
+				return;
+			} else if(isPromise(data)) {
+
+				data.done(function(resData) {
+					that.doResolve(resData);
+				}).fail(function(rejData) {
+					that.doReject(rejData);
+				}).progress(function(progData) {
+					that.doNotify(progData);
+				});
+
+				return;
+
+			} else if(_.isNormalObject(data) || _.isFunction(data)) {
+				try {
+					datasThen = data.then;
+				} catch(e) {
+					that.doReject(e);
+					return;
+				}
+
+				if(_.isFunction(datasThen)) {
+					
+					var fCalled = false;
+					try {
+						var datasThenDfd = new Dfd();
+
+						datasThenDfd.done(function(resData) {
+							that.doResolve(resData);
+						}).fail(function(rejData) {
+							that.doReject(rejData);
+						}).progress(function(progData) {
+							that.doProgress(progData);
+						});
+
+						datasThen.call(data, function(resData) {
+							if(!fCalled) {
+								fCalled = true;
+								datasThenDfd.resolve(resData);
+							}
+						}, function(rejData) {
+							if(!fCalled) {
+								fCalled = true;
+
+								datasThenDfd.reject(rejData);
+							}
+						}, function(progData) {
+							datasThenDfd.notify(progData);
+						});
+					} catch(e) {
+						if(!fCalled) {
+							that.doReject(e);
+						}
+					}
+					return;
+				} else {
+					switch(what) {
+						case "resolve":
+							that.doResolve(data);
+						break;
+
+						case "reject": 
+							that.doReject(data);
+						break;
+
+						case "notify":
+							that.doNotify(data);
+						break;
+					}
+					return;
+				}
+
+			} else {
+				switch(what) {
+					case "resolve":
+						that.doResolve(data);
+					break;
+
+					case "reject": 
+						that.doReject(data);
+					break;
+
+					case "notify":
+						that.doNotify(data);
+					break;
+				}
+				return;
+			}
+		},
+
 		/**
 		 * then provides a function which allows chaining of promise callbacks essentially
 		 * 		it allows you to provide filter functions that will be called upon the original promise
@@ -520,15 +503,58 @@
 		 * @return {Promise} New promise to chain further events off of
 		**/
 		then: function(doneFilter, failFilter, progressFilter) {
-			//create a new inner DFD function
 			var newDfd = new Dfd();
-			var pro = newDfd.promise();
+			var that = this;
 
-			this.done(dF(doneFilter, newDfd, pro));
-			this.fail(fF(failFilter, newDfd, pro));
-			this.progress(pF(progressFilter, newDfd, pro));
+			this.done(function(data) {
+				var filteredData = internalFilteredDataInstance;
+				if(doneFilter && _.isFunction(doneFilter)) {
+					try {
+						filteredData = doneFilter.call(undefined, data);
+					} catch(e) {
+						filteredData = internalFilteredDataInstance;
+						newDfd.reject(e);
+					}
+					if(filteredData !== internalFilteredDataInstance) {
+						newDfd.resolve(filteredData);
+					}
+				} else {
+					newDfd.resolve(data);
+				}
+			}).fail(function(data) {
+				var filteredData = internalFilteredDataInstance;
+				if(failFilter && _.isFunction(failFilter)) {
+					try {
+						filteredData = failFilter.call(undefined, data);
+					} catch(e) {
+						filteredData = internalFilteredDataInstance;
+						newDfd.reject(e);
+					}
+					if(filteredData !== internalFilteredDataInstance) {
+						newDfd.resolve(filteredData);
+					}
+				} else {
+					newDfd.reject(data);
+				}
+				
+			}).progress(function(data) {
+				var filteredData = internalFilteredDataInstance;
+				if(progressFilter && _.isFunction(progressFilter)) {
+					try {
+						filteredData = progressFilter.call(undefined, data);
+					} catch(e) {
+						filteredData = internalFilteredDataInstance;
+						newDfd.reject(e);
+					}
+					if(filteredData !== internalFilteredDataInstance) {
+						newDfd.notify(filteredData);
+					}
+				} else {
+					newDfd.notify(data);
+				}
+			});
 
-			return pro;
+			return newDfd.promise();
 		},
 
 		/**

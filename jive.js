@@ -2902,6 +2902,17 @@ var _ = function() {
         return resp;
     };
     _.viewHelpers = {
+        roundThreeAndPad: function(number) {
+            var numberArray = ("" + Math.round(number * 1e3) / 1e3).split(".");
+            if (!numberArray[1]) {
+                numberArray[1] = "000";
+            } else if (numberArray[1].length === 1) {
+                numberArray[1] = "" + numberArray[1] + "00";
+            } else if (numberArray[1].length === 2) {
+                numberArray[1] = "" + numberArray[1] + "0";
+            }
+            return numberArray[0] + "." + numberArray[1];
+        },
         canonicalizeMenu: function(menu) {
             var canonicalMenu = canonicalMenu || {};
             for (var i = 0; i < menu.length; i++) {
@@ -2913,6 +2924,7 @@ var _ = function() {
                         children: menuData[menuName]["children"],
                         "class": menuData[menuName]["class"],
                         name: menuData[menuName]["name"],
+                        link: menuData[menuName]["link"],
                         parentClass: menuData[menuName]["parentClass"]
                     };
                     if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {} else {
@@ -2930,6 +2942,7 @@ var _ = function() {
                         children: conflictData[menuName]["children"],
                         "class": conflictData[menuName]["class"],
                         name: conflictData[menuName]["name"],
+                        link: conflictData[menuName]["link"],
                         parentClass: conflictData[menuName]["parentClass"]
                     };
                     if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {} else {
@@ -2951,6 +2964,7 @@ var _ = function() {
                     canonicalizedChildren[key].children = _.viewHelpers.canonicalizeMenuChildren(currentChildren[key].children, newChildren[key].children);
                     canonicalizedChildren[key]["class"] = currentChildren[key]["class"] + " " + newChildren[key]["class"];
                     canonicalizedChildren[key]["name"] = currentChildren[key]["name"] + " " + newChildren[key]["name"];
+                    canonicalizedChildren[key]["link"] = newChildren[key]["link"];
                 }
             }
             for (key in newChildren) {
@@ -3769,11 +3783,11 @@ var _ = function() {
 
 (function() {
     function callback(scope, data, cbs) {
-        for (var i = 0; i < cbs.length; i++) {
+        cbs.forEach(function(item) {
             setTimeout(function(i) {
-                cbs[i].call(scope, data);
-            }, 0, i);
-        }
+                item.call(scope, data);
+            }, 1);
+        });
     }
     function sanitizeCbs(cbs) {
         if (cbs && {}.toString.call(cbs) !== "[object Array]") {
@@ -3793,116 +3807,9 @@ var _ = function() {
         }
         return false;
     }
-    function assumePromisesState(promise, newDfd) {
-        promise.then(function(resData) {
-            newDfd.resolve(resData);
-        }, function(rejData) {
-            newDfd.reject(rejData);
-        }, function(progData) {
-            newDfd.notify(progData);
-        });
-    }
-    function checkWhatToDoWithRet(data, newDfd, pro, whatToDo) {
-        if (data === pro) {
-            newDfd.reject(new TypeError("Promise then " + whatToDo + " returned the same Promise... OMG!!!! THE SHITS!"));
-        } else if (isPromise(data)) {
-            assumePromisesState(data, newDfd);
-        } else if (_.isNormalObject(data) || _.isFunction(data)) {
-            stealReturnsThen(data, newDfd, pro, whatToDo);
-        } else {
-            if (whatToDo === "notify") {
-                newDfd.notify(data);
-            } else {
-                newDfd.resolve(data);
-            }
-        }
-    }
-    function stealReturnsThen(data, newDfd, pro, whatToDo) {
-        var datasThen;
-        try {
-            datasThen = data.then;
-        } catch (e) {
-            newDfd.reject(e);
-        }
-        if (_.isFunction(datasThen)) {
-            var fCalled = false;
-            try {
-                datasThen.call(data, function(resData) {
-                    if (!fCalled) {
-                        fCalled = true;
-                        checkWhatToDoWithRet(resData, newDfd, pro, "resolve");
-                    }
-                }, function(rejData) {
-                    if (!fCalled) {
-                        fCalled = true;
-                        checkWhatToDoWithRet(rejData, newDfd, pro, "reject");
-                    }
-                }, function(progData) {
-                    checkWhatToDoWithRet(progData, newDfd, pro, "notify");
-                });
-            } catch (e) {
-                if (!fCalled) {
-                    newDfd.reject(e);
-                }
-            }
-        } else if (typeof datasThen !== "undefined") {
-            newDfd.resolve(data);
-        } else {
-            newDfd[whatToDo](data);
-        }
-    }
-    function dF(doneFilter, newDfd, pro) {
-        return function(data) {
-            var finished = false;
-            if (_.isFunction(doneFilter)) {
-                try {
-                    data = doneFilter(data);
-                } catch (e) {
-                    newDfd.reject(e);
-                    finished = true;
-                }
-                if (!finished) {
-                    checkWhatToDoWithRet(data, newDfd, pro, "resolve");
-                }
-            } else {
-                newDfd.resolve(data);
-            }
-        };
-    }
-    function fF(failFilter, newDfd, pro) {
-        return function(data) {
-            var finished = false;
-            if (_.isFunction(failFilter)) {
-                try {
-                    data = failFilter(data);
-                } catch (e) {
-                    newDfd.reject(e);
-                    finished = true;
-                }
-                if (!finished) {
-                    checkWhatToDoWithRet(data, newDfd, pro, "reject");
-                }
-            } else {
-                newDfd.reject(data);
-            }
-        };
-    }
-    function pF(progressFilter, newDfd, pro) {
-        return function(data) {
-            var finished = false;
-            if (_.isFunction(progressFilter)) {
-                try {
-                    data = progressFilter(data);
-                } catch (e) {
-                    newDfd.reject(e);
-                    finished = true;
-                }
-            }
-            if (!finished) {
-                checkWhatToDoWithRet(data, newDfd, pro, "notify");
-            }
-        };
-    }
+    var internalFilteredDataInstance = {
+        mine: "mine"
+    };
     var Dfd = function(beforeStart, debugMode) {
         this.internalState = 0;
         this.internalWith = this;
@@ -4001,35 +3908,27 @@ var _ = function() {
         },
         reject: function(data) {
             if (this.internalState === 0) {
-                this.internalData = data;
-                this.internalState = 2;
-                callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
+                this.deNestSanitizeTheInsanityAndCall(data, "reject");
             }
             return this;
         },
         rejectWith: function(scope, data) {
             if (this.internalState === 0) {
                 this.internalWith = scope;
-                this.internalData = data;
-                this.internalState = 2;
-                callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
+                this.deNestSanitizeTheInsanityAndCall(data, "reject");
             }
             return this;
         },
         resolve: function(data) {
             if (this.internalState === 0) {
-                this.internalData = data;
-                this.internalState = 1;
-                callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
+                this.deNestSanitizeTheInsanityAndCall(data, "resolve");
             }
             return this;
         },
         resolveWith: function(scope, data) {
             if (this.internalState === 0) {
                 this.internalWith = scope;
-                this.internalData = data;
-                this.internalState = 1;
-                callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
+                this.deNestSanitizeTheInsanityAndCall(data, "resolve");
             }
             return this;
         },
@@ -4073,13 +3972,155 @@ var _ = function() {
             }
             return this.promise();
         },
+        doResolve: function(data) {
+            this.internalData = data;
+            this.internalState = 1;
+            callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
+        },
+        doReject: function(data) {
+            this.internalData = data;
+            this.internalState = 2;
+            callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
+        },
+        doNotify: function(data) {
+            this.internalData = data;
+            callback(this.internalWith, this.internalData, this.callbacks.progress);
+        },
+        deNestSanitizeTheInsanityAndCall: function(data, what) {
+            var that = this;
+            var xhr, datasThen;
+            if (data === this.promise()) {
+                that.doReject(new TypeError("Promise Tried to Resolve with Self"));
+                return;
+            } else if (isPromise(data)) {
+                data.done(function(resData) {
+                    that.doResolve(resData);
+                }).fail(function(rejData) {
+                    that.doReject(rejData);
+                }).progress(function(progData) {
+                    that.doNotify(progData);
+                });
+                return;
+            } else if (_.isNormalObject(data) || _.isFunction(data)) {
+                try {
+                    datasThen = data.then;
+                } catch (e) {
+                    that.doReject(e);
+                    return;
+                }
+                if (_.isFunction(datasThen)) {
+                    var fCalled = false;
+                    try {
+                        var datasThenDfd = new Dfd();
+                        datasThenDfd.done(function(resData) {
+                            that.doResolve(resData);
+                        }).fail(function(rejData) {
+                            that.doReject(rejData);
+                        }).progress(function(progData) {
+                            that.doProgress(progData);
+                        });
+                        datasThen.call(data, function(resData) {
+                            if (!fCalled) {
+                                fCalled = true;
+                                datasThenDfd.resolve(resData);
+                            }
+                        }, function(rejData) {
+                            if (!fCalled) {
+                                fCalled = true;
+                                datasThenDfd.reject(rejData);
+                            }
+                        }, function(progData) {
+                            datasThenDfd.notify(progData);
+                        });
+                    } catch (e) {
+                        if (!fCalled) {
+                            that.doReject(e);
+                        }
+                    }
+                    return;
+                } else {
+                    switch (what) {
+                      case "resolve":
+                        that.doResolve(data);
+                        break;
+
+                      case "reject":
+                        that.doReject(data);
+                        break;
+
+                      case "notify":
+                        that.doNotify(data);
+                        break;
+                    }
+                    return;
+                }
+            } else {
+                switch (what) {
+                  case "resolve":
+                    that.doResolve(data);
+                    break;
+
+                  case "reject":
+                    that.doReject(data);
+                    break;
+
+                  case "notify":
+                    that.doNotify(data);
+                    break;
+                }
+                return;
+            }
+        },
         then: function(doneFilter, failFilter, progressFilter) {
             var newDfd = new Dfd();
-            var pro = newDfd.promise();
-            this.done(dF(doneFilter, newDfd, pro));
-            this.fail(fF(failFilter, newDfd, pro));
-            this.progress(pF(progressFilter, newDfd, pro));
-            return pro;
+            var that = this;
+            this.done(function(data) {
+                var filteredData = internalFilteredDataInstance;
+                if (doneFilter && _.isFunction(doneFilter)) {
+                    try {
+                        filteredData = doneFilter.call(undefined, data);
+                    } catch (e) {
+                        filteredData = internalFilteredDataInstance;
+                        newDfd.reject(e);
+                    }
+                    if (filteredData !== internalFilteredDataInstance) {
+                        newDfd.resolve(filteredData);
+                    }
+                } else {
+                    newDfd.resolve(data);
+                }
+            }).fail(function(data) {
+                var filteredData = internalFilteredDataInstance;
+                if (failFilter && _.isFunction(failFilter)) {
+                    try {
+                        filteredData = failFilter.call(undefined, data);
+                    } catch (e) {
+                        filteredData = internalFilteredDataInstance;
+                        newDfd.reject(e);
+                    }
+                    if (filteredData !== internalFilteredDataInstance) {
+                        newDfd.resolve(filteredData);
+                    }
+                } else {
+                    newDfd.reject(data);
+                }
+            }).progress(function(data) {
+                var filteredData = internalFilteredDataInstance;
+                if (progressFilter && _.isFunction(progressFilter)) {
+                    try {
+                        filteredData = progressFilter.call(undefined, data);
+                    } catch (e) {
+                        filteredData = internalFilteredDataInstance;
+                        newDfd.reject(e);
+                    }
+                    if (filteredData !== internalFilteredDataInstance) {
+                        newDfd.notify(filteredData);
+                    }
+                } else {
+                    newDfd.notify(data);
+                }
+            });
+            return newDfd.promise();
         },
         when: function() {
             var args = Array.prototype.slice.call(arguments);
@@ -6878,4 +6919,3 @@ var _ = function() {
     });
     _.Fabric = Fabric;
 })();
-//# sourceMappingURL=jive.js.map
