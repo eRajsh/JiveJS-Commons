@@ -3783,14 +3783,14 @@ var _ = function() {
 
 (function() {
     function callback(scope, data, cbs) {
-        cbs.forEach(function(item) {
-            setTimeout(function(i) {
+        setTimeout(function() {
+            cbs.forEach(function(item) {
                 item.call(scope, data);
-            }, 1);
-        });
+            });
+        }, 0);
     }
     function sanitizeCbs(cbs) {
-        if (cbs && {}.toString.call(cbs) !== "[object Array]") {
+        if (cbs && !_.isArray(cbs)) {
             cbs = [ cbs ];
         }
         return cbs;
@@ -3810,6 +3810,106 @@ var _ = function() {
     var internalFilteredDataInstance = {
         mine: "mine"
     };
+    function getThenFilterCallback(filter, newDfd, what) {
+        return function(data) {
+            var filteredData = internalFilteredDataInstance;
+            if (filter && _.isFunction(filter)) {
+                try {
+                    filteredData = filter.call(undefined, data);
+                } catch (e) {
+                    filteredData = internalFilteredDataInstance;
+                    newDfd.reject(e);
+                }
+                if (filteredData !== internalFilteredDataInstance) {
+                    if (what === "reject") {
+                        newDfd.resolve(filteredData);
+                    } else {
+                        newDfd[what](filteredData);
+                    }
+                }
+            } else {
+                newDfd[what](data);
+            }
+        };
+    }
+    function doIsPromiseSteal(data, scope) {
+        data.done(function(resData) {
+            scope.doResolve(resData);
+        }).fail(function(rejData) {
+            scope.doReject(rejData);
+        }).progress(function(progData) {
+            scope.doNotify(progData);
+        });
+    }
+    function doWhatYouShould(data, what, scope) {
+        switch (what) {
+          case "resolve":
+            scope.doResolve(data);
+            break;
+
+          case "reject":
+            scope.doReject(data);
+            break;
+
+          case "notify":
+            scope.doNotify(data);
+            break;
+        }
+    }
+    function doTryAndGetDatasThen(data, scope) {
+        var ret = {
+            failed: false,
+            datasThen: undefined
+        };
+        try {
+            ret.datasThen = data.then;
+        } catch (e) {
+            ret.datasThen = undefined;
+            ret.failed = true;
+            scope.doReject(e);
+        }
+        return ret;
+    }
+    function doDatasThenIsAFunction(datasThen, data, scope) {
+        var fCalled = false;
+        try {
+            var datasThenDfd = new Dfd();
+            datasThenDfd.done(function(resData) {
+                scope.doResolve(resData);
+            }).fail(function(rejData) {
+                scope.doReject(rejData);
+            }).progress(function(progData) {
+                scope.doProgress(progData);
+            });
+            datasThen.call(data, function(resData) {
+                if (!fCalled) {
+                    fCalled = true;
+                    datasThenDfd.resolve(resData);
+                }
+            }, function(rejData) {
+                if (!fCalled) {
+                    fCalled = true;
+                    datasThenDfd.reject(rejData);
+                }
+            }, function(progData) {
+                datasThenDfd.notify(progData);
+            });
+        } catch (e) {
+            if (!fCalled) {
+                scope.doReject(e);
+            }
+        }
+    }
+    function doStealDatasThen(data, what, scope) {
+        var ret = doTryAndGetDatasThen(data, scope);
+        if (!ret.failed) {
+            if (_.isFunction(ret.datasThen)) {
+                doDatasThenIsAFunction(ret.datasThen, data, scope);
+            } else {
+                doWhatYouShould(data, what, scope);
+            }
+        }
+    }
     var Dfd = function(beforeStart, debugMode) {
         this.internalState = 0;
         this.internalWith = this;
@@ -3906,6 +4006,10 @@ var _ = function() {
             }
             return this;
         },
+        doNotify: function(data) {
+            this.internalData = data;
+            callback(this.internalWith, this.internalData, this.callbacks.progress);
+        },
         reject: function(data) {
             if (this.internalState === 0) {
                 this.deNestSanitizeTheInsanityAndCall(data, "reject");
@@ -3919,6 +4023,11 @@ var _ = function() {
             }
             return this;
         },
+        doReject: function(data) {
+            this.internalData = data;
+            this.internalState = 2;
+            callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
+        },
         resolve: function(data) {
             if (this.internalState === 0) {
                 this.deNestSanitizeTheInsanityAndCall(data, "resolve");
@@ -3931,6 +4040,11 @@ var _ = function() {
                 this.deNestSanitizeTheInsanityAndCall(data, "resolve");
             }
             return this;
+        },
+        doResolve: function(data) {
+            this.internalData = data;
+            this.internalState = 1;
+            callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
         },
         always: function(cbs) {
             cbs = sanitizeCbs(cbs);
@@ -3972,205 +4086,91 @@ var _ = function() {
             }
             return this.promise();
         },
-        doResolve: function(data) {
-            this.internalData = data;
-            this.internalState = 1;
-            callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
-        },
-        doReject: function(data) {
-            this.internalData = data;
-            this.internalState = 2;
-            callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
-        },
-        doNotify: function(data) {
-            this.internalData = data;
-            callback(this.internalWith, this.internalData, this.callbacks.progress);
-        },
         deNestSanitizeTheInsanityAndCall: function(data, what) {
             var that = this;
-            var xhr, datasThen;
             if (data === this.promise()) {
                 that.doReject(new TypeError("Promise Tried to Resolve with Self"));
-                return;
             } else if (isPromise(data)) {
-                data.done(function(resData) {
-                    that.doResolve(resData);
-                }).fail(function(rejData) {
-                    that.doReject(rejData);
-                }).progress(function(progData) {
-                    that.doNotify(progData);
-                });
-                return;
+                doIsPromiseSteal(data, that);
             } else if (_.isNormalObject(data) || _.isFunction(data)) {
-                try {
-                    datasThen = data.then;
-                } catch (e) {
-                    that.doReject(e);
-                    return;
-                }
-                if (_.isFunction(datasThen)) {
-                    var fCalled = false;
-                    try {
-                        var datasThenDfd = new Dfd();
-                        datasThenDfd.done(function(resData) {
-                            that.doResolve(resData);
-                        }).fail(function(rejData) {
-                            that.doReject(rejData);
-                        }).progress(function(progData) {
-                            that.doProgress(progData);
-                        });
-                        datasThen.call(data, function(resData) {
-                            if (!fCalled) {
-                                fCalled = true;
-                                datasThenDfd.resolve(resData);
-                            }
-                        }, function(rejData) {
-                            if (!fCalled) {
-                                fCalled = true;
-                                datasThenDfd.reject(rejData);
-                            }
-                        }, function(progData) {
-                            datasThenDfd.notify(progData);
-                        });
-                    } catch (e) {
-                        if (!fCalled) {
-                            that.doReject(e);
-                        }
-                    }
-                    return;
-                } else {
-                    switch (what) {
-                      case "resolve":
-                        that.doResolve(data);
-                        break;
-
-                      case "reject":
-                        that.doReject(data);
-                        break;
-
-                      case "notify":
-                        that.doNotify(data);
-                        break;
-                    }
-                    return;
-                }
+                doStealDatasThen(data, what, that);
             } else {
-                switch (what) {
-                  case "resolve":
-                    that.doResolve(data);
-                    break;
-
-                  case "reject":
-                    that.doReject(data);
-                    break;
-
-                  case "notify":
-                    that.doNotify(data);
-                    break;
-                }
-                return;
+                doWhatYouShould(data, what, that);
             }
         },
         then: function(doneFilter, failFilter, progressFilter) {
             var newDfd = new Dfd();
             var that = this;
-            this.done(function(data) {
-                var filteredData = internalFilteredDataInstance;
-                if (doneFilter && _.isFunction(doneFilter)) {
-                    try {
-                        filteredData = doneFilter.call(undefined, data);
-                    } catch (e) {
-                        filteredData = internalFilteredDataInstance;
-                        newDfd.reject(e);
-                    }
-                    if (filteredData !== internalFilteredDataInstance) {
-                        newDfd.resolve(filteredData);
-                    }
-                } else {
-                    newDfd.resolve(data);
-                }
-            }).fail(function(data) {
-                var filteredData = internalFilteredDataInstance;
-                if (failFilter && _.isFunction(failFilter)) {
-                    try {
-                        filteredData = failFilter.call(undefined, data);
-                    } catch (e) {
-                        filteredData = internalFilteredDataInstance;
-                        newDfd.reject(e);
-                    }
-                    if (filteredData !== internalFilteredDataInstance) {
-                        newDfd.resolve(filteredData);
-                    }
-                } else {
-                    newDfd.reject(data);
-                }
-            }).progress(function(data) {
-                var filteredData = internalFilteredDataInstance;
-                if (progressFilter && _.isFunction(progressFilter)) {
-                    try {
-                        filteredData = progressFilter.call(undefined, data);
-                    } catch (e) {
-                        filteredData = internalFilteredDataInstance;
-                        newDfd.reject(e);
-                    }
-                    if (filteredData !== internalFilteredDataInstance) {
-                        newDfd.notify(filteredData);
-                    }
-                } else {
-                    newDfd.notify(data);
-                }
-            });
+            this.done(getThenFilterCallback(doneFilter, newDfd, "resolve")).fail(getThenFilterCallback(failFilter, newDfd, "reject")).progress(getThenFilterCallback(progressFilter, newDfd, "notify"));
+            return newDfd.promise();
+        },
+        wrap: function(thennable) {
+            var newDfd = new Dfd();
+            var datasThen;
+            if (isPromise(thennable) || isDeferred(thennable)) {
+                doIsPromiseSteal(thennable, newDfd);
+            } else if (_.isNormalObject(thennable) || _.isFunction(thennable)) {
+                doStealDatasThen(thennable, "resolve", newDfd);
+            } else {
+                newDfd.resolve(thennable);
+            }
             return newDfd.promise();
         },
         when: function() {
             var args = Array.prototype.slice.call(arguments);
-            var promises = [];
+            var promises = [ true ];
             var newDfd = new Dfd();
             var resolvedCount = 0;
             var handledCount = 0;
             var whenData = [];
-            for (var i = 0; i < args.length; i++) {
-                if (_.isArray(args[i])) {
-                    promises = promises.concat(args[i]);
+            args.forEach(function(item) {
+                if (_.isArray(item)) {
+                    promises = promises.concat(item);
                 } else {
-                    promises.push(args[i]);
+                    promises.push(item);
                 }
-            }
-            for (var i = 0; i < promises.length; i++) {
-                if (isPromise(promises[i]) || isDeferred(promises[i])) {
-                    var doneFunc = function(i) {
-                        return function(data) {
-                            whenData[i] = data;
-                            resolvedCount++;
-                            handledCount++;
-                            if (resolvedCount === promises.length) {
-                                newDfd.resolve(whenData);
-                            }
-                        };
-                    }(i);
-                    promises[i].done(doneFunc);
-                    var failFunc = function(i) {
-                        return function(e) {
-                            handledCount++;
-                            whenData[i] = e;
-                            if (handledCount === promises.length) {
-                                newDfd.reject(whenData);
-                            }
-                        };
-                    }(i);
-                    promises[i].fail(failFunc);
-                    promises[i].progress(function(e) {
-                        newDfd.notify(e);
+            });
+            promises.forEach(function(promise, i) {
+                if (isPromise(promise) || isDeferred(promise)) {
+                    promise.done(function(data) {
+                        resolvedCount++;
+                        handledCount++;
+                        whenData[i] = data;
+                        newDfd.notify({
+                            index: i,
+                            action: "resolved",
+                            data: data,
+                            resolved: resolvedCount,
+                            handled: handeldCount
+                        });
+                        if (resolvedCount === promises.length) {
+                            newDfd.resolve(whenData);
+                        }
+                    }).fail(function(data) {
+                        handledCount++;
+                        whenData[i] = data;
+                        newDfd.notify({
+                            index: i,
+                            action: "rejected",
+                            data: data,
+                            resolved: resolvedCount,
+                            handled: handeldCount
+                        });
+                        if (handledCount === promises.length) {
+                            newDfd.reject(whenData);
+                        }
+                    }).progress(function(data) {
+                        newDfd.notify(data);
                     });
-                } else if (promises[i]) {
-                    whenData[i] = promises[i];
+                } else if (promise) {
                     resolvedCount++;
                     handledCount++;
+                    whenData[i] = promise;
                 } else {
-                    whenData[i] = promises[i];
                     handledCount++;
+                    whenData[i] = promises;
                 }
-            }
+            });
             if (resolvedCount === promises.length) {
                 newDfd.resolve(whenData);
             } else if (handledCount === promises.length) {
