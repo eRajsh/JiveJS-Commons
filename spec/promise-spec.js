@@ -475,8 +475,7 @@ describe("Promise.js Deferred Promise class", function() {
 			});
 
 			waitsFor(function() {
-				return spy.func3.calls.length == 1 &&
-					spy.func6.calls.length == 1;
+				return spy.func3.calls.length == 1 && spy.func6.calls.length == 1;
 			});
 
 
@@ -504,7 +503,6 @@ describe("Promise.js Deferred Promise class", function() {
 			});
 
 			waitsFor(function() {
-				console.log(spy.func2.calls.length, spy.func5.calls.length)
 				return spy.func2.calls.length == 1 && spy.func5.calls.length == 1;
 			});
 

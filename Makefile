@@ -74,13 +74,13 @@ $(UGLIFYJS): $(NPM)
 ##################
 
 $(JIVEJS): $(JIVEJS_DEPS) $(UGLIFYJS)
-	uglifyjs $(UGLIFYFLAGS) -o jive.js --source-map jive.js.map --source-map-root / --source-map-url jive.js.map $(JIVEJS_DEPS)
+	uglifyjs $(UGLIFYFLAGS) -o jive.js $(JIVEJS_DEPS)
 
 ###################
 #  Phony Targets  #
 ###################
 
-build: $(JIVEJS)
+build: $(MINIFY) $(JIVEJS)
 
 clean: 
 	rm -f jive.js
