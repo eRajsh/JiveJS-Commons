@@ -206,15 +206,15 @@
 				ajax(args, scope).done(function(ret){
 					if(args.method === "GET" && scope._options.collection === true) {
 
-						self.Jive.SessionBridge.subscribe({
-							urn: scope.urn,
-							ETag: ret.data.ETag
-						});
-
-						self.Jive.SessionBridge.subscribe({
-							urn: scope.urn + ":#",
-							ETag: ret.data.ETag
-						});
+						// TODO: START HERE
+						if(_.isArray(scope._options.subscriptions)) {
+							for(var i = 0; i < scope._options.subscriptions.length; i++) {
+								self.Jive.SessionBridge.subscribe({
+									urn: scope._options.subscriptions[i],
+									ETag: ret.data.ETag
+								});
+							}
+						}
 					}
 
 					dfd.resolve(ret);
@@ -565,6 +565,13 @@
 			scope._options.pubsub = self.Jive.Jazz;
 		} else {
 			scope._options.pubsub = new _.Fabric();
+		}
+
+		if(typeof scope._options.subscriptions === "undefined") {
+			scope._options.subscriptions = [
+				scope.urn,
+				scope.urn + ":#"
+			];
 		}
 
 		scope._options.postFunc = eventFunc.bind(scope, "posted");
@@ -1229,6 +1236,11 @@
 				"default": "*"
 			};
 		}
+
+		if(_.isArray(schema.subscriptions)) {
+			model._options.subscriptions = schema.subscriptions;
+		}
+
 		model._options.vms = schema.vms;
 
 		model._options.refs = schema.refs || {};

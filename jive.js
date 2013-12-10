@@ -642,7 +642,7 @@ var _ = function() {
                     return false;
                 }
                 var ctorA = !support.argsObject && isArguments(a) ? Object : a.constructor, ctorB = !support.argsObject && isArguments(b) ? Object : b.constructor;
-                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && "constructor" in a && "constructor" in b) {
+                if (ctorA != ctorB && !(isFunction(ctorA) && ctorA instanceof ctorA && isFunction(ctorB) && ctorB instanceof ctorB) && ("constructor" in a && "constructor" in b)) {
                     return false;
                 }
             }
@@ -5168,7 +5168,7 @@ var _ = function() {
             return dfd.promise();
         }
         if (scope._options.store.remote && args.remote) {
-            if (args.method === "GET" && scope._options.store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
+            if (args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
                 local(args, scope).done(function(ret) {
                     dfd.resolve({
                         data: ret,
@@ -5194,14 +5194,14 @@ var _ = function() {
                 }
                 ajax(args, scope).done(function(ret) {
                     if (args.method === "GET" && scope._options.collection === true) {
-                        self.Jive.SessionBridge.subscribe({
-                            urn: scope.urn,
-                            ETag: ret.data.ETag
-                        });
-                        self.Jive.SessionBridge.subscribe({
-                            urn: scope.urn + ":#",
-                            ETag: ret.data.ETag
-                        });
+                        if (_.isArray(scope._options.subscriptions)) {
+                            for (var i = 0; i < scope._options.subscriptions.length; i++) {
+                                self.Jive.SessionBridge.subscribe({
+                                    urn: scope._options.subscriptions[i],
+                                    ETag: ret.data.ETag
+                                });
+                            }
+                        }
                     }
                     dfd.resolve(ret);
                 }).fail(function(e) {
@@ -5540,6 +5540,9 @@ var _ = function() {
             scope._options.pubsub = self.Jive.Jazz;
         } else {
             scope._options.pubsub = new _.Fabric();
+        }
+        if (typeof scope._options.subscriptions === "undefined") {
+            scope._options.subscriptions = [ scope.urn, scope.urn + ":#" ];
         }
         scope._options.postFunc = eventFunc.bind(scope, "posted");
         scope._options.putFunc = eventFunc.bind(scope, "putted");
@@ -6232,6 +6235,9 @@ var _ = function() {
             schema.vms = {
                 "default": "*"
             };
+        }
+        if (_.isArray(schema.subscriptions)) {
+            model._options.subscriptions = schema.subscriptions;
         }
         model._options.vms = schema.vms;
         model._options.refs = schema.refs || {};
