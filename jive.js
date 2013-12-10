@@ -2910,44 +2910,30 @@ var _ = function() {
                 var conflictsCounter = {};
                 for (var menuName in menuData) {
                     canonicalMenu[menuName] = canonicalMenu[menuName] || {
-                        children: {},
-                        "class": "",
-                        name: "",
-                        parentClass: ""
+                        children: menuData[menuName]["children"],
+                        "class": menuData[menuName]["class"],
+                        name: menuData[menuName]["name"],
+                        parentClass: menuData[menuName]["parentClass"]
                     };
-                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {
-                        canonicalMenu[menuName]["name"] = menuData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (menuData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (menuData[menuName]["parentClass"] || "");
-                    } else {
+                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {} else {
                         if (Object.keys(menuData[menuName].children).length === 0 || Object.keys(canonicalMenu[menuName].children).length === 0) {
                             conflictsCounter[menuName] = conflictsCounter[menuName] || 0;
                             conflictsCounter[menuName]++;
                             conflictData[menuName + " (" + conflictsCounter[menuName] + ")"] = menuData[menuName];
                         } else {
                             canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, menuData[menuName].children || {});
-                            canonicalMenu[menuName]["name"] = menuData[menuName]["name"] || "";
-                            canonicalMenu[menuName]["class"] += " " + (menuData[menuName]["class"] || "");
-                            canonicalMenu[menuName]["parentClass"] += " " + (menuData[menuName]["parentClass"] || "");
                         }
                     }
                 }
                 for (var menuName in conflictData) {
                     canonicalMenu[menuName] = canonicalMenu[menuName] || {
-                        children: {},
-                        "class": "",
-                        name: "",
-                        parentClass: ""
+                        children: conflictData[menuName]["children"],
+                        "class": conflictData[menuName]["class"],
+                        name: conflictData[menuName]["name"],
+                        parentClass: conflictData[menuName]["parentClass"]
                     };
-                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {
-                        canonicalMenu[menuName]["name"] = conflictData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (conflictData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (conflictData[menuName]["parentClass"] || "");
-                    } else {
+                    if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {} else {
                         canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, conflictData[menuName].children || {});
-                        canonicalMenu[menuName]["name"] = conflictData[menuName]["name"] || "";
-                        canonicalMenu[menuName]["class"] += " " + (conflictData[menuName]["class"] || "");
-                        canonicalMenu[menuName]["parentClass"] += " " + (conflictData[menuName]["parentClass"] || "");
                     }
                 }
             }
@@ -4067,7 +4053,7 @@ var _ = function() {
                     this.callbacks.done = this.callbacks.done.concat(cbs);
                 }
             }
-            return this._pro;
+            return this.promise();
         },
         fail: function(cbs) {
             cbs = sanitizeCbs(cbs);
@@ -4078,14 +4064,14 @@ var _ = function() {
                     this.callbacks.fail = this.callbacks.fail.concat(cbs);
                 }
             }
-            return this._pro;
+            return this.promise();
         },
         progress: function(cbs) {
             if (this.internalState === 0) {
                 cbs = sanitizeCbs(cbs);
                 this.callbacks.progress = this.callbacks.progress.concat(cbs);
             }
-            return this._pro;
+            return this.promise();
         },
         then: function(doneFilter, failFilter, progressFilter) {
             var newDfd = new Dfd();
@@ -5167,14 +5153,14 @@ var _ = function() {
                 }
                 ajax(args, scope).done(function(ret) {
                     if (args.method === "GET" && scope._options.collection === true) {
-                        self.Jive.SessionBridge.subscribe({
-                            urn: scope.urn,
-                            ETag: ret.data.ETag
-                        });
-                        self.Jive.SessionBridge.subscribe({
-                            urn: scope.urn + ":#",
-                            ETag: ret.data.ETag
-                        });
+                        if (_.isArray(scope._options.subscriptions)) {
+                            for (var i = 0; i < scope._options.subscriptions.length; i++) {
+                                self.Jive.SessionBridge.subscribe({
+                                    urn: scope._options.subscriptions[i],
+                                    ETag: ret.data.ETag
+                                });
+                            }
+                        }
                     }
                     dfd.resolve(ret);
                 }).fail(function(e) {
@@ -5513,6 +5499,9 @@ var _ = function() {
             scope._options.pubsub = self.Jive.Jazz;
         } else {
             scope._options.pubsub = new _.Fabric();
+        }
+        if (typeof scope._options.subscriptions === "undefined") {
+            scope._options.subscriptions = [ scope.urn, scope.urn + ":#" ];
         }
         scope._options.postFunc = eventFunc.bind(scope, "posted");
         scope._options.putFunc = eventFunc.bind(scope, "putted");
@@ -6205,6 +6194,9 @@ var _ = function() {
             schema.vms = {
                 "default": "*"
             };
+        }
+        if (_.isArray(schema.subscriptions)) {
+            model._options.subscriptions = schema.subscriptions;
         }
         model._options.vms = schema.vms;
         model._options.refs = schema.refs || {};
