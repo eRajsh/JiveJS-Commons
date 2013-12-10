@@ -832,6 +832,32 @@
 	};
 
 	_.viewHelpers = {
+		
+		roundAndPad: function(number, howManyToRound, howManyToPad, roundFunc) {
+			howManyToRound = ("" + Math.pow(10, howManyToRound)); 
+
+			var numberArray = ("" + Math[roundFunc](number * howManyToRound)/howManyToRound).split('.');
+
+			if (!numberArray[1]){
+				//Wipe the 'undefined' off the array
+				numberArray[1] = '';
+				for (var i = 0; i < howManyToPad; i++){
+					numberArray[1] = numberArray[1] + "0";
+				}	
+			} else {
+				for (var j = 1; j < (howManyToPad - numberArray[1].length); j++){
+					numberArray[1] = numberArray[1] + "0";
+				}
+			}
+			//Check if the number is whole, and if so delete the decimal off the end.
+			if (!numberArray[1]){
+				return numberArray[0];
+			} else {
+				return numberArray[0] + "." + numberArray[1];
+			}			
+		},
+
+
 		roundThreeAndPad: function(number){
 			var numberArray = ("" + Math.round(number * 1000)/1000).split('.');
 

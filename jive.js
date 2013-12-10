@@ -2902,6 +2902,25 @@ var _ = function() {
         return resp;
     };
     _.viewHelpers = {
+        roundAndPad: function(number, howManyToRound, howManyToPad, roundFunc) {
+            howManyToRound = "" + Math.pow(10, howManyToRound);
+            var numberArray = ("" + Math[roundFunc](number * howManyToRound) / howManyToRound).split(".");
+            if (!numberArray[1]) {
+                numberArray[1] = "";
+                for (var i = 0; i < howManyToPad; i++) {
+                    numberArray[1] = numberArray[1] + "0";
+                }
+            } else {
+                for (var j = 1; j < howManyToPad - numberArray[1].length; j++) {
+                    numberArray[1] = numberArray[1] + "0";
+                }
+            }
+            if (!numberArray[1]) {
+                return numberArray[0];
+            } else {
+                return numberArray[0] + "." + numberArray[1];
+            }
+        },
         roundThreeAndPad: function(number) {
             var numberArray = ("" + Math.round(number * 1e3) / 1e3).split(".");
             if (!numberArray[1]) {

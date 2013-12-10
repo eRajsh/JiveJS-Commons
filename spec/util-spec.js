@@ -854,4 +854,31 @@ describe("Util.js Utility class", function() {
 		});
 	});
 
+	describe("has a function that can round and pad numbers and", function(){
+		it("should round numbers down", function() {
+			var ret = _.viewHelpers.roundAndPad(120.123456, 1, 0, 'ceil');
+
+			expect(ret).toEqual("120.2");
+		});
+
+		it("should pad numbers with 0's", function(){
+			var ret = _.viewHelpers.roundAndPad(120, 0, 2, 'ceil');
+
+			expect(ret).toEqual("120.00");
+		});
+
+		it("should be able to accept 'ceil' and alter return value appropriately", function(){
+			var ret = _.viewHelpers.roundAndPad(120.01, 0, 0, 'ceil');
+
+			expect(ret).toEqual("121");
+		});
+
+		it("should be able to accept 'floor' and alter return value appropriately", function(){
+			var ret = _.viewHelpers.roundAndPad(120.01, 0, 0, 'floor');
+
+			expect(ret).toEqual("120");
+		});
+
+	});
+
 });
