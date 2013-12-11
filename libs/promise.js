@@ -589,7 +589,7 @@
 		**/
 		when: function() {
 			var args = Array.prototype.slice.call(arguments);
-			var promises = [true];
+			var promises = [];
 			var newDfd = new Dfd();
 			var resolvedCount = 0;
 			var handledCount = 0;
