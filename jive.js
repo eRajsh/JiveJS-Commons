@@ -4137,7 +4137,7 @@ var _ = function() {
         },
         when: function() {
             var args = Array.prototype.slice.call(arguments);
-            var promises = [ true ];
+            var promises = [];
             var newDfd = new Dfd();
             var resolvedCount = 0;
             var handledCount = 0;
@@ -4160,7 +4160,7 @@ var _ = function() {
                             action: "resolved",
                             data: data,
                             resolved: resolvedCount,
-                            handled: handeldCount
+                            handled: handledCount
                         });
                         if (resolvedCount === promises.length) {
                             newDfd.resolve(whenData);
@@ -4173,7 +4173,7 @@ var _ = function() {
                             action: "rejected",
                             data: data,
                             resolved: resolvedCount,
-                            handled: handeldCount
+                            handled: handledCount
                         });
                         if (handledCount === promises.length) {
                             newDfd.reject(whenData);
@@ -5233,6 +5233,8 @@ var _ = function() {
             }).fail(function(e) {
                 dfd.reject(e);
             });
+        } else {
+            dfd.resolve(args.data);
         }
         return dfd.promise();
     };
@@ -6050,7 +6052,9 @@ var _ = function() {
         scope = scope || this;
         args = args || {};
         args.vm = args.vm || "default";
+        args.vm = args.vm || "default";
         toVMedCache[scope.urn] = toVMedCache[scope.urn] || {};
+        var toVMedCacheKey = args.toVMedCacheKey || "urn";
         if (toVMedCache[scope.urn][args.vm]) {
             return toVMedCache[scope.urn][args.vm];
         }
@@ -6063,11 +6067,15 @@ var _ = function() {
             ret.entries = [];
             scope.entries.forEach(function(entry) {
                 var vmed;
-                toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
-                if (typeof toVMedCache[entry.urn][args.vm] === "undefined") {
-                    vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
+                toVMedCache[entry[toVMedCacheKey]] = toVMedCache[entry[toVMedCacheKey]] || {};
+                if (typeof toVMedCache[entry[toVMedCacheKey]][args.vm] === "undefined") {
+                    if (typeof entry.toVM !== "undefined" && _.isFunction(entry.toVM)) {
+                        vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry.toVM(args);
+                    } else {
+                        vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry;
+                    }
                 } else {
-                    vmed = toVMedCache[entry.urn][args.vm];
+                    vmed = toVMedCache[entry[toVMedCacheKey]][args.vm];
                 }
                 ret.entries.push(vmed);
             });

@@ -228,6 +228,8 @@
 			}).fail(function(e) {
 				dfd.reject(e);
 			});
+		} else {
+			dfd.resolve(args.data);
 		}
 
 		return dfd.promise();
@@ -1105,12 +1107,14 @@
 
 	var toVMedCache = {};
 	Model.prototype.toVM = function(args, scope) {
-		// TODO: Upchain stuff already to VM'd
+		// TODO: Upchain stuff already to VM'd 
 		scope = scope || this;
 		args = args || {};
 		args.vm = args.vm || "default";
+		args.vm = args.vm || "default";
 
 		toVMedCache[scope.urn] = toVMedCache[scope.urn] || {};
+		var toVMedCacheKey = args.toVMedCacheKey || "urn";
 
 		if(toVMedCache[scope.urn][args.vm]) {
 			return toVMedCache[scope.urn][args.vm];
@@ -1128,11 +1132,16 @@
 
 			scope.entries.forEach(function(entry) {
 				var vmed;
-				toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
-				if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
-					vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
+				toVMedCache[entry[toVMedCacheKey]] = toVMedCache[entry[toVMedCacheKey]] || {};
+				
+				if(typeof toVMedCache[entry[toVMedCacheKey]][args.vm] === "undefined") { 
+					if(typeof entry.toVM !== "undefined" && _.isFunction(entry.toVM)) {
+						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry.toVM(args);
+					} else {
+						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry;
+					}
 				} else {
-					vmed = toVMedCache[entry.urn][args.vm];
+					vmed = toVMedCache[entry[toVMedCacheKey]][args.vm];
 				}
 
 				ret.entries.push(vmed);
