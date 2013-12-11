@@ -609,7 +609,7 @@
 						resolvedCount++; handledCount++;
 						whenData[i] = data;
 						newDfd.notify({
-							index: i, action: "resolved", data: data, resolved: resolvedCount, handled: handeldCount
+							index: i, action: "resolved", data: data, resolved: resolvedCount, handled: handledCount
 						});
 						if(resolvedCount === promises.length) {
 							newDfd.resolve(whenData);
@@ -618,7 +618,7 @@
 						handledCount++;
 						whenData[i] = data;
 						newDfd.notify({
-							index: i, action: "rejected", data: data, resolved: resolvedCount, handled: handeldCount
+							index: i, action: "rejected", data: data, resolved: resolvedCount, handled: handledCount
 						});
 						if(handledCount === promises.length) {
 							newDfd.reject(whenData);
