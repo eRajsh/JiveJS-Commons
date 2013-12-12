@@ -858,25 +858,44 @@
 		return true;
 	};
 
-	var sortTheBastard = function(ret, order) {
+	var sortTheBastard = function(ret, keys) {
 		ret = ret || [];
 
-		var keys = Object.keys(order).reverse();
-		keys.forEach(function(key) {
-			ret = ret.sort(function(a, b) {
-				var aVal = subSelect(a, key);
-				var bVal = subSelect(b, key);
+		console.table(keys);
 
-				if(order[key] !== "desc") {
-					return (aVal === bVal) ? 0 :
-						   (aVal < bVal) ? -1 : 1;
+		ret = ret.sort(function sorter(a, b, keyIndex) {
+			keyIndex = keyIndex || 0;
+
+			if (keyIndex > keys.length -1){
+				return 0;
+			}
+
+			var key = keys[keyIndex].key;
+
+			var aVal = subSelect(a, key);
+			var bVal = subSelect(b, key);
+
+			if(aVal === bVal){
+				keyIndex++;
+				return sorter(a, b, keyIndex);
+			}
+
+			if (keys[keyIndex].order === "desc"){
+				if (aVal > bVal){
+					return -1;
 				} else {
-					return (aVal === bVal) ? 0 :
-						   (aVal > bVal) ? -1 : 1;
+					return 1; 
 				}
-			});
+			} else {
+				if (aVal < bVal){
+					return -1;
+				} else {
+					return 1; 
+				}
+			}
+			
 		});
-
+		
 		return ret;
 	};
 
@@ -907,9 +926,6 @@
 
 		for(var i = 0; i < scope[args.key].length; i++) {
 			var entry = scope[args.key][i];
-			if(ret.length === args.limit + (args.offset || 0)) {
-				break;
-			}
 
 			if(typeof args.filter === "undefined" || (args.filter && filterCheckTheBastard(entry, args.filter))) {
 				var toPush = entry;
@@ -934,6 +950,8 @@
 
 		if(args.limit === 1) {
 			ret = ret[0];
+		} else if(args.limit > 1) {
+			ret = ret.splice(0, args.limit);
 		}
 
 		return ret;

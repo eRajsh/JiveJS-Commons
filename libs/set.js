@@ -8,12 +8,14 @@
 	Set.prototype.get = function (key) {
 		return this.find(key);
 	};
+	
 	Set.prototype.has = function (key) {
 		if (this.find(key)) {
 			return true;
 		} 
 		return false;
 	};
+	
 	Set.prototype.toString = function () {
 		return "[object Set]";
 	};

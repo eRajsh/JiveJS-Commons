@@ -82,17 +82,34 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 			});
 
 			it("can be ordered-by", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				collection.entries.push(new Model({urn: "testOrder:" + 1, order1: 5, order2: 1}));				
+				collection.entries.push(new Model({urn: "testOrder:" + 2, order1: 5, order2: 2}));
+				collection.entries.push(new Model({urn: "testOrder:" + 3, order1: 2, order2: 1}));
+				collection.entries.push(new Model({urn: "testOrder:" + 4, order1: 1, order2: 1}));
+				collection.entries.push(new Model({urn: "testOrder:" + 5, order1: 3, order2: 1}));
+
 				var results = collection.query({
-					limit: 5,
-					order: {
-						"presence.chat.code": "asc",
-						"name": "asc"
-					}
+					order: [
+						{
+							key: "order1", 
+							order: "asc"
+						},
+						{
+							key: "order2",
+							order: "asc"
+						}
+					]
 				});
 
 				expect(results.length).toEqual(5);
-				expect(results[0].toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
-				expect(results[1].toJSON()).toEqual({urn: "test:4", presence: { chat: { code: (4 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "testOrder:4", order1: 1, order2: 1});
+				expect(results[3].toJSON()).toEqual({urn: "testOrder:1", order1: 5, order2: 1});
+				expect(results[4].toJSON()).toEqual({urn: "testOrder:2", order1: 5, order2: 2});
 			});
 
 			it("has dot notation for accessing shit", function(){
