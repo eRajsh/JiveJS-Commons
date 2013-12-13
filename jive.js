@@ -5795,10 +5795,10 @@ var _ = function() {
             return subSelectRecurse(ret[key], keys);
         }
     };
-    var subSelect = function(entry, key) {
+    var subSelect = function(entry, key, args) {
         var keys = key.split(".");
         if (typeof entry[key] === "undefined" && _.isNormalObject(entry.virtuals) && entry.virtuals[key] && _.isFunction(entry.virtuals[key].getter)) {
-            return entry.virtuals[key].getter({}, entry);
+            return entry.virtuals[key].getter(args, entry);
         } else {
             return subSelectRecurse(entry, keys);
         }
@@ -5843,7 +5843,7 @@ var _ = function() {
         }
         return true;
     };
-    var filterCheckTheBastard = function(entry, filter) {
+    var filterCheckTheBastard = function(entry, filter, args) {
         for (var key in filter) {
             var length;
             switch (key) {
@@ -5853,7 +5853,7 @@ var _ = function() {
               case "$in":
                 length = length || 0;
                 for (var valKey in filter[key]) {
-                    var val = subSelect(entry, valKey);
+                    var val = subSelect(entry, valKey, args);
                     if (_.isArray(val)) {
                         var intersection = _.intersection(val, filter[key][valKey]);
                         if (intersection.length === length) {
@@ -5865,7 +5865,7 @@ var _ = function() {
 
               case "$all":
                 for (var valKey in filter[key]) {
-                    var val = subSelect(entry, valKey);
+                    var val = subSelect(entry, valKey, args);
                     if (_.isArray(val)) {
                         var diffs = _.diffValues(val, filter[key][valKey]);
                         if (diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
@@ -5876,7 +5876,7 @@ var _ = function() {
                 break;
 
               default:
-                var val = subSelect(entry, key);
+                var val = subSelect(entry, key, args);
                 if (!runFilter(filter[key], val)) {
                     return false;
                 }
@@ -5885,7 +5885,7 @@ var _ = function() {
         }
         return true;
     };
-    var sortTheBastard = function(ret, keys) {
+    var sortTheBastard = function(ret, keys, args) {
         ret = ret || [];
         ret = ret.sort(function sorter(a, b, keyIndex) {
             keyIndex = keyIndex || 0;
@@ -5893,8 +5893,8 @@ var _ = function() {
                 return 0;
             }
             var key = keys[keyIndex].key;
-            var aVal = subSelect(a, key);
-            var bVal = subSelect(b, key);
+            var aVal = subSelect(a, key, args);
+            var bVal = subSelect(b, key, args);
             var order = keys[keyIndex].order;
             var desc = order === "desc" || order === "descending";
             var asc = order === "asc" || order === "ascending";
@@ -5918,10 +5918,10 @@ var _ = function() {
         });
         return ret;
     };
-    var subSelectTheBastard = function(entry, selects) {
+    var subSelectTheBastard = function(entry, selects, args) {
         var ret = {};
         selects.forEach(function(select) {
-            var sub = subSelect(entry, select);
+            var sub = subSelect(entry, select, args);
             if (typeof sub !== "undefined") {
                 var lazyObj = {};
                 lazyObj[select] = sub;
@@ -5937,18 +5937,18 @@ var _ = function() {
         var ret = [];
         for (var i = 0; i < scope[args.key].length; i++) {
             var entry = scope[args.key][i];
-            if (typeof args.filter === "undefined" || args.filter && filterCheckTheBastard(entry, args.filter)) {
+            if (typeof args.filter === "undefined" || args.filter && filterCheckTheBastard(entry, args.filter, args)) {
                 var toPush = entry;
                 if (args.vm) {
                     toPush = entry.toVM(args);
                 } else if (args.select) {
-                    toPush = subSelectTheBastard(entry, args.select);
+                    toPush = subSelectTheBastard(entry, args.select, args);
                 }
                 ret.push(toPush);
             }
         }
         if (args.order) {
-            sortTheBastard(ret, args.order);
+            sortTheBastard(ret, args.order, args);
         }
         if (args.offset) {
             ret.splice(0, args.offset);
@@ -6145,7 +6145,7 @@ var _ = function() {
                 } else if (key === "*") {
                     _.extend(ret, scope.toVM());
                 } else {
-                    var sub = subSelect(scope, key);
+                    var sub = subSelect(scope, key, args);
                     if (typeof sub !== "undefined") {
                         walkObject(ret, key, sub);
                     }
