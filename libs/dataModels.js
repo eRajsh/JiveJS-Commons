@@ -118,7 +118,7 @@
 								eachDfd.resolve();
 							});
 
-							dfds.push(eachDfd);
+							dfds.push(eachDfd.promise());
 						} else if(_.isUrn(item)) {
 							var eachDfd = new _.Dfd();
 
@@ -127,7 +127,7 @@
 								eachDfd.resolve();
 							});
 
-							dfds.push(eachDfd);
+							dfds.push(eachDfd.promise());
 						}
 					});
 				} else {
@@ -148,14 +148,16 @@
 							eachDfd.resolve();
 						});
 
-						dfds.push(eachDfd);
+						dfds.push(eachDfd.promise());
 					}
 				}
 			})(key);
 		}
 
-		_.Dfd.when(dfds).always(function() {
+		_.Dfd.when(dfds).done(function() {
 			dfd.resolve(scope);
+		}).fail(function(errs) {
+			console.log("Errors in populates", errs);
 		});
 
 		return dfd.promise();
@@ -380,7 +382,7 @@
 		scope = scope || this;
 
 		var data = ret.data.body || ret.data;
-		var toRet;
+		var toRet, populate;
 
 		if(scope._options.collection === true) {
 			var model = findModel(data.urn);
@@ -448,12 +450,29 @@
 							}
 						}
 					}
+				// THIS TOTALLY FLOWS INTO PATCHED
+				// It should be this way
+
 				case "patched":
-					_.extend(scope, data);
+					for (var key in scope._options.keys) {
+						scope[key] = data[key];
+					}
+
+					for (var key in scope._options.refs) {
+						if(scope[key].urn !== data[key]) {
+							scope[key] = data[key];
+
+							populate = true;
+						}
+					}
 				break;
 			}
 
 			toRet = scope;
+		}
+
+		if(populate === true) {
+			toRet._options.inited = populateRefs(toRet);
 		}
 
 		toRet._options.inited.done(function() {
@@ -686,7 +705,7 @@
 						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
 					}, 0);
 
-					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(ret) {
+					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(){
 						dfd.resolve(scope);
 					});
 				} else {
@@ -860,8 +879,6 @@
 
 	var sortTheBastard = function(ret, keys) {
 		ret = ret || [];
-
-		console.table(keys);
 
 		ret = ret.sort(function sorter(a, b, keyIndex) {
 			keyIndex = keyIndex || 0;

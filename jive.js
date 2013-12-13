@@ -5133,7 +5133,7 @@ var _ = function() {
                                 scope[key][i] = ret;
                                 eachDfd.resolve();
                             });
-                            dfds.push(eachDfd);
+                            dfds.push(eachDfd.promise());
                         } else if (_.isUrn(item)) {
                             var eachDfd = new _.Dfd();
                             makeForModel({
@@ -5142,7 +5142,7 @@ var _ = function() {
                                 scope[key][i] = ret;
                                 eachDfd.resolve();
                             });
-                            dfds.push(eachDfd);
+                            dfds.push(eachDfd.promise());
                         }
                     });
                 } else {
@@ -5161,13 +5161,15 @@ var _ = function() {
                             scope[key] = ret;
                             eachDfd.resolve();
                         });
-                        dfds.push(eachDfd);
+                        dfds.push(eachDfd.promise());
                     }
                 }
             })(key);
         }
-        _.Dfd.when(dfds).always(function() {
+        _.Dfd.when(dfds).done(function() {
             dfd.resolve(scope);
+        }).fail(function(errs) {
+            console.log("Errors in populates", errs);
         });
         return dfd.promise();
     };
@@ -5385,7 +5387,7 @@ var _ = function() {
     var eventFunc = function eventFunc(event, ret, scope) {
         scope = scope || this;
         var data = ret.data.body || ret.data;
-        var toRet;
+        var toRet, populate;
         if (scope._options.collection === true) {
             var model = findModel(data.urn);
             var collection = findCollection(data.urn);
@@ -5457,10 +5459,21 @@ var _ = function() {
                 }
 
               case "patched":
-                _.extend(scope, data);
+                for (var key in scope._options.keys) {
+                    scope[key] = data[key];
+                }
+                for (var key in scope._options.refs) {
+                    if (scope[key].urn !== data[key]) {
+                        scope[key] = data[key];
+                        populate = true;
+                    }
+                }
                 break;
             }
             toRet = scope;
+        }
+        if (populate === true) {
+            toRet._options.inited = populateRefs(toRet);
         }
         toRet._options.inited.done(function() {
             toRet.dispatch({
@@ -5693,7 +5706,7 @@ var _ = function() {
                     }, 0);
                     scope._options.inited = populateRefs(scope, {
                         local: ret.local
-                    }).done(function(ret) {
+                    }).done(function() {
                         dfd.resolve(scope);
                     });
                 } else {
@@ -5866,7 +5879,6 @@ var _ = function() {
     };
     var sortTheBastard = function(ret, keys) {
         ret = ret || [];
-        console.table(keys);
         ret = ret.sort(function sorter(a, b, keyIndex) {
             keyIndex = keyIndex || 0;
             if (keyIndex > keys.length - 1) {
