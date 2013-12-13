@@ -47,7 +47,18 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 			},
 			refs: {
 			},
-			keys: {}
+			keys: {},
+			virtuals: {
+				presenceBool: {
+					getter: function(args, scope) {
+						if(scope.presence.chat.code !== 0) {
+							return true;
+						}
+
+						return false;
+					}
+				}
+			}
 		};
 
 		describe("it has a query function", function() {
@@ -192,6 +203,19 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results.length).toEqual(251);
 				expect(results[0]).toEqual({presence: { chat: { code: (0 % 4) }}});
 				expect(results[1]).toEqual({presence: { chat: { code: (4 % 4) }}});
+			});
+
+			it("has virtual fields that can be used in the filter and select", function(){
+				var results = collection.query({
+					filter: {
+						"presenceBool": true
+					},
+					select: ["urn", "presenceBool"]
+				});
+
+				expect(results.length).toEqual(750);
+				expect(results[0]).toEqual({urn: "test:1", presenceBool: true});
+				expect(results[1]).toEqual({urn: "test:2", presenceBool: true});
 			});
 
 			it("has a queryOne that returns an object", function(){

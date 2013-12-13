@@ -208,7 +208,6 @@
 				ajax(args, scope).done(function(ret){
 					if(args.method === "GET" && scope._options.collection === true) {
 
-						// TODO: START HERE
 						if(_.isArray(scope._options.subscriptions)) {
 							for(var i = 0; i < scope._options.subscriptions.length; i++) {
 								self.Jive.SessionBridge.subscribe({
@@ -775,7 +774,11 @@
 	var subSelect = function(entry, key) {
 		var keys = key.split(".");
 
-		return subSelectRecurse(entry, keys);
+		if(typeof entry[key] === "undefined" && _.isNormalObject(entry.virtuals) && entry.virtuals[key] && _.isFunction(entry.virtuals[key].getter)) {
+			return entry.virtuals[key].getter({}, entry);
+		} else {
+			return subSelectRecurse(entry, keys);
+		}
 	};
 
 	var walkObjectRecurse = function(obj, keys, val) {
@@ -892,25 +895,28 @@
 			var aVal = subSelect(a, key);
 			var bVal = subSelect(b, key);
 
-			if(aVal === bVal){
+			var order = keys[keyIndex].order;
+			var desc = (order === "desc" || order === "descending");
+			var asc = (order === "asc" || order === "ascending");
+
+			if(aVal === bVal || (!desc && !asc)){
 				keyIndex++;
 				return sorter(a, b, keyIndex);
 			}
 
-			if (keys[keyIndex].order === "desc"){
+			if (keys[keyIndex].order === "desc" || keys[keyIndex].order === "descending"){
 				if (aVal > bVal){
 					return -1;
 				} else {
 					return 1; 
 				}
-			} else {
+			} else if(keys[keyIndex].order === "asc" || keys[keyIndex].order === "ascending") {
 				if (aVal < bVal){
 					return -1;
 				} else {
 					return 1; 
 				}
 			}
-			
 		});
 		
 		return ret;
@@ -1210,8 +1216,6 @@
 					}
 				} else if(key === "*") {
 					_.extend(ret, scope.toVM());
-				} else if(_.isNormalObject(scope.virtuals) && scope.virtuals[key] && _.isFunction(scope.virtuals[key].getter)) {
-					ret[key] = scope.virtuals[key].getter(args, scope);
 				} else {
 					var sub = subSelect(scope, key);
 					if(typeof sub !== "undefined") {
