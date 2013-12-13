@@ -5546,6 +5546,10 @@ var _ = function() {
         for (var key in scope._options.keys) {
             doInitializeDefault(scope, key);
         }
+        for (var key in scope._options.virtuals) {
+            scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
+            scope.virtuals[key].setter = scope.virtuals[key].getter.bind(scope);
+        }
         for (var key in args) {
             scope[key] = args[key];
         }
