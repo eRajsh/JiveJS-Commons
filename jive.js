@@ -5214,16 +5214,6 @@ var _ = function() {
                     };
                 }
                 ajax(args, scope).done(function(ret) {
-                    if (args.method === "GET" && scope._options.collection === true) {
-                        if (_.isArray(scope._options.subscriptions)) {
-                            for (var i = 0; i < scope._options.subscriptions.length; i++) {
-                                self.Jive.SessionBridge.subscribe({
-                                    urn: scope._options.subscriptions[i],
-                                    ETag: ret.data.ETag
-                                });
-                            }
-                        }
-                    }
                     dfd.resolve(ret);
                 }).fail(function(e) {
                     dfd.reject(e);
@@ -5387,7 +5377,7 @@ var _ = function() {
     var eventFunc = function eventFunc(event, ret, scope) {
         scope = scope || this;
         var data = ret.data.body || ret.data;
-        var toRet, populate;
+        var toRet, populate, publish = false;
         if (scope._options.collection === true) {
             var model = findModel(data.urn);
             var collection = findCollection(data.urn);
@@ -5403,52 +5393,16 @@ var _ = function() {
                     insertFunc({
                         entry: instance
                     }, collection);
-                    collection._options.persisted = collection.toJSON();
                 } else {
                     _.extend(instance, data);
                 }
-                break;
-
-              case "putted":
-                if (typeof instance !== "undefined") {
-                    for (var key in instance) {
-                        if (key !== "_options") {
-                            delete instance[key];
-                        }
-                    }
-                }
-
-              case "patched":
-                if (typeof instance !== "undefined") {
-                    _.extend(instance, data);
-                }
+                populate = true;
+                publish = true;
                 break;
             }
             toRet = instance;
         } else {
             switch (event) {
-              case "posted":
-                var model = findModel(data.urn);
-                var collection = findCollection(data.urn);
-                var instance = typeof collection !== "undefined" ? collection.queryOne({
-                    filter: {
-                        urn: data.urn
-                    }
-                }) : scope;
-                if (typeof instance === "undefined" && model) {
-                    instance = new model(data);
-                    if (collection) {
-                        insertFunc({
-                            entry: instance
-                        }, collection);
-                    }
-                    collection._options.persisted = collection.toJSON();
-                } else {
-                    _.extend(instance, data);
-                }
-                toRet = instance;
-                break;
-
               case "putted":
                 if (typeof scope !== "undefined") {
                     for (var key in scope) {
@@ -5460,7 +5414,7 @@ var _ = function() {
 
               case "patched":
                 for (var key in scope._options.keys) {
-                    scope[key] = data[key];
+                    scope[key] = typeof data[key] !== "undefined" ? data[key] : scope[key];
                 }
                 for (var key in scope._options.refs) {
                     if (scope[key].urn !== data[key]) {
@@ -5468,20 +5422,23 @@ var _ = function() {
                         populate = true;
                     }
                 }
+                toRet = scope;
+                publish = true;
                 break;
             }
-            toRet = scope;
         }
         if (populate === true) {
             toRet._options.inited = populateRefs(toRet);
         }
-        toRet._options.inited.done(function() {
-            toRet.dispatch({
-                event: event,
-                data: toRet
+        if (publish === true) {
+            toRet._options.inited.done(function() {
+                toRet.dispatch({
+                    event: event,
+                    data: toRet
+                });
+                toRet.changed();
             });
-            toRet.changed();
-        });
+        }
         return toRet;
     };
     var deleteFunc = function deleteFunc(ret, scope) {
@@ -5571,6 +5528,7 @@ var _ = function() {
             }
             scope.insert = insertFunc.bind(scope);
         }
+        scope._options.persisted = scope.toJSON();
         initializeForInForNotOptimized(args, scope);
         scope._options.inited = populateRefs(scope);
         scope._options.subs = [];
@@ -5578,9 +5536,6 @@ var _ = function() {
             scope._options.pubsub = self.Jive.Jazz;
         } else {
             scope._options.pubsub = new _.Fabric();
-        }
-        if (typeof scope._options.subscriptions === "undefined") {
-            scope._options.subscriptions = [ scope.urn, scope.urn + ":#" ];
         }
         scope._options.postFunc = eventFunc.bind(scope, "posted");
         scope._options.putFunc = eventFunc.bind(scope, "putted");
@@ -5791,8 +5746,16 @@ var _ = function() {
         var key = keys.shift();
         if (keys.length === 0) {
             return ret[key];
-        } else {
+        }
+        if (_.isNormalObject(ret[key])) {
             return subSelectRecurse(ret[key], keys);
+        } else if (_.isArray(ret[key])) {
+            var arrRet = [];
+            for (var i = 0; i < ret[key].length; i++) {
+                var arrKeys = _.clone(keys);
+                arrRet[i] = subSelectRecurse(ret[key][i], arrKeys);
+            }
+            return arrRet;
         }
     };
     var subSelect = function(entry, key, args) {
@@ -5833,54 +5796,56 @@ var _ = function() {
         }
         return ret;
     };
-    var runFilter = function(filter, value) {
-        if (_.isRegExp(filter)) {
-            if (!filter.test(value)) {
+    var runFilter = function(filter, val) {
+        if (_.isNormalObject(filter)) {
+            for (var filterKey in filter) {
+                var length;
+                switch (filterKey) {
+                  case "$nin":
+                    length = 1;
+
+                  case "$in":
+                    length = length || 0;
+                    for (var valKey in filter[filterKey]) {
+                        if (_.isArray(val)) {
+                            var intersection = _.intersection(val, filter[filterKey]);
+                            if (intersection.length === length) {
+                                return false;
+                            }
+                        }
+                    }
+                    break;
+
+                  case "$all":
+                    if (_.isArray(val)) {
+                        var diffs = _.diffValues(val, filter[filterKey]);
+                        if (diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+                            return false;
+                        }
+                    }
+                    break;
+
+                  default:
+                    return false;
+                    break;
+                }
+            }
+        } else {
+            if (_.isRegExp(filter)) {
+                if (!filter.test(val)) {
+                    return false;
+                }
+            } else if (filter !== val) {
                 return false;
             }
-        } else if (filter !== value) {
-            return false;
         }
         return true;
     };
     var filterCheckTheBastard = function(entry, filter, args) {
         for (var key in filter) {
-            var length;
-            switch (key) {
-              case "$nin":
-                length = 1;
-
-              case "$in":
-                length = length || 0;
-                for (var valKey in filter[key]) {
-                    var val = subSelect(entry, valKey, args);
-                    if (_.isArray(val)) {
-                        var intersection = _.intersection(val, filter[key][valKey]);
-                        if (intersection.length === length) {
-                            return false;
-                        }
-                    }
-                }
-                break;
-
-              case "$all":
-                for (var valKey in filter[key]) {
-                    var val = subSelect(entry, valKey, args);
-                    if (_.isArray(val)) {
-                        var diffs = _.diffValues(val, filter[key][valKey]);
-                        if (diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
-                            return false;
-                        }
-                    }
-                }
-                break;
-
-              default:
-                var val = subSelect(entry, key, args);
-                if (!runFilter(filter[key], val)) {
-                    return false;
-                }
-                break;
+            var val = subSelect(entry, key, args);
+            if (!runFilter(filter[key], val)) {
+                return false;
             }
         }
         return true;
@@ -6023,13 +5988,15 @@ var _ = function() {
     Model.prototype.changed = function(args, scope) {
         scope = scope || this;
         args = args || {};
-        delete scope._options.toVMed;
-        delete scope._options.toJSONed;
-        scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
+        delete toJSONedCache[scope.urn];
+        delete toVMedCache[scope.urn];
+        var jsoned = scope.toJSON();
+        scope._options.changes = _.dirtyKeys(scope._options.persisted, jsoned);
         scope.dispatch({
             event: "changed",
-            data: scope._options.changes
+            data: scope
         });
+        scope._options.persisted = jsoned;
     };
     Model.prototype.set = function(args, scope) {
         scope = scope || this;
@@ -6298,8 +6265,19 @@ var _ = function() {
                 "default": "*"
             };
         }
-        if (_.isArray(schema.subscriptions)) {
+        if (typeof schema.subscriptions !== "undefined" && model._options.collection === true) {
             model._options.subscriptions = schema.subscriptions;
+        } else if (typeof model._options.subscriptions === "undefined" && model._options.collection === true && model._options.urn) {
+            model._options.subscriptions = [ model._options.urn, model._options.urn + ":*" ];
+        }
+        if (_.isArray(model._options.subscriptions) && self && self.Jive && self.Jive.SessionBridge) {
+            if (model._options.collection === true) {
+                for (var i = 0; i < model._options.subscriptions.length; i++) {
+                    self.Jive.SessionBridge.subscribe({
+                        urn: model._options.subscriptions[i]
+                    });
+                }
+            }
         }
         model._options.vms = schema.vms;
         model._options.refs = schema.refs || {};
@@ -6583,14 +6561,14 @@ var _ = function() {
                     }, 0, args);
                 }
             } else {
-                args.dfd.notify({
-                    data: args.data,
-                    matches: args.matches,
-                    raw: args.raw,
-                    binding: args.binding,
-                    key: args.key
-                });
                 setTimeout(function(args) {
+                    args.dfd.notify({
+                        data: args.data,
+                        matches: args.matches,
+                        raw: args.raw,
+                        binding: args.binding,
+                        key: args.key
+                    });
                     if (args.cb) {
                         args.cb.call(null, {
                             data: args.data,
@@ -6602,6 +6580,7 @@ var _ = function() {
                     }
                 }, 0, {
                     cb: args.cb,
+                    dfd: args.dfd,
                     data: args.data,
                     matches: args.matches,
                     raw: args.raw,

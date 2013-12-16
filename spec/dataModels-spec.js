@@ -159,8 +159,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 
 				var results = collection.query({
 					filter: {
-						$in: {
-							entities: [0]
+						entities: {
+							$in: [0]
 						}
 					}
 				});
@@ -182,8 +182,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 
 				var results = collection.query({
 					filter: {
-						$all: {
-							entities: [0, 8]
+						entities: {
+							$all: [0, 8]
 						}
 					}
 				});
