@@ -5053,13 +5053,15 @@ var _ = function() {
         }
     };
     var makeForModelDeferDfds = {};
-    var getDeffered = function getDeffered(urn) {
+    var getDeffered = function getDeffered(urn, strict) {
         if (makeForModelDeferDfds[urn]) {
             return makeForModelDeferDfds[urn];
         } else {
-            for (var key in makeForModelDeferDfds) {
-                if (makeForModelDeferDfds[key].regex.exec(urn)) {
-                    return makeForModelDeferDfds[key];
+            if (!strict) {
+                for (var key in makeForModelDeferDfds) {
+                    if (_.isRegex(makeForModelDeferDfds[key].regex) && makeForModelDeferDfds[key].regex.exec(urn)) {
+                        return makeForModelDeferDfds[key];
+                    }
                 }
             }
         }
@@ -5104,7 +5106,23 @@ var _ = function() {
                         if (instance) {
                             dfd.resolve(instance);
                         } else {
-                            makeAndGet(args, model, collection, dfd, given);
+                            var alreadyWaiting = getDeffered(args.urn, true);
+                            if (alreadyWaiting) {
+                                alreadyWaiting.promise.done(function() {
+                                    instance = collection.queryOne({
+                                        filter: {
+                                            urn: args.urn
+                                        }
+                                    });
+                                    if (instance) {
+                                        dfd.resolve(instance);
+                                    } else {
+                                        makeAndGet(args, model, collection, dfd, given);
+                                    }
+                                });
+                            } else {
+                                makeAndGet(args, model, collection, dfd, given);
+                            }
                         }
                     });
                 } else {
@@ -5127,7 +5145,7 @@ var _ = function() {
                 var ref = scope._options.refs[key];
                 if (_.isArray(ref)) {
                     scope[key].forEach(function(item, i) {
-                        if (_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof Model)) {
+                        if (_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
                             var eachDfd = new _.Dfd();
                             makeForModel(item, true).done(function(ret) {
                                 scope[key][i] = ret;
@@ -5190,6 +5208,11 @@ var _ = function() {
         }
         if (scope._options.store.remote && args.remote) {
             if (args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
+                if (args.method === "GET") {
+                    makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
+                        promise: dfd.promise()
+                    };
+                }
                 local(args, scope).done(function(ret) {
                     dfd.resolve({
                         data: ret,
@@ -5200,12 +5223,6 @@ var _ = function() {
                 }).fail(function(e) {
                     dfd.reject(e);
                 });
-                if (args.method === "GET") {
-                    makeForModelDeferDfds[scope.urn] = {
-                        promise: dfd.promise(),
-                        regex: new RegExp(scope.urn)
-                    };
-                }
             } else {
                 if (args.method === "GET" && scope._options.collection === true) {
                     makeForModelDeferDfds[scope._options.urn] = {
@@ -5220,6 +5237,11 @@ var _ = function() {
                 });
             }
         } else if (scope._options.store.localStorage) {
+            if (args.method === "GET") {
+                makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
+                    promise: dfd.promise()
+                };
+            }
             local(args, scope).done(function(ret) {
                 dfd.resolve(ret);
             }).fail(function(e) {
@@ -5377,7 +5399,7 @@ var _ = function() {
     var eventFunc = function eventFunc(event, ret, scope) {
         scope = scope || this;
         var data = ret.data.body || ret.data;
-        var toRet, populate, publish = false;
+        var toRet, populate, publish = false, dfd;
         if (scope._options.collection === true) {
             var model = findModel(data.urn);
             var collection = findCollection(data.urn);
@@ -5390,10 +5412,21 @@ var _ = function() {
               case "posted":
                 if (typeof instance === "undefined" && model) {
                     instance = new model(data);
+                    if (makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
+                        makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
+                    } else {
+                        dfd = new _.Dfd();
+                        makeForModelDeferDfds[instance.urn] = makeForModelDeferDfds[instance.urn] || {
+                            promise: dfd.promise()
+                        };
+                    }
                     insertFunc({
                         entry: instance
                     }, collection);
                 } else {
+                    if (makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
+                        makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
+                    }
                     _.extend(instance, data);
                 }
                 populate = true;
@@ -5417,26 +5450,31 @@ var _ = function() {
                     scope[key] = typeof data[key] !== "undefined" ? data[key] : scope[key];
                 }
                 for (var key in scope._options.refs) {
-                    if (scope[key].urn !== data[key]) {
+                    if (typeof data[key] !== "undefined" && scope[key].urn !== data[key]) {
                         scope[key] = data[key];
                         populate = true;
                     }
                 }
-                toRet = scope;
                 publish = true;
                 break;
             }
+            toRet = scope;
         }
         if (populate === true) {
             toRet._options.inited = populateRefs(toRet);
         }
         if (publish === true) {
             toRet._options.inited.done(function() {
+                if (dfd) {
+                    dfd.resolve();
+                }
                 toRet.dispatch({
                     event: event,
                     data: toRet
                 });
-                toRet.changed();
+                if (event === "putted" || event === "patched") {
+                    toRet.changed();
+                }
             });
         }
         return toRet;
@@ -5682,6 +5720,11 @@ var _ = function() {
     Model.prototype.post = function(args, scope) {
         scope = scope || this;
         args = args || {};
+        var dfd = new _.Dfd();
+        makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
+            dfd: dfd,
+            promise: dfd.promise()
+        };
         return store({
             method: "POST",
             urn: scope.urn,
@@ -6056,14 +6099,13 @@ var _ = function() {
         scope = scope || this;
         args = args || {};
         args.vm = args.vm || "default";
-        args.vm = args.vm || "default";
+        var ret = {};
         toVMedCache[scope.urn] = toVMedCache[scope.urn] || {};
         var toVMedCacheKey = args.toVMedCacheKey || "urn";
-        if (toVMedCache[scope.urn][args.vm]) {
-            return toVMedCache[scope.urn][args.vm];
+        if (toVMedCache[scope.urn][args.vm] && scope._options.collection === false) {
+            ret = toVMedCache[scope.urn][args.vm];
         }
-        var ret = {};
-        var keys = scope._options.vms[args.vm];
+        var keys = args.keys || scope._options.vms[args.vm];
         if (keys === "*" || typeof keys === "undefined") {
             keys = Object.keys(scope);
         }
@@ -6099,7 +6141,7 @@ var _ = function() {
                             }
                             ret[key].push(vmed);
                         });
-                    } else {
+                    } else if (scope[key] && scope[key].urn) {
                         var vmed;
                         toVMedCache[scope[key].urn] = toVMedCache[scope[key].urn] || {};
                         if (typeof toVMedCache[scope[key].urn][args.vm] === "undefined") {
@@ -6110,7 +6152,14 @@ var _ = function() {
                         ret[key] = vmed;
                     }
                 } else if (key === "*") {
-                    _.extend(ret, scope.toVM());
+                    if (args.vm === "default") {
+                        _.extend(ret, scope.toVM({
+                            keys: "*",
+                            vm: "star"
+                        }));
+                    } else {
+                        _.extend(ret, scope.toVM());
+                    }
                 } else {
                     var sub = subSelect(scope, key, args);
                     if (typeof sub !== "undefined") {
