@@ -1,5 +1,4 @@
-var _ = self._ = _ || {};
-(function() {
+var _ = function() {
     function n(n, t, r) {
         r = (r || 0) - 1;
         for (var e = n ? n.length : 0; ++r < e; ) if (n[r] === t) return r;
@@ -1064,7 +1063,8 @@ var _ = self._ = _ || {};
     define(function() {
         return J;
     })) : V && U ? G ? (U.exports = J)._ = J : V._ = J : M._ = J;
-}).call(this);
+    return J;
+}.call(this);
 
 (function() {
     "use strict";
@@ -2971,12 +2971,12 @@ var _ = self._ = _ || {};
         }
     });
     Dfd.when = Dfd.prototype.when;
-    self._ = self._ || {};
-    self._.Dfd = Dfd;
-    self._.dfd = new Dfd();
-    self._.dfd.resolve("Only to be used for WHEN magic!!!!");
-    self._.isPromise = isPromise;
-    self._.isDeferred = isDeferred;
+    var root = _ || self._ || {};
+    root.Dfd = Dfd;
+    root.dfd = new Dfd();
+    root.dfd.resolve("Only to be used for WHEN magic!!!!");
+    root.isPromise = isPromise;
+    root.isDeferred = isDeferred;
     return Dfd;
 })(typeof self !== "undefined" ? self : this);
 

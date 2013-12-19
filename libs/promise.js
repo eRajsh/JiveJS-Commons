@@ -702,12 +702,12 @@
 	Dfd.when = Dfd.prototype.when;
 	
 	//set this to the utility namespace 
-	self._ = self._ || {};
-	self._.Dfd = Dfd;
-	self._.dfd = new Dfd();
-	self._.dfd.resolve("Only to be used for WHEN magic!!!!");
-	self._.isPromise = isPromise;
-	self._.isDeferred = isDeferred;
+	var root = _ || self._ || {};
+	root.Dfd = Dfd;
+	root.dfd = new Dfd();
+	root.dfd.resolve("Only to be used for WHEN magic!!!!");
+	root.isPromise = isPromise;
+	root.isDeferred = isDeferred;
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;
 })(typeof self !== "undefined" ? self : this);
