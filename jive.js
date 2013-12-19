@@ -1,3 +1,4 @@
+var _ = self._ = _ || {};
 (function() {
     function n(n, t, r) {
         r = (r || 0) - 1;
