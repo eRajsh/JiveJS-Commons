@@ -3817,7 +3817,7 @@
         return {
             init: function(config) {
                 var dfd = new _.Dfd();
-                if (chrome && chrome.storage & chrome.storage.local) {
+                if (chrome && chrome.storage && chrome.storage.local) {
                     dfd.resolve(new CS(config));
                 } else {
                     dfd.reject();
@@ -3849,6 +3849,8 @@
             }
             var dfd = new _.Dfd();
             ChromeStorageProvider.init(config).done(function(ret) {
+                dfd.resolve(ret);
+            }).fail(function() {
                 LocalStorageProvider.init(config).done(function(ret) {
                     dfd.resolve(ret);
                 }).fail(function() {
