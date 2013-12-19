@@ -870,19 +870,21 @@
 
 			var dfd = new _.Dfd();
 
-			LocalStorageProvider.init(config).done(function(ret) {
-				dfd.resolve(ret)
-			}).fail(function() {
-				IndexedDBProvider.init(config).done(function(ret) {
+			ChromeStorageProvider.init(config).done(function(ret) {
+				LocalStorageProvider.init(config).done(function(ret) {
 					dfd.resolve(ret)
 				}).fail(function() {
-					FilesystemAPIProvider.init(config).done(function(ret) {
+					IndexedDBProvider.init(config).done(function(ret) {
 						dfd.resolve(ret)
 					}).fail(function() {
-						WebSQLProvider.init(config).done(function(ret) {
+						FilesystemAPIProvider.init(config).done(function(ret) {
 							dfd.resolve(ret)
 						}).fail(function() {
-							dfd.reject("I have nothing.... leave me alone :(");
+							WebSQLProvider.init(config).done(function(ret) {
+								dfd.resolve(ret)
+							}).fail(function() {
+								dfd.reject("I have nothing.... leave me alone :(");
+							});
 						});
 					});
 				});
