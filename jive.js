@@ -2536,7 +2536,33 @@
     _.Capped = Capped;
 })();
 
-(function() {
+(function(self) {
+    function extend(a, b) {
+        for (var key in b) {
+            a[key] = b[key];
+        }
+    }
+    function isFunction(a) {
+        return !!(a && Object.prototype.toString.call(a) === "[object Function]");
+    }
+    function isNormalObject(a) {
+        return !!(a && Object.prototype.toString.call(a) === "[object Object]");
+    }
+    function isArray(a) {
+        return !!(a && Object.prototype.toString.call(a) === "[object Array]");
+    }
+    function isPromise(promise) {
+        if (typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
+            return true;
+        }
+        return false;
+    }
+    function isDeferred(deferred) {
+        if (typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
+            return true;
+        }
+        return false;
+    }
     function callback(scope, data, cbs) {
         setTimeout(function() {
             cbs.forEach(function(item) {
@@ -2545,7 +2571,7 @@
         }, 0);
     }
     function sanitizeCbs(cbs) {
-        if (cbs && !_.isArray(cbs)) {
+        if (cbs && !isArray(cbs)) {
             cbs = [ cbs ];
         }
         return cbs;
@@ -2568,7 +2594,7 @@
     function getThenFilterCallback(filter, newDfd, what) {
         return function(data) {
             var filteredData = internalFilteredDataInstance;
-            if (filter && _.isFunction(filter)) {
+            if (filter && isFunction(filter)) {
                 try {
                     filteredData = filter.call(undefined, data);
                 } catch (e) {
@@ -2658,7 +2684,7 @@
     function doStealDatasThen(data, what, scope) {
         var ret = doTryAndGetDatasThen(data, scope);
         if (!ret.failed) {
-            if (_.isFunction(ret.datasThen)) {
+            if (isFunction(ret.datasThen)) {
                 doDatasThenIsAFunction(ret.datasThen, data, scope);
             } else {
                 doWhatYouShould(data, what, scope);
@@ -2718,7 +2744,7 @@
         }
         return this;
     };
-    _.extend(Dfd.prototype, {
+    extend(Dfd.prototype, {
         toString: function() {
             return "[object Deferred]";
         },
@@ -2740,8 +2766,8 @@
             this.internalWith = function() {
                 return dfd.internalWith;
             };
-            if (target && _.isNormalObject(target)) {
-                _.extend(target, this);
+            if (target && isNormalObject(target)) {
+                extend(target, this);
                 return target;
             }
             return this;
@@ -2847,7 +2873,7 @@
                 that.doReject(new TypeError("Promise Tried to Resolve with Self"));
             } else if (isPromise(data)) {
                 doIsPromiseSteal(data, that);
-            } else if (_.isNormalObject(data) || _.isFunction(data)) {
+            } else if (isNormalObject(data) || isFunction(data)) {
                 doStealDatasThen(data, what, that);
             } else {
                 doWhatYouShould(data, what, that);
@@ -2864,7 +2890,7 @@
             var datasThen;
             if (isPromise(thennable) || isDeferred(thennable)) {
                 doIsPromiseSteal(thennable, newDfd);
-            } else if (_.isNormalObject(thennable) || _.isFunction(thennable)) {
+            } else if (isNormalObject(thennable) || isFunction(thennable)) {
                 doStealDatasThen(thennable, "resolve", newDfd);
             } else {
                 newDfd.resolve(thennable);
@@ -2879,7 +2905,7 @@
             var handledCount = 0;
             var whenData = [];
             args.forEach(function(item) {
-                if (_.isArray(item)) {
+                if (isArray(item)) {
                     promises = promises.concat(item);
                 } else {
                     promises.push(item);
@@ -2944,13 +2970,14 @@
         }
     });
     Dfd.when = Dfd.prototype.when;
-    _.Dfd = Dfd;
-    _.dfd = new Dfd();
-    _.dfd.resolve("Only to be used for WHEN magic!!!!");
-    _.isPromise = isPromise;
-    _.isDeferred = isDeferred;
+    self._ = self._ || {};
+    self._.Dfd = Dfd;
+    self._.dfd = new Dfd();
+    self._.dfd.resolve("Only to be used for WHEN magic!!!!");
+    self._.isPromise = isPromise;
+    self._.isDeferred = isDeferred;
     return Dfd;
-})();
+})(typeof self !== "undefined" ? self : this);
 
 "use strict";
 
@@ -3814,7 +3841,9 @@
         };
         function selectImplementation(config) {
             if (!config) config = {};
-            config = _.defaults(config, defaultConfig);
+            for (var key in defaultConfig) {
+                config[key] = config[key] || defaultConfig[key];
+            }
             if (config.forceProvider) {
                 return providers[config.forceProvider].init(config);
             }
@@ -3889,7 +3918,8 @@
         };
         return LargeLocalStorage;
     }();
-    _.LargeLocalStorage = LargeLocalStorage;
+    self._ = self._ || {};
+    self._.LargeLocalStorage = LargeLocalStorage;
     return LargeLocalStorage;
 })(typeof self !== "undefined" ? self : this);
 

@@ -860,7 +860,9 @@
 
 		function selectImplementation(config) {
 			if (!config) config = {};
-			config = _.defaults(config, defaultConfig);
+			for(var key in defaultConfig) {
+				config[key] = config[key] || defaultConfig[key];
+			}
 
 			if (config.forceProvider) {
 				return providers[config.forceProvider].init(config);
@@ -956,7 +958,8 @@
 		return LargeLocalStorage;
 	})();
 
-	_.LargeLocalStorage = LargeLocalStorage;
+	self._ = self._ || {};
+	self._.LargeLocalStorage = LargeLocalStorage;
 	return LargeLocalStorage;
 
 })(typeof self !== "undefined" ? self : this);

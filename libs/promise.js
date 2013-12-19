@@ -12,7 +12,38 @@
  *        but that cost in very few instances is merited by the encapsulation gains
  * @returns {Dfd} Deferred constructor
 **/
-(function() {
+(function(self) {
+	function extend(a, b) {
+		for(var key in b) {
+			a[key] = b[key];
+		}
+	}
+
+	function isFunction(a) {
+		return !!(a && Object.prototype.toString.call(a) === '[object Function]');
+	}
+
+	function isNormalObject(a) {
+		return !!(a && Object.prototype.toString.call(a) === '[object Object]');
+	}
+
+	function isArray(a) {
+		return !!(a && Object.prototype.toString.call(a) === '[object Array]');
+	}
+
+	function isPromise(promise) {
+		if(typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
+			return true;
+		}
+		return false;
+	}
+
+	function isDeferred(deferred) {
+		if(typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
+			return true;
+		}
+		return false;
+	}
 
 	/**
 	 * callback receives a scope and data as well as a list of callbacks to execute
@@ -41,7 +72,7 @@
 	 * @return {Array.<Function>} - returns an array of functions
 	**/
 	function sanitizeCbs(cbs) {
-		if(cbs && !_.isArray(cbs)) {
+		if(cbs && !isArray(cbs)) {
 			cbs = [cbs]
 		}
 		return cbs;
@@ -66,7 +97,7 @@
 	function getThenFilterCallback(filter, newDfd, what) {
 		return function(data) {
 			var filteredData = internalFilteredDataInstance;
-			if(filter && _.isFunction(filter)) {
+			if(filter && isFunction(filter)) {
 				try {
 					filteredData = filter.call(undefined, data);
 				} catch(e) {
@@ -165,7 +196,7 @@
 		var ret = doTryAndGetDatasThen(data, scope);
 
 		if(!ret.failed) {
-			if(_.isFunction(ret.datasThen)) {
+			if(isFunction(ret.datasThen)) {
 				
 				doDatasThenIsAFunction(ret.datasThen, data, scope);
 
@@ -232,7 +263,7 @@
 	//kinda exposed (even though we freeze them below), but they are on
 	//the prototype chain so tht you could extend this object and add things
 	//or overload some prototype methods
-	_.extend(Dfd.prototype, {
+	extend(Dfd.prototype, {
 		toString: function() {
 			return "[object Deferred]";
 		},
@@ -269,8 +300,8 @@
 
 			//if target was passed in then return the ='promisified' target 
 			//intead of a new promise object
-			if(target && _.isNormalObject(target)) {
-				_.extend(target, this);
+			if(target && isNormalObject(target)) {
+				extend(target, this);
 				return target;
 			}
 			return this;
@@ -514,7 +545,7 @@
 
 				doIsPromiseSteal(data, that);
 
-			} else if(_.isNormalObject(data) || _.isFunction(data)) {
+			} else if(isNormalObject(data) || isFunction(data)) {
 
 				doStealDatasThen(data, what, that);
 
@@ -563,7 +594,7 @@
 				
 				doIsPromiseSteal(thennable, newDfd);
 
-			} else if (_.isNormalObject(thennable) || _.isFunction(thennable)) {
+			} else if (isNormalObject(thennable) || isFunction(thennable)) {
 				
 				doStealDatasThen(thennable, "resolve", newDfd);
 
@@ -596,7 +627,7 @@
 			var whenData = [];
 			
 			args.forEach(function(item) {
-				if (_.isArray(item)) {
+				if (isArray(item)) {
 					promises = promises.concat(item);
 				} else {
 					promises.push(item);
@@ -671,12 +702,13 @@
 	Dfd.when = Dfd.prototype.when;
 	
 	//set this to the utility namespace 
-	_.Dfd = Dfd;
-	_.dfd = new Dfd();
-	_.dfd.resolve("Only to be used for WHEN magic!!!!");
-	_.isPromise = isPromise;
-	_.isDeferred = isDeferred;
+	self._ = self._ || {};
+	self._.Dfd = Dfd;
+	self._.dfd = new Dfd();
+	self._.dfd.resolve("Only to be used for WHEN magic!!!!");
+	self._.isPromise = isPromise;
+	self._.isDeferred = isDeferred;
 	//and also return the Constructor so that it could be saved and used directly
 	return Dfd;
-})();
+})(typeof self !== "undefined" ? self : this);
 
