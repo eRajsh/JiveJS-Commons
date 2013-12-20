@@ -702,8 +702,8 @@
 			get: function(docKey, options) {
 				var dfd = new _.Dfd();
 				var data = this.store.get(this._prefix + docKey, function(data) {
-					if(runtime.lastError) {
-						dfd.reject(runtime.lastError);
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
 					} else {
 						if(options && options.json) {
 							data = JSON.parse(data);
@@ -723,9 +723,9 @@
 				var toSet = {};
 				toSet[this._prefix + docKey] = data;
 
-				this.store.setItem(toSet, function() {
-					if(runtime.lastError) {
-						dfd.reject(runtime.lastError);
+				this.store.set(toSet, function() {
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
 					} else {
 						dfd.resolve();
 					}
@@ -736,9 +736,9 @@
 
 			remove: function(docKey, options) {
 				var dfd = new _.Dfd();
-				this.store.removeItem(this._prefix + docKey, function() {
-					if(runtime.lastError) {
-						dfd.reject(runtime.lastError);
+				this.store.remove(this._prefix + docKey, function() {
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
 					} else {
 						dfd.resolve();
 					}
@@ -759,8 +759,8 @@
 				this.store.get(null, function(listing) {
 					var ret = [];
 
-					if(runtime.lastError) {
-						dfd.reject(runtime.lastError);
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
 					} else {
 						for (var key in items) {
 							if(key.indexOf(prefix) === 0) {
@@ -789,16 +789,16 @@
 				this.store.get(null, function(listing) {
 					var ret = [];
 
-					if(runtime.lastError) {
-						dfd.reject(runtime.lastError);
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
 					} else {
 						function remove(key) {
 							var removeDfd = new _.Dfd();
 							dfds.push(removeDfd.promise());
 
 							this.store.remove(key, function() {
-								if(runtime.lastError) {
-									removeDfd.reject(runtime.lastError);
+								if(chrome.runtime.lastError) {
+									removeDfd.reject(chrome.runtime.lastError);
 								} else {
 									removeDfd.resolve();
 								}

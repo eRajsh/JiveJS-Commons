@@ -342,7 +342,7 @@
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
 
 		$.ajax({
-			url: remote + "/" + urn,
+			url: (self.Jive.Features.APIBaseUrl || "") + remote + "/" + urn,
 			beforeSend : function (xhr){
 				xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
 			},
@@ -1224,7 +1224,11 @@
 							var vmed;
 							toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
 							if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
-								vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
+								if(_.isFunction(entry.toVM)) {
+									vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
+								} else {
+									console.log("wasn't a function thing", entry);
+								}
 							} else {
 								vmed = toVMedCache[entry.urn][args.vm];
 							}
