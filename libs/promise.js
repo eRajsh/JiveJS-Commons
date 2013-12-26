@@ -245,7 +245,7 @@
 			}
 
 			if(Object.seal) {
-				//Freeze the this so that the functions cannot be changed/overridden nor modified
+				//Seal the this so that the functions cannot be changed/overridden nor modified
 				Object.seal(this);
 			}
 			
