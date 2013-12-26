@@ -134,12 +134,13 @@
 					}, 0, args);
 				}
 			} else {
-				args.dfd.notify({data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 				setTimeout(function(args) {
+					args.dfd.notify({data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
+
 					if(args.cb) {
 						args.cb.call(null, {data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 					}
-				}, 0, {cb: args.cb, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
+				}, 0, {cb: args.cb, dfd: args.dfd, data:args.data, matches:args.matches, raw: args.raw, binding: args.binding, key: args.key});
 			}
 			return null;
 		}
