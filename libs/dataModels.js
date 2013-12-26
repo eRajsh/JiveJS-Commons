@@ -860,9 +860,6 @@
 
 	var sortTheBastard = function(ret, keys) {
 		ret = ret || [];
-
-		console.table(keys);
-
 		ret = ret.sort(function sorter(a, b, keyIndex) {
 			keyIndex = keyIndex || 0;
 
@@ -874,6 +871,9 @@
 
 			var aVal = subSelect(a, key);
 			var bVal = subSelect(b, key);
+
+			aVal = _.isDate(aVal) ? aVal.getTime() : aVal;
+			bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
 
 			if(aVal === bVal){
 				keyIndex++;
@@ -931,7 +931,11 @@
 				var toPush = entry;
 
 				if(args.vm) {
-					toPush = entry.toVM(args);
+					if(entry.toVM && _.isFunction(entry.toVM)) {
+						toPush = entry.toVM(args);
+					} else {
+						toPush = _.clone(entry);
+					}
 				} else if(args.select) {
 					toPush = subSelectTheBastard(entry, args.select);
 				}

@@ -857,6 +857,8 @@
 			}			
 		},
 
+		isDate: _.isDate,
+
 
 		roundThreeAndPad: function(number){
 			var numberArray = ("" + Math.round(number * 1000)/1000).split('.');
