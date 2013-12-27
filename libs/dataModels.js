@@ -906,7 +906,6 @@
 
 	var sortTheBastard = function(ret, keys, args) {
 		ret = ret || [];
-
 		ret = ret.sort(function sorter(a, b, keyIndex) {
 			keyIndex = keyIndex || 0;
 
@@ -915,9 +914,10 @@
 			}
 
 			var key = keys[keyIndex].key;
-
 			var aVal = subSelect(a, key, args);
 			var bVal = subSelect(b, key, args);
+			aVal = _.isDate(aVal) ? aVal.getTime() : aVal;
+			bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
 
 			var order = keys[keyIndex].order;
 			var desc = (order === "desc" || order === "descending");
@@ -978,7 +978,11 @@
 				var toPush = entry;
 
 				if(args.vm) {
-					toPush = entry.toVM(args);
+					if(entry.toVM && _.isFunction(entry.toVM)) {
+						toPush = entry.toVM(args);
+					} else {
+						toPush = _.clone(entry);
+					}
 				} else if(args.select) {
 					toPush = subSelectTheBastard(entry, args.select, args);
 				}

@@ -213,6 +213,8 @@
 	 * @public
 	 * @param {String} str - the string to hash, it could be an object that has been stringified etc
 	 * @return {Number} the computed hash of the string
+	 * Note: theoretical range of -2^32 to 2^32 soooo   -4294967296 to 4294967296 but we add 4294967296
+	 * 			so it is from 0 to 8589934592 
 	 **/
 	_.hash = function(str) {
 		if(_.isNormalObject(str)) {
@@ -229,7 +231,7 @@
 			x = "0x" + table.substr(y * 9, 8);
 			crc = (crc >>> 8) ^ x;
 		}
-		return crc ^ (-1);
+		return crc ^ (-1) + 4294967296;
 	};
 
 	/**
@@ -856,6 +858,8 @@
 				return numberArray[0] + "." + numberArray[1];
 			}			
 		},
+
+		isDate: _.isDate,
 
 
 		roundThreeAndPad: function(number){

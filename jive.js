@@ -1179,7 +1179,7 @@ var _ = function() {
             x = "0x" + table.substr(y * 9, 8);
             crc = crc >>> 8 ^ x;
         }
-        return crc ^ -1;
+        return crc ^ -1 + 4294967296;
     };
     _.encode_utf8 = function(str) {
         return unescape(encodeURIComponent(str));
@@ -1658,6 +1658,7 @@ var _ = function() {
                 return numberArray[0] + "." + numberArray[1];
             }
         },
+        isDate: _.isDate,
         roundThreeAndPad: function(number) {
             var numberArray = ("" + Math.round(number * 1e3) / 1e3).split(".");
             if (!numberArray[1]) {
@@ -4804,6 +4805,8 @@ var _ = function() {
             var key = keys[keyIndex].key;
             var aVal = subSelect(a, key, args);
             var bVal = subSelect(b, key, args);
+            aVal = _.isDate(aVal) ? aVal.getTime() : aVal;
+            bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
             var order = keys[keyIndex].order;
             var desc = order === "desc" || order === "descending";
             var asc = order === "asc" || order === "ascending";
@@ -4849,7 +4852,11 @@ var _ = function() {
             if (typeof args.filter === "undefined" || args.filter && filterCheckTheBastard(entry, args.filter, args)) {
                 var toPush = entry;
                 if (args.vm) {
-                    toPush = entry.toVM(args);
+                    if (entry.toVM && _.isFunction(entry.toVM)) {
+                        toPush = entry.toVM(args);
+                    } else {
+                        toPush = _.clone(entry);
+                    }
                 } else if (args.select) {
                     toPush = subSelectTheBastard(entry, args.select, args);
                 }
