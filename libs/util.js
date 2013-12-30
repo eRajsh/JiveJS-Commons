@@ -1066,10 +1066,7 @@
 		escapeHtml: _.escape,
 		escape: _.escape,
 	};
-	if (typeof p !== "undefined") {
-		_.Dfd = p;
-	}
-	
+
 	//return the utility object for direct consumption if needed.
 	return _;
 })();
