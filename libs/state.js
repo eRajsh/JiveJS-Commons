@@ -1,5 +1,3 @@
-"use strict";
-
 /**
  * State.js returns a finite state machine kinda building upon the promise pattern 
  * 		while removing the artificial constraints of promise that you can't move from state to 
@@ -12,6 +10,7 @@
  * @returns {State} State constructor
 **/
 (function() {
+	"use strict";
 	//temp helper function since this state machine lib should be stand alone and not dependant on any
 	//unerscore or utility library
 	function extend(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; }

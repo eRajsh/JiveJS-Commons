@@ -39,6 +39,7 @@ endif
 
 JIVEJS=jive.js
 JIVEJS_DEPS = libs/lodash.js \
+	libs/jPromise/jpromise.min.js \
 	libs/util.js \
 	libs/retarded_utils.js \
 	libs/setImmediate.js \
@@ -46,7 +47,6 @@ JIVEJS_DEPS = libs/lodash.js \
 	libs/map.js \
 	libs/weakmap.js \
 	libs/capped.js \
-	libs/promise.js \
 	libs/state.js \
 	libs/localStore.js \
 	libs/dataModels.js \
@@ -83,7 +83,7 @@ $(JIVEJS): $(JIVEJS_DEPS) $(UGLIFYJS)
 build: $(MINIFY) $(JIVEJS)
 
 clean: 
-	rm -f jive.js
+	rm -f jive.js jive.min.js 
 
 test:
 	@./node_modules/.bin/jasmine-node \

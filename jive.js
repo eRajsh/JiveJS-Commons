@@ -1066,6 +1066,418 @@ var _ = function() {
     return J;
 }.call(this);
 
+(function(root) {
+    "use strict";
+    (function(factory) {
+        if (typeof define === "function" && define.amd) {
+            define(factory);
+        } else if (typeof exports === "object") {
+            module.exports = factory();
+        } else {
+            root.p = factory();
+        }
+    })(function() {
+        function extend(a, b) {
+            for (var key in b) {
+                a[key] = b[key];
+            }
+        }
+        function isFunction(a) {
+            return !!(a && Object.prototype.toString.call(a) === "[object Function]");
+        }
+        function isObject(a) {
+            return !!(a && Object.prototype.toString.call(a) === "[object Object]");
+        }
+        function isArray(a) {
+            return !!(a && Object.prototype.toString.call(a) === "[object Array]");
+        }
+        function isPromise(promise) {
+            if (typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
+                return true;
+            }
+            return false;
+        }
+        function isDeferred(deferred) {
+            if (typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
+                return true;
+            }
+            return false;
+        }
+        var setTimeout = root.setTimeout;
+        if (typeof process === "object" && isFunction(process.nextTick)) {
+            setTimeout = process.nextTick;
+        }
+        function callback(scope, data, cbs) {
+            setTimeout(function() {
+                cbs.forEach(function(item) {
+                    item.call(scope, data);
+                });
+            }, 0);
+        }
+        function sanitizeCbs(cbs) {
+            if (cbs && !isArray(cbs)) {
+                cbs = [ cbs ];
+            }
+            return cbs;
+        }
+        var internalFilteredDataInstance = {
+            mine: "mine"
+        };
+        var filteredData = internalFilteredDataInstance;
+        function getThenFilterCallback(filter, newp, what) {
+            return function(data) {
+                filteredData = internalFilteredDataInstance;
+                if (filter && isFunction(filter)) {
+                    try {
+                        filteredData = filter.call(undefined, data);
+                    } catch (e) {
+                        filteredData = internalFilteredDataInstance;
+                        newp.reject(e);
+                    }
+                    if (filteredData !== internalFilteredDataInstance) {
+                        if (what === "reject") {
+                            newp.resolve(filteredData);
+                        } else {
+                            newp[what](filteredData);
+                        }
+                    }
+                } else {
+                    newp[what](data);
+                }
+            };
+        }
+        function doIsPromiseSteal(data, scope) {
+            data.done(function(resData) {
+                scope.doResolve(resData);
+            });
+            data.fail(function(rejData) {
+                scope.doReject(rejData);
+            });
+            data.progress(function(progData) {
+                scope.doNotify(progData);
+            });
+        }
+        function doWhatYouShould(data, what, scope) {
+            switch (what) {
+              case "resolve":
+                scope.doResolve(data);
+                break;
+
+              case "reject":
+                scope.doReject(data);
+                break;
+
+              case "notify":
+                scope.doNotify(data);
+                break;
+            }
+        }
+        function doTryAndGetDatasThen(data, scope) {
+            var ret = {
+                failed: false,
+                datasThen: undefined
+            };
+            try {
+                ret.datasThen = data.then;
+            } catch (e) {
+                ret.datasThen = undefined;
+                ret.failed = true;
+                scope.doReject(e);
+            }
+            return ret;
+        }
+        function doDatasThenIsAFunction(datasThen, data, scope) {
+            var fCalled = false;
+            try {
+                var datasThenp = new p();
+                datasThenp.done(function(resData) {
+                    scope.doResolve(resData);
+                }).fail(function(rejData) {
+                    scope.doReject(rejData);
+                }).progress(function(progData) {
+                    scope.doProgress(progData);
+                });
+                datasThen.call(data, function(resData) {
+                    if (!fCalled) {
+                        fCalled = true;
+                        datasThenp.resolve(resData);
+                    }
+                }, function(rejData) {
+                    if (!fCalled) {
+                        fCalled = true;
+                        datasThenp.reject(rejData);
+                    }
+                }, function(progData) {
+                    datasThenp.notify(progData);
+                });
+            } catch (e) {
+                if (!fCalled) {
+                    scope.doReject(e);
+                }
+            }
+        }
+        function doStealDatasThen(data, what, scope) {
+            var ret = doTryAndGetDatasThen(data, scope);
+            if (!ret.failed) {
+                if (isFunction(ret.datasThen)) {
+                    doDatasThenIsAFunction(ret.datasThen, data, scope);
+                } else {
+                    doWhatYouShould(data, what, scope);
+                }
+            }
+        }
+        var p = function(beforeStart) {
+            this.internalState = 0;
+            this.internalWith = undefined;
+            this.internalData = null;
+            this.callbacks = {
+                done: [],
+                fail: [],
+                always: [],
+                progress: []
+            };
+            this._pro = null;
+            if (beforeStart && isFunction(beforeStart)) {
+                beforeStart.call(this, this);
+            }
+            return this;
+        };
+        var Promise = function(p, target) {
+            this.done = p.done.bind(p);
+            this.fail = p.fail.bind(p);
+            this.progress = p.progress.bind(p);
+            this.always = p.always.bind(p);
+            this.then = p.then.bind(p);
+            this.state = function() {
+                return p.internalState;
+            };
+            if (target && isObject(target)) {
+                extend(target, this);
+                return target;
+            }
+            return this;
+        };
+        extend(Promise.prototype, {
+            toString: function() {
+                return "[object Promise]";
+            }
+        });
+        extend(p.prototype, {
+            toString: function() {
+                return "[object Deferred]";
+            },
+            Promise: Promise,
+            notify: function(data) {
+                if (this.internalState === 0) {
+                    this.internalData = data;
+                    callback(this.internalWith, this.internalData, this.callbacks.progress);
+                }
+                return this;
+            },
+            notifyWith: function(scope, data) {
+                if (this.internalState === 0) {
+                    this.internalWith = scope;
+                    this.internalData = data;
+                    callback(this.internalWith, this.internalData, this.callbacks.progress);
+                }
+                return this;
+            },
+            doNotify: function(data) {
+                this.internalData = data;
+                callback(this.internalWith, this.internalData, this.callbacks.progress);
+            },
+            reject: function(data) {
+                if (this.internalState === 0) {
+                    this.deNestSanitizeTheInsanityAndCall(data, "reject");
+                }
+                return this;
+            },
+            rejectWith: function(scope, data) {
+                if (this.internalState === 0) {
+                    this.internalWith = scope;
+                    this.deNestSanitizeTheInsanityAndCall(data, "reject");
+                }
+                return this;
+            },
+            doReject: function(data) {
+                this.internalData = data;
+                this.internalState = 2;
+                callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
+            },
+            resolve: function(data) {
+                if (this.internalState === 0) {
+                    this.deNestSanitizeTheInsanityAndCall(data, "resolve");
+                }
+                return this;
+            },
+            resolveWith: function(scope, data) {
+                if (this.internalState === 0) {
+                    this.internalWith = scope;
+                    this.deNestSanitizeTheInsanityAndCall(data, "resolve");
+                }
+                return this;
+            },
+            doResolve: function(data) {
+                this.internalData = data;
+                this.internalState = 1;
+                callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
+            },
+            always: function(cbs) {
+                cbs = sanitizeCbs(cbs);
+                if (cbs.length > 0) {
+                    if (this.internalState !== 0) {
+                        callback(this.internalWith, this.internalData, cbs);
+                    } else {
+                        this.callbacks.always = this.callbacks.always.concat(cbs);
+                    }
+                }
+                return this.promise();
+            },
+            done: function(cbs) {
+                cbs = sanitizeCbs(cbs);
+                if (cbs.length > 0) {
+                    if (this.internalState === 1) {
+                        callback(this.internalWith, this.internalData, cbs);
+                    } else {
+                        this.callbacks.done = this.callbacks.done.concat(cbs);
+                    }
+                }
+                return this.promise();
+            },
+            fail: function(cbs) {
+                cbs = sanitizeCbs(cbs);
+                if (cbs.length > 0) {
+                    if (this.internalState === 2) {
+                        callback(this.internalWith, this.internalData, cbs);
+                    } else {
+                        this.callbacks.fail = this.callbacks.fail.concat(cbs);
+                    }
+                }
+                return this.promise();
+            },
+            progress: function(cbs) {
+                if (this.internalState === 0) {
+                    cbs = sanitizeCbs(cbs);
+                    this.callbacks.progress = this.callbacks.progress.concat(cbs);
+                }
+                return this.promise();
+            },
+            deNestSanitizeTheInsanityAndCall: function(data, what) {
+                if (data === this.promise()) {
+                    this.doReject(new TypeError("Promise Tried to Resolve with Self"));
+                } else if (isPromise(data)) {
+                    doIsPromiseSteal(data, this);
+                } else if (isObject(data) || isFunction(data)) {
+                    doStealDatasThen(data, what, this);
+                } else {
+                    doWhatYouShould(data, what, this);
+                }
+            },
+            then: function(doneFilter, failFilter, progressFilter) {
+                var newp = new p();
+                this.done(getThenFilterCallback(doneFilter, newp, "resolve")).fail(getThenFilterCallback(failFilter, newp, "reject")).progress(getThenFilterCallback(progressFilter, newp, "notify"));
+                return newp.promise();
+            },
+            wrap: function(thennable) {
+                var newp = new p();
+                var datasThen;
+                if (isPromise(thennable) || isDeferred(thennable)) {
+                    doIsPromiseSteal(thennable, newp);
+                } else if (isObject(thennable) || isFunction(thennable)) {
+                    doStealDatasThen(thennable, "resolve", newp);
+                } else {
+                    newp.resolve(thennable);
+                }
+                return newp.promise();
+            },
+            when: function() {
+                var args = Array.prototype.slice.call(arguments);
+                var promises = [];
+                var newp = new p();
+                var resolvedCount = 0;
+                var handledCount = 0;
+                var whenData = [];
+                args.forEach(function(item) {
+                    if (isArray(item)) {
+                        promises = promises.concat(item);
+                    } else {
+                        promises.push(item);
+                    }
+                });
+                if (promises.length === 0) {
+                    newp.resolve(whenData);
+                }
+                promises.forEach(function(promise, i) {
+                    if (isPromise(promise) || isDeferred(promise)) {
+                        promise.done(function(data) {
+                            resolvedCount++;
+                            handledCount++;
+                            whenData[i] = data;
+                            newp.notify({
+                                index: i,
+                                action: "resolved",
+                                data: data,
+                                resolved: resolvedCount,
+                                handled: handledCount
+                            });
+                            if (resolvedCount === promises.length) {
+                                newp.resolve(whenData);
+                            } else if (handledCount === promises.length) {
+                                newp.reject(whenData);
+                            }
+                        }).fail(function(data) {
+                            handledCount++;
+                            whenData[i] = data;
+                            newp.notify({
+                                index: i,
+                                action: "rejected",
+                                data: data,
+                                resolved: resolvedCount,
+                                handled: handledCount
+                            });
+                            if (resolvedCount === promises.length) {
+                                newp.resolve(whenData);
+                            } else if (handledCount === promises.length) {
+                                newp.reject(whenData);
+                            }
+                        }).progress(function(data) {
+                            newp.notify(data);
+                        });
+                    } else if (!!promise) {
+                        resolvedCount++;
+                        handledCount++;
+                        whenData[i] = promise;
+                    } else {
+                        handledCount++;
+                        whenData[i] = promise;
+                    }
+                });
+                if (resolvedCount === promises.length) {
+                    newp.resolve(whenData);
+                } else if (handledCount === promises.length) {
+                    newp.reject(whenData);
+                }
+                return newp.promise();
+            },
+            promise: function(target) {
+                if (!this._pro) {
+                    this._pro = new this.Promise(this, target);
+                }
+                return this._pro;
+            },
+            state: function() {
+                return this.internalState;
+            }
+        });
+        p.when = p.prototype.when;
+        p.wrap = p.prototype.wrap;
+        if (Object.freeze) {
+            Object.freeze(p.prototype);
+        }
+        return p;
+    });
+})(this);
+
 (function() {
     "use strict";
     var i = 0;
@@ -1803,6 +2215,9 @@ var _ = function() {
         escapeHtml: _.escape,
         escape: _.escape
     };
+    if (typeof p !== "undefined") {
+        _.Dfd = p;
+    }
     return _;
 })();
 
@@ -2538,452 +2953,8 @@ var _ = function() {
     _.Capped = Capped;
 })();
 
-(function(self) {
-    function extend(a, b) {
-        for (var key in b) {
-            a[key] = b[key];
-        }
-    }
-    function isFunction(a) {
-        return !!(a && Object.prototype.toString.call(a) === "[object Function]");
-    }
-    function isNormalObject(a) {
-        return !!(a && Object.prototype.toString.call(a) === "[object Object]");
-    }
-    function isArray(a) {
-        return !!(a && Object.prototype.toString.call(a) === "[object Array]");
-    }
-    function isPromise(promise) {
-        if (typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
-            return true;
-        }
-        return false;
-    }
-    function isDeferred(deferred) {
-        if (typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
-            return true;
-        }
-        return false;
-    }
-    function callback(scope, data, cbs) {
-        setTimeout(function() {
-            cbs.forEach(function(item) {
-                item.call(scope, data);
-            });
-        }, 0);
-    }
-    function sanitizeCbs(cbs) {
-        if (cbs && !isArray(cbs)) {
-            cbs = [ cbs ];
-        }
-        return cbs;
-    }
-    function isPromise(promise) {
-        if (typeof promise !== "undefined" && promise !== null && promise.toString && promise.toString() === "[object Promise]") {
-            return true;
-        }
-        return false;
-    }
-    function isDeferred(deferred) {
-        if (typeof deferred !== "undefined" && deferred !== null && deferred.toString && deferred.toString() === "[object Deferred]") {
-            return true;
-        }
-        return false;
-    }
-    var internalFilteredDataInstance = {
-        mine: "mine"
-    };
-    function getThenFilterCallback(filter, newDfd, what) {
-        return function(data) {
-            var filteredData = internalFilteredDataInstance;
-            if (filter && isFunction(filter)) {
-                try {
-                    filteredData = filter.call(undefined, data);
-                } catch (e) {
-                    filteredData = internalFilteredDataInstance;
-                    newDfd.reject(e);
-                }
-                if (filteredData !== internalFilteredDataInstance) {
-                    if (what === "reject") {
-                        newDfd.resolve(filteredData);
-                    } else {
-                        newDfd[what](filteredData);
-                    }
-                }
-            } else {
-                newDfd[what](data);
-            }
-        };
-    }
-    function doIsPromiseSteal(data, scope) {
-        data.done(function(resData) {
-            scope.doResolve(resData);
-        }).fail(function(rejData) {
-            scope.doReject(rejData);
-        }).progress(function(progData) {
-            scope.doNotify(progData);
-        });
-    }
-    function doWhatYouShould(data, what, scope) {
-        switch (what) {
-          case "resolve":
-            scope.doResolve(data);
-            break;
-
-          case "reject":
-            scope.doReject(data);
-            break;
-
-          case "notify":
-            scope.doNotify(data);
-            break;
-        }
-    }
-    function doTryAndGetDatasThen(data, scope) {
-        var ret = {
-            failed: false,
-            datasThen: undefined
-        };
-        try {
-            ret.datasThen = data.then;
-        } catch (e) {
-            ret.datasThen = undefined;
-            ret.failed = true;
-            scope.doReject(e);
-        }
-        return ret;
-    }
-    function doDatasThenIsAFunction(datasThen, data, scope) {
-        var fCalled = false;
-        try {
-            var datasThenDfd = new Dfd();
-            datasThenDfd.done(function(resData) {
-                scope.doResolve(resData);
-            }).fail(function(rejData) {
-                scope.doReject(rejData);
-            }).progress(function(progData) {
-                scope.doProgress(progData);
-            });
-            datasThen.call(data, function(resData) {
-                if (!fCalled) {
-                    fCalled = true;
-                    datasThenDfd.resolve(resData);
-                }
-            }, function(rejData) {
-                if (!fCalled) {
-                    fCalled = true;
-                    datasThenDfd.reject(rejData);
-                }
-            }, function(progData) {
-                datasThenDfd.notify(progData);
-            });
-        } catch (e) {
-            if (!fCalled) {
-                scope.doReject(e);
-            }
-        }
-    }
-    function doStealDatasThen(data, what, scope) {
-        var ret = doTryAndGetDatasThen(data, scope);
-        if (!ret.failed) {
-            if (isFunction(ret.datasThen)) {
-                doDatasThenIsAFunction(ret.datasThen, data, scope);
-            } else {
-                doWhatYouShould(data, what, scope);
-            }
-        }
-    }
-    var Dfd = function(beforeStart, debugMode) {
-        this.internalState = 0;
-        this.internalWith = this;
-        this.internalData = null;
-        this.callbacks = {
-            done: [],
-            fail: [],
-            always: [],
-            progress: []
-        };
-        this._pro = null;
-        if (beforeStart && {}.toString.call(beforeStart) === "[object Function]") {
-            beforeStart.call(this, this);
-        }
-        if (!debugMode) {
-            if (Object.defineProperties) {
-                Object.defineProperties(this, {
-                    internalState: {
-                        enumerable: false,
-                        writable: true,
-                        configurable: false
-                    },
-                    internalWith: {
-                        enumerable: false,
-                        writable: true,
-                        configurable: false
-                    },
-                    internalData: {
-                        enumerable: false,
-                        writable: true,
-                        configurable: false
-                    },
-                    callbacks: {
-                        enumerable: false,
-                        writable: false,
-                        configurable: false
-                    },
-                    _pro: {
-                        enumerable: false,
-                        writable: true,
-                        configurable: false
-                    }
-                });
-            }
-            if (Object.seal) {
-                Object.seal(this);
-            }
-            if (Object.freeze) {
-                Object.freeze(Dfd.prototype);
-            }
-        }
-        return this;
-    };
-    extend(Dfd.prototype, {
-        toString: function() {
-            return "[object Deferred]";
-        },
-        Promise: function(dfd, target) {
-            this.toString = function() {
-                return "[object Promise]";
-            };
-            this.done = dfd.done.bind(dfd);
-            this.fail = dfd.fail.bind(dfd);
-            this.progress = dfd.progress.bind(dfd);
-            this.always = dfd.always.bind(dfd);
-            this.then = dfd.then.bind(dfd);
-            this.state = this.internalState = function() {
-                return dfd.internalState;
-            };
-            this.internalData = function() {
-                return dfd.internalData;
-            };
-            this.internalWith = function() {
-                return dfd.internalWith;
-            };
-            if (target && isNormalObject(target)) {
-                extend(target, this);
-                return target;
-            }
-            return this;
-        },
-        notify: function(data) {
-            if (this.internalState === 0) {
-                this.internalData = data;
-                callback(this.internalWith, this.internalData, this.callbacks.progress);
-            }
-            return this;
-        },
-        notifyWith: function(scope, data) {
-            if (this.internalState === 0) {
-                this.internalWith = scope;
-                this.internalData = data;
-                callback(this.internalWith, this.internalData, this.callbacks.progress);
-            }
-            return this;
-        },
-        doNotify: function(data) {
-            this.internalData = data;
-            callback(this.internalWith, this.internalData, this.callbacks.progress);
-        },
-        reject: function(data) {
-            if (this.internalState === 0) {
-                this.deNestSanitizeTheInsanityAndCall(data, "reject");
-            }
-            return this;
-        },
-        rejectWith: function(scope, data) {
-            if (this.internalState === 0) {
-                this.internalWith = scope;
-                this.deNestSanitizeTheInsanityAndCall(data, "reject");
-            }
-            return this;
-        },
-        doReject: function(data) {
-            this.internalData = data;
-            this.internalState = 2;
-            callback(this.internalWith, this.internalData, this.callbacks.fail.concat(this.callbacks.always));
-        },
-        resolve: function(data) {
-            if (this.internalState === 0) {
-                this.deNestSanitizeTheInsanityAndCall(data, "resolve");
-            }
-            return this;
-        },
-        resolveWith: function(scope, data) {
-            if (this.internalState === 0) {
-                this.internalWith = scope;
-                this.deNestSanitizeTheInsanityAndCall(data, "resolve");
-            }
-            return this;
-        },
-        doResolve: function(data) {
-            this.internalData = data;
-            this.internalState = 1;
-            callback(this.internalWith, this.internalData, this.callbacks.done.concat(this.callbacks.always));
-        },
-        always: function(cbs) {
-            cbs = sanitizeCbs(cbs);
-            if (cbs.length > 0) {
-                if (this.internalState !== 0) {
-                    callback(this.internalWith, this.internalData, cbs);
-                } else {
-                    this.callbacks.always = this.callbacks.always.concat(cbs);
-                }
-            }
-            return this.promise();
-        },
-        done: function(cbs) {
-            cbs = sanitizeCbs(cbs);
-            if (cbs.length > 0) {
-                if (this.internalState === 1) {
-                    callback(this.internalWith, this.internalData, cbs);
-                } else {
-                    this.callbacks.done = this.callbacks.done.concat(cbs);
-                }
-            }
-            return this.promise();
-        },
-        fail: function(cbs) {
-            cbs = sanitizeCbs(cbs);
-            if (cbs.length > 0) {
-                if (this.internalState === 2) {
-                    callback(this.internalWith, this.internalData, cbs);
-                } else {
-                    this.callbacks.fail = this.callbacks.fail.concat(cbs);
-                }
-            }
-            return this.promise();
-        },
-        progress: function(cbs) {
-            if (this.internalState === 0) {
-                cbs = sanitizeCbs(cbs);
-                this.callbacks.progress = this.callbacks.progress.concat(cbs);
-            }
-            return this.promise();
-        },
-        deNestSanitizeTheInsanityAndCall: function(data, what) {
-            var that = this;
-            if (data === this.promise()) {
-                that.doReject(new TypeError("Promise Tried to Resolve with Self"));
-            } else if (isPromise(data)) {
-                doIsPromiseSteal(data, that);
-            } else if (isNormalObject(data) || isFunction(data)) {
-                doStealDatasThen(data, what, that);
-            } else {
-                doWhatYouShould(data, what, that);
-            }
-        },
-        then: function(doneFilter, failFilter, progressFilter) {
-            var newDfd = new Dfd();
-            var that = this;
-            this.done(getThenFilterCallback(doneFilter, newDfd, "resolve")).fail(getThenFilterCallback(failFilter, newDfd, "reject")).progress(getThenFilterCallback(progressFilter, newDfd, "notify"));
-            return newDfd.promise();
-        },
-        wrap: function(thennable) {
-            var newDfd = new Dfd();
-            var datasThen;
-            if (isPromise(thennable) || isDeferred(thennable)) {
-                doIsPromiseSteal(thennable, newDfd);
-            } else if (isNormalObject(thennable) || isFunction(thennable)) {
-                doStealDatasThen(thennable, "resolve", newDfd);
-            } else {
-                newDfd.resolve(thennable);
-            }
-            return newDfd.promise();
-        },
-        when: function() {
-            var args = Array.prototype.slice.call(arguments);
-            var promises = [];
-            var newDfd = new Dfd();
-            var resolvedCount = 0;
-            var handledCount = 0;
-            var whenData = [];
-            args.forEach(function(item) {
-                if (isArray(item)) {
-                    promises = promises.concat(item);
-                } else {
-                    promises.push(item);
-                }
-            });
-            promises.forEach(function(promise, i) {
-                if (isPromise(promise) || isDeferred(promise)) {
-                    promise.done(function(data) {
-                        resolvedCount++;
-                        handledCount++;
-                        whenData[i] = data;
-                        newDfd.notify({
-                            index: i,
-                            action: "resolved",
-                            data: data,
-                            resolved: resolvedCount,
-                            handled: handledCount
-                        });
-                        if (resolvedCount === promises.length) {
-                            newDfd.resolve(whenData);
-                        }
-                    }).fail(function(data) {
-                        handledCount++;
-                        whenData[i] = data;
-                        newDfd.notify({
-                            index: i,
-                            action: "rejected",
-                            data: data,
-                            resolved: resolvedCount,
-                            handled: handledCount
-                        });
-                        if (handledCount === promises.length) {
-                            newDfd.reject(whenData);
-                        }
-                    }).progress(function(data) {
-                        newDfd.notify(data);
-                    });
-                } else if (promise) {
-                    resolvedCount++;
-                    handledCount++;
-                    whenData[i] = promise;
-                } else {
-                    handledCount++;
-                    whenData[i] = promises;
-                }
-            });
-            if (resolvedCount === promises.length) {
-                newDfd.resolve(whenData);
-            } else if (handledCount === promises.length) {
-                newDfd.reject(whenData);
-            }
-            return newDfd.promise();
-        },
-        promise: function(target) {
-            if (!this._pro) {
-                this._pro = new this.Promise(this, target);
-            }
-            return this._pro;
-        },
-        state: function() {
-            return this.internalState;
-        }
-    });
-    Dfd.when = Dfd.prototype.when;
-    var root = _ || self._ || {};
-    root.Dfd = Dfd;
-    root.dfd = new Dfd();
-    root.dfd.resolve("Only to be used for WHEN magic!!!!");
-    root.isPromise = isPromise;
-    root.isDeferred = isDeferred;
-    return Dfd;
-})(typeof self !== "undefined" ? self : this);
-
-"use strict";
-
 (function() {
+    "use strict";
     function extend(dest, source) {
         for (var prop in source) {
             dest[prop] = source[prop];

@@ -35,7 +35,6 @@ describe("Promise.js Deferred Promise class", function() {
 		it("has an internalState property that you could read manually if you wanted", function() {
 			var dfd = new _.Dfd();
 			expect(dfd.internalState).toEqual(0);
-			expect(Object.keys(dfd).length).toEqual(0);
 
 			dfd.reject();
 			expect(dfd.internalState).toEqual(2);
@@ -47,7 +46,7 @@ describe("Promise.js Deferred Promise class", function() {
 
 		it("has an internalWith property that that is a reference to the Dfd itself, a way to sanitize 'this' with all the callbacks", function() {
 			var dfd = new _.Dfd();
-			expect(dfd.internalWith).toEqual(dfd);
+			expect(dfd.internalWith).toEqual(undefined);
 
 			var obj = {};
 			dfd.resolveWith(obj);
