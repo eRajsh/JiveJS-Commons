@@ -5448,7 +5448,7 @@ var _ = function() {
                 reg.push("(" + parts[i] + ")");
             }
         }
-        var regex = new RegExp("^" + reg.join("\\:\\b") + "$", "i");
+        var regex = new RegExp("^" + reg.join("\\:") + "$", "i");
         return regex;
     }
     _.createRegex = _.createRegex || createRegex;

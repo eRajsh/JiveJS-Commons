@@ -39,7 +39,7 @@
 				reg.push("("+parts[i]+")")
 			}
 		}
-		var regex = new RegExp("^" + reg.join("\\:\\b")+"$", "i");
+		var regex = new RegExp("^" + reg.join("\\:")+"$", "i");
 		return regex;
 	}
 
