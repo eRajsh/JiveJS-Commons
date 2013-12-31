@@ -73,8 +73,8 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 
 			var stats = fabric.debug();
 
-			expect(stats.bindings["nick:rocks"].regex).toEqual(/^(nick)\:\b(rocks)$/i);
-			expect(stats.bindings["nick:rocks"].regex.toString()).toEqual('/^(nick)\\:\\b(rocks)$/i')
+			expect(stats.bindings["nick:rocks"].regex).toEqual(/^(nick)\:(rocks)$/i);
+			expect(stats.bindings["nick:rocks"].regex.toString()).toEqual('/^(nick)\\:(rocks)$/i')
 			expect(stats.bindings["nick:rocks"].regex.test("nick:rocks")).toEqual(true);
 			expect(stats.bindings["nick:rocks"].regex.test("nick:almost:rocks")).toEqual(false);
 			expect(stats.bindings["nick:rocks"].regex.test("hicks:rock")).toEqual(false);

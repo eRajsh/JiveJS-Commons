@@ -39,7 +39,7 @@ endif
 
 JIVEJS=jive.js
 JIVEJS_DEPS = libs/lodash.js \
-	libs/jPromise/jpromise.min.js \
+	libs/jPromise/jpromise.js \
 	libs/util.js \
 	libs/retarded_utils.js \
 	libs/setImmediate.js \
@@ -85,11 +85,11 @@ build: $(MINIFY) $(JIVEJS)
 clean: 
 	rm -f jive.js jive.min.js 
 
-test:
+test: all
 	@./node_modules/.bin/jasmine-node \
 		spec/
 
-test-browser:
+test-browser: all
 	@./node_modules/.bin/serve .
 
 watch:

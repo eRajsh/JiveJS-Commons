@@ -31,16 +31,14 @@
 
 	var makeForModelDeferDfds = {};
 
-	var getDeffered = function getDeffered(urn, strict) {
+	var getDeffered = function getDeffered(urn) {
 
 		if(makeForModelDeferDfds[urn]) {
 			return makeForModelDeferDfds[urn];
 		} else {
-			if(!strict) {
-				for(var key in makeForModelDeferDfds) {
-					if(_.isRegex(makeForModelDeferDfds[key].regex) && makeForModelDeferDfds[key].regex.exec(urn)) {
-						return makeForModelDeferDfds[key];
-					}
+			for(var key in makeForModelDeferDfds) {
+				if(makeForModelDeferDfds[key].regex.exec(urn)) {
+					return makeForModelDeferDfds[key];
 				}
 			}
 		}
@@ -83,20 +81,7 @@
 						if(instance) {
 							dfd.resolve(instance);
 						} else {
-							var alreadyWaiting = getDeffered(args.urn, true);
-							if(alreadyWaiting) {
-								alreadyWaiting.promise.done(function(){
-									instance = collection.queryOne({ filter: { urn: args.urn }});
-
-									if(instance) {
-										dfd.resolve(instance);
-									} else {
-										makeAndGet(args, model, collection, dfd, given);
-									}
-								});
-							} else {
-								makeAndGet(args, model, collection, dfd, given);
-							}
+							makeAndGet(args, model, collection, dfd, given);
 						}
 					});
 				} else {
@@ -125,7 +110,7 @@
 
 				if(_.isArray(ref)) {
 					scope[key].forEach(function(item, i) {
-						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
+						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(scope[key] instanceof Model)) {
 							var eachDfd = new _.Dfd();
 
 							makeForModel(item, true).done(function(ret) {
@@ -133,7 +118,7 @@
 								eachDfd.resolve();
 							});
 
-							dfds.push(eachDfd.promise());
+							dfds.push(eachDfd);
 						} else if(_.isUrn(item)) {
 							var eachDfd = new _.Dfd();
 
@@ -142,7 +127,7 @@
 								eachDfd.resolve();
 							});
 
-							dfds.push(eachDfd.promise());
+							dfds.push(eachDfd);
 						}
 					});
 				} else {
@@ -158,22 +143,19 @@
 					} else if(_.isUrn(scope[key])) {
 						var eachDfd = new _.Dfd();
 
-
 						makeForModel({urn: scope[key]}).done(function(ret) {
 							scope[key] = ret;
 							eachDfd.resolve();
 						});
 
-						dfds.push(eachDfd.promise());
+						dfds.push(eachDfd);
 					}
 				}
 			})(key);
 		}
 
-		_.Dfd.when(dfds).done(function() {
+		_.Dfd.when(dfds).always(function() {
 			dfd.resolve(scope);
-		}).fail(function(errs) {
-			console.log("Errors in populates", errs);
 		});
 
 		return dfd.promise();
@@ -201,17 +183,18 @@
 		if(scope._options.store.remote && args.remote) {
 			// TODO: either use the TTL bit or we should set a "offline mode" flag somewhere that we check here
 			if(args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
-				if(args.method === "GET") {
-					makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
-						promise: dfd.promise()
-					};
-				}
-
 				local(args, scope).done(function(ret) {
 					dfd.resolve({data: ret, headers: {}, status: 200, local: true});
 				}).fail(function(e) {
 					dfd.reject(e);
 				});
+
+				if(args.method === "GET") {
+					makeForModelDeferDfds[scope.urn] = {
+						promise: dfd.promise(),
+						regex: new RegExp(scope.urn)
+					};
+				}
 			} else {
 				if(args.method === "GET" && scope._options.collection === true) {
 					makeForModelDeferDfds[scope._options.urn] = {
@@ -221,18 +204,25 @@
 				}
 
 				ajax(args, scope).done(function(ret){
+					if(args.method === "GET" && scope._options.collection === true) {
+
+						// TODO: START HERE
+						if(_.isArray(scope._options.subscriptions)) {
+							for(var i = 0; i < scope._options.subscriptions.length; i++) {
+								self.Jive.SessionBridge.subscribe({
+									urn: scope._options.subscriptions[i],
+									ETag: ret.data.ETag
+								});
+							}
+						}
+					}
+
 					dfd.resolve(ret);
 				}).fail(function(e) {
 					dfd.reject(e);
 				});
 			}
 		} else if(scope._options.store.localStorage) {
-			if(args.method === "GET") {
-				makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
-					promise: dfd.promise()
-				};
-			}
-
 			local(args, scope).done(function(ret) {
 				dfd.resolve(ret);
 			}).fail(function(e) {
@@ -342,7 +332,7 @@
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
 
 		$.ajax({
-			url: (self.Jive.Features.APIBaseUrl || "") + remote + "/" + urn,
+			url: remote + "/" + urn,
 			beforeSend : function (xhr){
 				xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
 			},
@@ -390,7 +380,7 @@
 		scope = scope || this;
 
 		var data = ret.data.body || ret.data;
-		var toRet, populate, publish = false, dfd;
+		var toRet;
 
 		if(scope._options.collection === true) {
 			var model = findModel(data.urn);
@@ -402,36 +392,54 @@
 				case "posted":
 					if(typeof instance === "undefined" && model) {
 						instance = new model(data);
-						if(makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
-							makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
-						} else {
-							dfd = new _.Dfd();
-
-							makeForModelDeferDfds[instance.urn] = makeForModelDeferDfds[instance.urn] || {
-								promise: dfd.promise()
-							};
-						}
 
 						insertFunc({entry: instance}, collection);
-					} else {
-						if(makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
-							makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
-						}
 
+						collection._options.persisted = collection.toJSON();
+					} else {
 						_.extend(instance, data);
 					}
+				break;
 
-					populate = true;
-					publish = true;
+				case "putted":
+					if(typeof instance !== "undefined") {
+						for(var key in instance) {
+							if(key !== "_options") {
+								delete instance[key];
+							}
+						}
+					}
+				case "patched":
+					if(typeof instance !== "undefined") {
+						_.extend(instance, data);
+					}
 				break;
 			}
 
-			// We always want to return the instance, not the scope when
-			// we are inside the collection. Not often the collection itself
-			// gets an update since the collection is a client side concept only
 			toRet = instance;
 		} else {
 			switch(event) {
+				case "posted":
+					var model = findModel(data.urn);
+					var collection = findCollection(data.urn);
+
+					var instance = (typeof collection !== "undefined") ? collection.queryOne({filter: { urn: data.urn }}) : scope;
+
+					if(typeof instance === "undefined" && model) {
+						instance = new model(data);
+
+						if(collection) {
+							insertFunc({entry: instance}, collection);
+						}
+
+						collection._options.persisted = collection.toJSON();
+					} else {
+						_.extend(instance, data);
+					}
+
+					toRet = instance;
+				break;
+
 				case "putted":
 					if(typeof scope !== "undefined") {
 						for(var key in scope) {
@@ -440,49 +448,22 @@
 							}
 						}
 					}
-				// THIS TOTALLY FLOWS INTO PATCHED
-				// It should be this way
-
 				case "patched":
-					for (var key in scope._options.keys) {
-						scope[key] = (typeof data[key] !== "undefined") ? data[key] : scope[key];
-					}
-
-					for (var key in scope._options.refs) {
-						if(typeof data[key] !== "undefined" && scope[key].urn !== data[key]) {
-							scope[key] = data[key];
-
-							populate = true;
-						}
-					}
-
-					publish = true;
+					_.extend(scope, data);
 				break;
 			}
 
 			toRet = scope;
 		}
 
-		if(populate === true) {
-			toRet._options.inited = populateRefs(toRet);
-		}
-
-		if(publish === true) {
-			toRet._options.inited.done(function() {
-				if(dfd) {
-					dfd.resolve();
-				}
-
-				toRet.dispatch({
-					event: event,
-					data: toRet
-				});
-
-				if(event === "putted" || event === "patched") {
-					toRet.changed();
-				}
+		toRet._options.inited.done(function() {
+			toRet.dispatch({
+				event: event,
+				data: toRet
 			});
-		}
+
+			toRet.changed();
+		});
 
 		return toRet;
 	};
@@ -551,11 +532,6 @@
 			doInitializeDefault(scope, key);
 		}
 
-		for(var key in scope._options.virtuals) {
-			scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
-			scope.virtuals[key].setter = scope.virtuals[key].getter.bind(scope);
-		}
-
 		for(var key in args) {
 			scope[key] = args[key];
 		}
@@ -581,8 +557,6 @@
 			scope.insert = insertFunc.bind(scope);
 		}
 
-		scope._options.persisted = scope.toJSON();
-
 		initializeForInForNotOptimized(args, scope);
 
 		scope._options.inited = populateRefs(scope);
@@ -593,6 +567,13 @@
 			scope._options.pubsub = self.Jive.Jazz;
 		} else {
 			scope._options.pubsub = new _.Fabric();
+		}
+
+		if(typeof scope._options.subscriptions === "undefined") {
+			scope._options.subscriptions = [
+				scope.urn,
+				scope.urn + ":#"
+			];
 		}
 
 		scope._options.postFunc = eventFunc.bind(scope, "posted");
@@ -705,7 +686,7 @@
 						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
 					}, 0);
 
-					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(){
+					scope._options.inited = populateRefs(scope, {local: ret.local}).done(function(ret) {
 						dfd.resolve(scope);
 					});
 				} else {
@@ -722,13 +703,6 @@
 
 	Model.prototype.post = function(args, scope) {
 		scope = scope || this; args = args || {};
-		var dfd = new _.Dfd();
-
-		makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
-			dfd: dfd,
-			promise: dfd.promise()
-		};
-
 		return store({ method: "POST", urn: scope.urn, data: args }, scope);
 	};
 
@@ -774,32 +748,15 @@
 
 		if(keys.length === 0) {
 			return ret[key];
-		}
-
-		if(_.isNormalObject(ret[key])) {
+		} else {
 			return subSelectRecurse(ret[key], keys);
-		} else if(_.isArray(ret[key])) {
-			// This is mostly to help with the isArray case.
-			// We don't want to shift off the stuff if we're passing it to 8 billion different guys
-			var arrRet = [];
-			for(var i = 0; i < ret[key].length; i++) {
-				var arrKeys = _.clone(keys);
-
-				arrRet[i] = subSelectRecurse(ret[key][i], arrKeys);
-			}
-
-			return arrRet;
 		}
 	};
 
-	var subSelect = function(entry, key, args) {
+	var subSelect = function(entry, key) {
 		var keys = key.split(".");
 
-		if(typeof entry[key] === "undefined" && _.isNormalObject(entry.virtuals) && entry.virtuals[key] && _.isFunction(entry.virtuals[key].getter)) {
-			return entry.virtuals[key].getter(args, entry);
-		} else {
-			return subSelectRecurse(entry, keys);
-		}
+		return subSelectRecurse(entry, keys);
 	};
 
 	var walkObjectRecurse = function(obj, keys, val) {
@@ -844,113 +801,134 @@
 		return ret;
 	};
 
-	var runFilter = function(filter, val) {
-		if(_.isNormalObject(filter)) {
-			for(var filterKey in filter) {
-				var length;
-				switch(filterKey) {
-					case "$nin":
-						length = 1;
-					case "$in":
-						length = length || 0;
-						for(var valKey in filter[filterKey]) {
+	var defaultFilter = function(filter, value) {
+		if(_.isRegExp(filter)) {
+			if(!filter.test(value)) {
+				return false;
+			}
+		} else if(filter !== value) {
+			return false;
+		}
+
+		return true;
+	};
+
+	var filterCheckTheBastard = function(entry, filter) {
+		for(var key in filter) {
+			var val = subSelect(entry, key),
+			    length;
+
+			if(_.isNormalObject(filter[key])) {
+				for(var filterKey in filter[key]) {
+					switch(filterKey) {
+						case "$lt":
+							if(val >= filter[key][filterKey]) {
+								return false;
+							}
+						break;
+
+						case "$gt":
+							if(val <= filter[key][filterKey]) {
+								return false;
+							}
+						break;
+
+
+						case "$lte":
+							if(val > filter[key][filterKey]) {
+								return false;
+							}
+						break;
+
+						case "$gte":
+							if(val < filter[key][filterKey]) {
+								return false;
+							}
+						break;
+
+						case "$btw":
+							if(val <= filter[key][filterKey][0] || val >= filter[key][filterKey][1]) {
+								return false;
+							}
+						break;
+
+						case "$btwe":
+							if(val < filter[key][filterKey][0] || val > filter[key][filterKey][1]) {
+								return false;
+							}
+						break;
+
+
+						case "$nin":
+							length = 1;
+							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
+						case "$in":
+							length = length || 0;
 							if(_.isArray(val)) {
-								var intersection = _.intersection(val, filter[filterKey]);
+								var intersection = _.intersection(val, filter[key][filterKey]);
 
 								if(intersection.length === length) {
 									return false;
 								}
 							}
-						}
-					break;
+						break;
 
-					case "$all":
-						if(_.isArray(val)) {
-							var diffs = _.diffValues(val, filter[filterKey]);
 
-							if(diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+						case "$all":
+							if(_.isArray(val)) {
+								var diffs = _.diffValues(val, filter[key][filterKey]);
+
+								if(diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+									return false;
+								}
+							}
+						break;
+
+
+						default:
+							if(!defaultFilter(filter[key][filterKey], val)) {
 								return false;
 							}
-						}
-					break;
-
-					default:
-						return false;
-					break;
+						break;
+					}
 				}
-			}
-		} else {
-			if(_.isRegExp(filter)) {
-				if(!filter.test(val)) {
+			} else {
+				if(!defaultFilter(filter[key], val)) {
 					return false;
 				}
-			} else if(filter !== val) {
-				return false;
-			}
-		}
-
-
-		return true;
-	};
-
-	var filterCheckTheBastard = function(entry, filter, args) {
-		for(var key in filter) {
-			var val = subSelect(entry, key, args);
-			if(!runFilter(filter[key], val)) {
-				return false;
 			}
 		}
 
 		return true;
 	};
 
-	var sortTheBastard = function(ret, keys, args) {
+	var sortTheBastard = function(ret, order) {
 		ret = ret || [];
-		ret = ret.sort(function sorter(a, b, keyIndex) {
-			keyIndex = keyIndex || 0;
 
-			if (keyIndex > keys.length -1){
-				return 0;
-			}
+		var keys = Object.keys(order).reverse();
+		keys.forEach(function(key) {
+			ret = ret.sort(function(a, b) {
+				var aVal = subSelect(a, key);
+				var bVal = subSelect(b, key);
 
-			var key = keys[keyIndex].key;
-			var aVal = subSelect(a, key, args);
-			var bVal = subSelect(b, key, args);
-			aVal = _.isDate(aVal) ? aVal.getTime() : aVal;
-			bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
-
-			var order = keys[keyIndex].order;
-			var desc = (order === "desc" || order === "descending");
-			var asc = (order === "asc" || order === "ascending");
-
-			if(aVal === bVal || (!desc && !asc)){
-				keyIndex++;
-				return sorter(a, b, keyIndex);
-			}
-
-			if (keys[keyIndex].order === "desc" || keys[keyIndex].order === "descending"){
-				if (aVal > bVal){
-					return -1;
+				if(order[key] !== "desc") {
+					return (aVal === bVal) ? 0 :
+						   (aVal < bVal) ? -1 : 1;
 				} else {
-					return 1; 
+					return (aVal === bVal) ? 0 :
+						   (aVal > bVal) ? -1 : 1;
 				}
-			} else if(keys[keyIndex].order === "asc" || keys[keyIndex].order === "ascending") {
-				if (aVal < bVal){
-					return -1;
-				} else {
-					return 1; 
-				}
-			}
+			});
 		});
-		
+
 		return ret;
 	};
 
-	var subSelectTheBastard = function(entry, selects, args) {
+	var subSelectTheBastard = function(entry, selects) {
 		var ret = {};
 
 		selects.forEach(function(select){
-			var sub = subSelect(entry, select, args);
+			var sub = subSelect(entry, select);
 
 			if(typeof sub !== "undefined") {
 				var lazyObj = {};
@@ -973,18 +951,17 @@
 
 		for(var i = 0; i < scope[args.key].length; i++) {
 			var entry = scope[args.key][i];
+			if(ret.length === args.limit + (args.offset || 0)) {
+				break;
+			}
 
-			if(typeof args.filter === "undefined" || (args.filter && filterCheckTheBastard(entry, args.filter, args))) {
+			if(typeof args.filter === "undefined" || (args.filter && filterCheckTheBastard(entry, args.filter))) {
 				var toPush = entry;
 
 				if(args.vm) {
-					if(entry.toVM && _.isFunction(entry.toVM)) {
-						toPush = entry.toVM(args);
-					} else {
-						toPush = _.clone(entry);
-					}
+					toPush = entry.toVM(args);
 				} else if(args.select) {
-					toPush = subSelectTheBastard(entry, args.select, args);
+					toPush = subSelectTheBastard(entry, args.select);
 				}
 
 				ret.push(toPush);
@@ -992,7 +969,7 @@
 		}
 
 		if(args.order) {
-			sortTheBastard(ret, args.order, args);
+			sortTheBastard(ret, args.order);
 		}
 
 		if(args.offset) {
@@ -1001,8 +978,6 @@
 
 		if(args.limit === 1) {
 			ret = ret[0];
-		} else if(args.limit > 1) {
-			ret = ret.splice(0, args.limit);
 		}
 
 		return ret;
@@ -1097,18 +1072,14 @@
 		scope = scope || this;
 		args = args || {};
 
-		delete toJSONedCache[scope.urn];
-		delete toVMedCache[scope.urn];
+		delete scope._options.toVMed;
+		delete scope._options.toJSONed;
 
-		var jsoned = scope.toJSON();
-
-		scope._options.changes = _.dirtyKeys(scope._options.persisted, jsoned);
+		scope._options.changes = _.dirtyKeys(scope._options.persisted, scope.toJSON());
 		scope.dispatch({
 			event: "changed",
-			data: scope
+			data: scope._options.changes
 		});
-
-		scope._options.persisted = jsoned;
 	};
 
 	Model.prototype.set = function(args, scope) {
@@ -1184,16 +1155,18 @@
 		scope = scope || this;
 		args = args || {};
 		args.vm = args.vm || "default";
-
-		var ret = {};
+		args.vm = args.vm || "default";
 
 		toVMedCache[scope.urn] = toVMedCache[scope.urn] || {};
 		var toVMedCacheKey = args.toVMedCacheKey || "urn";
-		if(toVMedCache[scope.urn][args.vm] && scope._options.collection === false) {
-			ret = toVMedCache[scope.urn][args.vm];
+
+		if(toVMedCache[scope.urn][args.vm]) {
+			return toVMedCache[scope.urn][args.vm];
 		}
 
-		var keys = args.keys || scope._options.vms[args.vm];
+		var ret = {};
+
+		var keys = scope._options.vms[args.vm];
 		if(keys === "*" || typeof keys === "undefined") {
 			keys = Object.keys(scope);
 		}
@@ -1228,17 +1201,13 @@
 							var vmed;
 							toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
 							if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
-								if(_.isFunction(entry.toVM)) {
-									vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
-								} else {
-									console.log("wasn't a function thing", entry);
-								}
+								vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
 							} else {
 								vmed = toVMedCache[entry.urn][args.vm];
 							}
 							ret[key].push(vmed);
 						});
-					} else if(scope[key] && scope[key].urn) {
+					} else {
 						var vmed;
 						toVMedCache[scope[key].urn] = toVMedCache[scope[key].urn] || {};
 						if(typeof toVMedCache[scope[key].urn][args.vm] === "undefined") {
@@ -1249,13 +1218,11 @@
 						ret[key] = vmed;
 					}
 				} else if(key === "*") {
-					if(args.vm === "default") {
-						_.extend(ret, scope.toVM({keys: "*", vm: "star"}));
-					} else {
-						_.extend(ret, scope.toVM());
-					}
+					_.extend(ret, scope.toVM());
+				} else if(_.isNormalObject(scope.virtuals) && scope.virtuals[key] && _.isFunction(scope.virtuals[key].getter)) {
+					ret[key] = scope.virtuals[key].getter(args, scope);
 				} else {
-					var sub = subSelect(scope, key, args);
+					var sub = subSelect(scope, key);
 					if(typeof sub !== "undefined") {
 						walkObject(ret, key, sub);
 					}
@@ -1323,23 +1290,8 @@
 			};
 		}
 
-		if(typeof schema.subscriptions !== "undefined" && model._options.collection === true) {
+		if(_.isArray(schema.subscriptions)) {
 			model._options.subscriptions = schema.subscriptions;
-		} else if(typeof model._options.subscriptions === "undefined" && model._options.collection === true && model._options.urn) {
-			model._options.subscriptions = [
-				model._options.urn,
-				model._options.urn + ":*"
-			];
-		}
-
-		if(_.isArray(model._options.subscriptions) && self && self.Jive && self.Jive.SessionBridge) {
-			if(model._options.collection === true) {
-				for(var i = 0; i < model._options.subscriptions.length; i++) {
-					self.Jive.SessionBridge.subscribe({
-						urn: model._options.subscriptions[i]
-					});
-				}
-			}
 		}
 
 		model._options.vms = schema.vms;
