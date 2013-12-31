@@ -332,7 +332,7 @@
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
 
 		$.ajax({
-			url: remote + "/" + urn,
+			url: (self.Jive.Features.APIBaseUrl || "") + remote + "/" + urn,
 			beforeSend : function (xhr){
 				xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
 			},
