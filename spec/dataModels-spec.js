@@ -57,7 +57,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 			var Model = _.Model.create(modelSchema);
 
 			for(var i = 0; i < 1001; i++) {
-				collection.entries.push(new Model({urn: "test:" + i, presence: { chat: { code: (i % 4)}}}));
+				collection.entries.push(new Model({urn: "test:" + i, i: i, presence: { chat: { code: (i % 4)}}}));
 			}
 
 			it("can be limited", function() {
@@ -66,8 +66,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				});
 
 				expect(results.length).toEqual(20);
-				expect(results[0].toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
-				expect(results[19].toJSON()).toEqual({urn: "test:19", presence: { chat: { code: (19 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "test:0", i: 0, presence: { chat: { code: (0 % 4) }}});
+				expect(results[19].toJSON()).toEqual({urn: "test:19", i: 19, presence: { chat: { code: (19 % 4) }}});
 			});
 
 			it("can be offsetted", function(){
@@ -77,8 +77,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				});
 
 				expect(results.length).toEqual(5);
-				expect(results[0].toJSON()).toEqual({urn: "test:5", presence: { chat: { code: (5 % 4) }}});
-				expect(results[4].toJSON()).toEqual({urn: "test:9", presence: { chat: { code: (9 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "test:5", i: 5, presence: { chat: { code: (5 % 4) }}});
+				expect(results[4].toJSON()).toEqual({urn: "test:9", i: 9, presence: { chat: { code: (9 % 4) }}});
 			});
 
 			it("can be ordered-by", function(){
@@ -86,13 +86,13 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 					limit: 5,
 					order: [
 						{"key": "presence.chat.code", "order": "asc"},
-						{"key": "urn", "order": "asc"}
+						{"key": "i", "order": "asc"}
 					]
 				});
 
 				expect(results.length).toEqual(5);
-				expect(results[0].toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
-				expect(results[1].toJSON()).toEqual({urn: "test:1", presence: { chat: { code: (1 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "test:0", i: 0, presence: { chat: { code: (0 % 4) }}});
+				expect(results[1].toJSON()).toEqual({urn: "test:4", i: 4, presence: { chat: { code: (4 % 4) }}});
 			});
 
 			it("has dot notation for accessing shit", function(){
@@ -103,8 +103,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				});
 
 				expect(results.length).toEqual(251);
-				expect(results[0].toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
-				expect(results[1].toJSON()).toEqual({urn: "test:4", presence: { chat: { code: (4 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "test:0", i: 0, presence: { chat: { code: (0 % 4) }}});
+				expect(results[1].toJSON()).toEqual({urn: "test:4", i: 4, presence: { chat: { code: (4 % 4) }}});
 			});
 
 			it("has dot notation for accessing shit that accepts regexps", function(){
@@ -115,8 +115,8 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				});
 
 				expect(results.length).toEqual(501);
-				expect(results[0].toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
-				expect(results[1].toJSON()).toEqual({urn: "test:1", presence: { chat: { code: (1 % 4) }}});
+				expect(results[0].toJSON()).toEqual({urn: "test:0", i: 0, presence: { chat: { code: (0 % 4) }}});
+				expect(results[1].toJSON()).toEqual({urn: "test:1", i: 1, presence: { chat: { code: (1 % 4) }}});
 			});
 
 			it("has $lt, $gt, $lte, $gte, $between, and $betweene functionality for querying", function(){
@@ -268,7 +268,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 					}
 				});
 
-				expect(result.toJSON()).toEqual({urn: "test:0", presence: { chat: { code: (0 % 4) }}});
+				expect(result.toJSON()).toEqual({urn: "test:0", i: 0, presence: { chat: { code: (0 % 4) }}});
 			});
 
 		});
