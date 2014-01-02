@@ -831,7 +831,7 @@
 			init: function (config) {
 				var dfd = new _.Dfd();
 
-				if(chrome && chrome.storage && chrome.storage.local) {
+				if(typeof chrome === "object" && chrome.storage && chrome.storage.local) {
 					dfd.resolve(new CS(config));
 				} else {
 					dfd.reject();
