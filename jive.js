@@ -4790,6 +4790,9 @@ var _ = function() {
                         }
                         break;
 
+                      case "$alphaNumSearch":
+                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w]/g, "");
+
                       case "$search":
                         if (("" + val).indexOf(filter[key][filterKey]) === -1) {
                             return false;

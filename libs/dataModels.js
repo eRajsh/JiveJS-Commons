@@ -928,6 +928,9 @@
 							}
 						break;
 
+						case "$alphaNumSearch":
+							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w]/g, '');
+							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
 						case "$search":													
 							if(('' + val).indexOf(filter[key][filterKey]) === -1) {
 								return false;
