@@ -4729,6 +4729,7 @@ var _ = function() {
     var filterCheckTheBastard = function(entry, filter) {
         for (var key in filter) {
             var val = subSelect(entry, key), length, temp;
+            var cleanVal;
             if (_.isNormalObject(filter[key])) {
                 for (var filterKey in filter[key]) {
                     switch (filterKey) {
@@ -4791,10 +4792,17 @@ var _ = function() {
                         break;
 
                       case "$alphaNumSearch":
-                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w]/g, "");
+                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w:\-\/]/g, "");
+                        if (_.isDate(val)) {
+                            cleanVal = "" + val.toLocaleString();
+                        } else {
+                            cleanVal = "" + val;
+                        }
+                        cleanVal = cleanVal.replace(/[^\w:\-\/]/g, "");
 
                       case "$search":
-                        if (("" + val).indexOf(filter[key][filterKey]) === -1) {
+                        cleanVal = cleanVal || val;
+                        if (("" + cleanVal).indexOf(filter[key][filterKey]) === -1) {
                             return false;
                         }
                         break;

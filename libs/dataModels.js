@@ -861,6 +861,7 @@
 			var val = subSelect(entry, key),
 			    length,
 			    temp;
+			var cleanVal;
 
 			if(_.isNormalObject(filter[key])) {
 				for(var filterKey in filter[key]) {
@@ -929,10 +930,18 @@
 						break;
 
 						case "$alphaNumSearch":
-							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w]/g, '');
+							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '');						
+							if(_.isDate(val)) {
+								//TO DO: MAKE THIS LESS HACKEY 
+								cleanVal = '' + val.toLocaleString();
+							} else {
+								cleanVal = '' + val;
+							}
+							cleanVal = cleanVal.replace(/[^\w:\-\/]/g, '');
 							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
-						case "$search":													
-							if(('' + val).indexOf(filter[key][filterKey]) === -1) {
+						case "$search":	
+							cleanVal = cleanVal || val;
+							if(('' + cleanVal).indexOf(filter[key][filterKey]) === -1) {
 								return false;
 							}
 						break;
