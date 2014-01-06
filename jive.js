@@ -4721,14 +4721,14 @@ var _ = function() {
             if (!filter.test(value)) {
                 return false;
             }
-        } else if (filter !== value) {
+        } else if (filter != value) {
             return false;
         }
         return true;
     };
     var filterCheckTheBastard = function(entry, filter) {
         for (var key in filter) {
-            var val = subSelect(entry, key), length;
+            var val = subSelect(entry, key), length, temp;
             if (_.isNormalObject(filter[key])) {
                 for (var filterKey in filter[key]) {
                     switch (filterKey) {
@@ -4790,6 +4790,15 @@ var _ = function() {
                         }
                         break;
 
+                      case "$alphaNumSearch":
+                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w]/g, "");
+
+                      case "$search":
+                        if (("" + val).indexOf(filter[key][filterKey]) === -1) {
+                            return false;
+                        }
+                        break;
+
                       default:
                         if (!defaultFilter(filter[key][filterKey], val)) {
                             return false;
@@ -4836,6 +4845,8 @@ var _ = function() {
                 } else {
                     return 1;
                 }
+            } else if (_.isFunction(keys[keyIndex].order)) {
+                return keys[keyIndex].order(aVal, bVal);
             }
         });
         return ret;

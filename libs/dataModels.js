@@ -849,7 +849,7 @@
 			if(!filter.test(value)) {
 				return false;
 			}
-		} else if(filter !== value) {
+		} else if(filter != value) { //loosey comparison on purpose cuz of stupid number strings bullshittery
 			return false;
 		}
 
@@ -859,7 +859,8 @@
 	var filterCheckTheBastard = function(entry, filter) {
 		for(var key in filter) {
 			var val = subSelect(entry, key),
-			    length;
+			    length,
+			    temp;
 
 			if(_.isNormalObject(filter[key])) {
 				for(var filterKey in filter[key]) {
@@ -927,6 +928,14 @@
 							}
 						break;
 
+						case "$alphaNumSearch":
+							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w]/g, '');
+							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
+						case "$search":													
+							if(('' + val).indexOf(filter[key][filterKey]) === -1) {
+								return false;
+							}
+						break;
 
 						default:
 							if(!defaultFilter(filter[key][filterKey], val)) {
@@ -981,6 +990,8 @@
 				} else {
 					return 1; 
 				}
+			} else if(_.isFunction(keys[keyIndex].order)){
+				return keys[keyIndex].order(aVal, bVal);
 			}
 		});
 		
