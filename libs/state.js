@@ -75,7 +75,8 @@
 			all  : {
 				enter : [],
 				leave : [],
-				on    : []
+				on    : [],
+				notify: []
 			}
 		};
 
@@ -162,6 +163,15 @@
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
 				this.trigger(args, cbs);
+			} else {
+				var cbs = [];
+				var args = {
+					leavingState  : state,
+					enteringState : state,
+					data : data
+				};
+				cbs = cbs.concat(this.callbacks.all.notify).concat(this.callbacks[state].notify);
+				this.trigger(args, cbs);
 			}
 			return;
 		},
@@ -172,7 +182,7 @@
 			}
 			states.forEach(function(state) {
 				this.states.push(state);
-				this.callbacks[state] = this.callbacks[state] || {enter: [], leave: [], on: []};
+				this.callbacks[state] = this.callbacks[state] || {enter: [], leave: [], on: [], notify: []};
 			}, this);
 		},
 

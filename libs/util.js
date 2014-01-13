@@ -20,6 +20,41 @@
 		return i++;
 	};
 
+	_.textToDate = function(targetDateRange) {
+		var data = {start:null, stop:null, text: null};				
+		var current = new Date();
+		//This is variable will give you today's date at 00:00:00
+		var today = (new Date(Math.floor(current.getTime() / (1000 * 60 * 60)) * (1000 * 60 * 60) - (1000 * 60 * 60) * current.getHours())).getTime();
+
+		if (targetDateRange === 'today'){
+			data.start = today;
+			data.stop = today + (1000 * 60 * 60 * 24);
+			data.text = "today";
+		} else if (targetDateRange === 'default'){
+			data.start = today - (1000 * 60 * 60 * 24 * 7);
+			data.stop = today;
+			data.text = "defualt";
+		} else if (targetDateRange === 'yesterday'){
+			data.start = today - (1000 * 60 * 60 * 24);
+			data.stop = today;
+			data.text = "yesterday";
+		} else if (targetDateRange === 'lastWeek'){
+			data.stop = today - (1000 * 60 * 60 * 24 * ((current.getDay() + 7) % 7));
+			data.start = data.stop - (1000 * 60 * 60 * 24 * 7);
+			data.text = "lastWeek";
+		} else if (targetDateRange === 'lastMonth'){
+			//This gets you the last day of the last month by taking the first day of this month at 00:00:00
+			data.stop = (new Date((current.getFullYear()), (current.getMonth()), 1,0,0,0)).getTime()
+			data.start = (new Date((current.getFullYear()), (current.getMonth() - 1), 1,0,0,0)).getTime()
+			data.text = "lastMonth";
+		} else if (targetDateRange === 'lastYear'){
+			data.stop = today;
+			data.start = today - (1000*60*60*24*365);
+			data.text = "lastYear";
+		}
+		return data;
+	};
+
 	/**
 	 * fileSytemError is a helper for the error callback of some of the new HTML5 file system
 	 *     error events... translating them into messages which are easier to understand

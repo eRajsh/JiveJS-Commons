@@ -1491,6 +1491,41 @@ var _ = function() {
     _.__i__ = function() {
         return i++;
     };
+    _.textToDate = function(targetDateRange) {
+        var data = {
+            start: null,
+            stop: null,
+            text: null
+        };
+        var current = new Date();
+        var today = new Date(Math.floor(current.getTime() / (1e3 * 60 * 60)) * (1e3 * 60 * 60) - 1e3 * 60 * 60 * current.getHours()).getTime();
+        if (targetDateRange === "today") {
+            data.start = today;
+            data.stop = today + 1e3 * 60 * 60 * 24;
+            data.text = "today";
+        } else if (targetDateRange === "default") {
+            data.start = today - 1e3 * 60 * 60 * 24 * 7;
+            data.stop = today;
+            data.text = "defualt";
+        } else if (targetDateRange === "yesterday") {
+            data.start = today - 1e3 * 60 * 60 * 24;
+            data.stop = today;
+            data.text = "yesterday";
+        } else if (targetDateRange === "lastWeek") {
+            data.stop = today - 1e3 * 60 * 60 * 24 * ((current.getDay() + 7) % 7);
+            data.start = data.stop - 1e3 * 60 * 60 * 24 * 7;
+            data.text = "lastWeek";
+        } else if (targetDateRange === "lastMonth") {
+            data.stop = new Date(current.getFullYear(), current.getMonth(), 1, 0, 0, 0).getTime();
+            data.start = new Date(current.getFullYear(), current.getMonth() - 1, 1, 0, 0, 0).getTime();
+            data.text = "lastMonth";
+        } else if (targetDateRange === "lastYear") {
+            data.stop = today;
+            data.start = today - 1e3 * 60 * 60 * 24 * 365;
+            data.text = "lastYear";
+        }
+        return data;
+    };
     _.fileSystemError = function(e) {
         var msg = "";
         switch (e.name) {
@@ -2993,7 +3028,8 @@ var _ = function() {
             all: {
                 enter: [],
                 leave: [],
-                on: []
+                on: [],
+                notify: []
             }
         };
         this.addStates(options.states);
@@ -3068,6 +3104,15 @@ var _ = function() {
                 cbs = [];
                 cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
                 this.trigger(args, cbs);
+            } else {
+                var cbs = [];
+                var args = {
+                    leavingState: state,
+                    enteringState: state,
+                    data: data
+                };
+                cbs = cbs.concat(this.callbacks.all.notify).concat(this.callbacks[state].notify);
+                this.trigger(args, cbs);
             }
             return;
         },
@@ -3080,7 +3125,8 @@ var _ = function() {
                 this.callbacks[state] = this.callbacks[state] || {
                     enter: [],
                     leave: [],
-                    on: []
+                    on: [],
+                    notify: []
                 };
             }, this);
         },
@@ -3175,7 +3221,7 @@ var _ = function() {
                         reader.onloadend = function(e) {
                             var data = e.target.result;
                             var err;
-                            if (options && options.json) {
+                            if (data !== null && typeof data !== "undefined" && options && options.json) {
                                 try {
                                     data = JSON.parse(data);
                                 } catch (e) {
@@ -3344,7 +3390,7 @@ var _ = function() {
                 var get = transaction.objectStore("files").get(docKey);
                 get.onsuccess = function(e) {
                     var data = e.target.result;
-                    if (options && options.json) {
+                    if (data !== null && typeof data !== "undefined" && options && options.json) {
                         data = JSON.parse(data);
                     }
                     dfd.resolve(data);
@@ -3495,7 +3541,7 @@ var _ = function() {
                             dfd.resolve(undefined);
                         } else {
                             var data = res.rows.item(0).value;
-                            if (options && options.json) {
+                            if (data !== null && typeof data !== "undefined" && options && options.json) {
                                 data = JSON.parse(data);
                             }
                             dfd.resolve(data);
@@ -3609,7 +3655,7 @@ var _ = function() {
             get: function(docKey, options) {
                 var dfd = new _.Dfd();
                 var data = this.store.getItem(this._prefix + docKey);
-                if (options && options.json) {
+                if (data !== null && typeof data !== "undefined" && options && options.json) {
                     data = JSON.parse(data);
                 }
                 dfd.resolve(data);
@@ -3692,7 +3738,7 @@ var _ = function() {
                     if (chrome.runtime.lastError) {
                         dfd.reject(chrome.runtime.lastError);
                     } else {
-                        if (options && options.json) {
+                        if (data !== null && typeof data !== "undefined" && options && options.json) {
                             data = JSON.parse(data);
                         }
                         dfd.resolve(data);

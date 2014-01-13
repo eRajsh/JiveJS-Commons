@@ -66,7 +66,7 @@
 						reader.onloadend = function (e) {
 							var data = e.target.result;
 							var err;
-							if (options && options.json) {
+							if (data !== null && typeof data !== "undefined" && options && options.json) {
 								try {
 									data = JSON.parse(data);
 								} catch (e) {
@@ -274,7 +274,7 @@
 				var get = transaction.objectStore('files').get(docKey);
 				get.onsuccess = function (e) {
 					var data = e.target.result;
-					if(options && options.json) {
+					if(data !== null && typeof data !== "undefined" && options && options.json) {
 						data = JSON.parse(data);
 					}
 					dfd.resolve(data);
@@ -472,7 +472,7 @@
 								dfd.resolve(undefined);
 							} else {
 								var data = res.rows.item(0).value;
-								if (options && options.json) {
+								if (data !== null && typeof data !== "undefined" && options && options.json) {
 									data = JSON.parse(data);
 								}
 								dfd.resolve(data);
@@ -613,7 +613,7 @@
 			get: function(docKey, options) {
 				var dfd = new _.Dfd();
 				var data = this.store.getItem(this._prefix + docKey);
-				if(options && options.json) {
+				if(data !== null && typeof data !== "undefined" && options && options.json) {
 					data = JSON.parse(data);
 				}
 				dfd.resolve(data);
@@ -705,7 +705,7 @@
 					if(chrome.runtime.lastError) {
 						dfd.reject(chrome.runtime.lastError);
 					} else {
-						if(options && options.json) {
+						if(data !== null && typeof data !== "undefined" && options && options.json) {
 							data = JSON.parse(data);
 						}
 						dfd.resolve(data);
