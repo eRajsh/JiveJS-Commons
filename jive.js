@@ -4881,19 +4881,19 @@ var _ = function() {
             aVal = _.isDate(aVal) ? aVal.getTime() : aVal;
             bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
             var order = keys[keyIndex].order;
-            var desc = order === "down" || order === "descending";
-            var asc = order === "up" || order === "ascending";
+            var desc = order === "desc" || order === "descending" || order === "down";
+            var asc = order === "asc" || order === "ascending" || order = "up";
             if (aVal === bVal || !desc && !asc) {
                 keyIndex++;
                 return sorter(a, b, keyIndex);
             }
-            if (keys[keyIndex].order === "down" || keys[keyIndex].order === "descending") {
+            if (keys[keyIndex].order === "desc" || keys[keyIndex].order === "descending" || order === "down") {
                 if (aVal > bVal) {
                     return -1;
                 } else {
                     return 1;
                 }
-            } else if (keys[keyIndex].order === "up" || keys[keyIndex].order === "ascending") {
+            } else if (keys[keyIndex].order === "asc" || keys[keyIndex].order === "ascending" || order = "up") {
                 if (aVal < bVal) {
                     return -1;
                 } else {
