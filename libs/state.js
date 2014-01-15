@@ -6,7 +6,7 @@
  * @notes Read this if you don't understand public/private/privelege in JS 
  *        http://javascript.crockford.com/private.html
  *        there is a cost to defining all of these functions in the constructor... 
- *        but that cost in very few instnaces is merited by the encapsulation gains
+ *        but that cost in very few instances is merited by the encapsulation gains
  * @returns {State} State constructor
 **/
 (function() {
