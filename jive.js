@@ -4882,18 +4882,18 @@ var _ = function() {
             bVal = _.isDate(bVal) ? bVal.getTime() : bVal;
             var order = keys[keyIndex].order;
             var desc = order === "desc" || order === "descending" || order === "down";
-            var asc = order === "asc" || order === "ascending" || order = "up";
+            var asc = order === "asc" || order === "ascending" || order === "up";
             if (aVal === bVal || !desc && !asc) {
                 keyIndex++;
                 return sorter(a, b, keyIndex);
             }
-            if (keys[keyIndex].order === "desc" || keys[keyIndex].order === "descending" || order === "down") {
+            if (desc) {
                 if (aVal > bVal) {
                     return -1;
                 } else {
                     return 1;
                 }
-            } else if (keys[keyIndex].order === "asc" || keys[keyIndex].order === "ascending" || order = "up") {
+            } else if (asc) {
                 if (aVal < bVal) {
                     return -1;
                 } else {
