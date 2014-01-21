@@ -1020,10 +1020,12 @@
 			var days = (diff / (1000 * 60 * 60 * 24));
 			var hours = ((days % 1) * 24);
 			var minutes = ((hours % 1) * 60);
+			var seconds = ((minutes % 1) * 60);
 
 			days = Math.floor(days);
 			hours = Math.floor(hours);
 			minutes = Math.floor(minutes);
+			seconds = Math.floor(seconds);
 
 			if(days) {
 				days += "d ";
@@ -1033,9 +1035,18 @@
 				hours += "hr ";
 				minutes += "m";
 				return (hours + minutes);
+			} else if (minutes) {
+				if(minutes < 10 && seconds > 0){
+					minutes += "m ";
+					seconds += "s";
+					return (minutes + seconds);
+				} else {
+					minutes += "m";
+					return minutes;
+				}
 			} else {
-				minutes += "m";
-				return minutes;
+				seconds += "s";
+				return seconds;
 			}
 		},
 
