@@ -359,6 +359,28 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 
 		});
 
+		describe("virtual methods", function() {
+			it("has a getter that can be accessed via toVM", function() {
+				var schema = _.clone(modelSchema, true);
+				schema.vms = {
+					default: ["*", "foobar"]
+				};
+				schema.virtuals = {
+					foobar: {
+						getter: function(args, scope){
+							return "im a little virtual short and stout";
+						}
+					}
+				};
+
+				var Model = _.Model.create(schema);
+				var model = new Model();
+				var vmed = model.toVM();
+
+				expect(vmed.foobar).toEqual("im a little virtual short and stout");
+			});
+		});
+
 		describe("it has a query function that works for models with collections in them", function() {
 			it("can query its stuff as well using a 'key'", function() {
 				var schema = _.clone(modelSchema, true);

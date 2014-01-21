@@ -1255,6 +1255,9 @@
 		}
 
 		var keys = args.keys || scope._options.vms[args.vm];
+		if(typeof keys === "undefined"){
+			keys = scope._options.vms.default;
+		}
 		if(keys === "*" || typeof keys === "undefined") {
 			keys = Object.keys(scope);
 		}
