@@ -38,7 +38,7 @@ endif
 ################
 
 JIVEJS=jive.js
-JIVEJS_DEPS = libs/lodash.js \
+JIVEJS_DEPS=libs/lodash.js \
 	libs/jPromise/jpromise.js \
 	libs/util.js \
 	libs/retarded_utils.js \
