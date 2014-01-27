@@ -277,7 +277,7 @@
 	 * @return {string} the encoded string
 	 **/
 	_.encode_utf8 = function(str) {
-		return unescape(encodeURIComponent(str));
+		return escape(encodeURIComponent(str));
 	};
 
 	/**
@@ -288,7 +288,7 @@
 	 * @return {string} the decoded string
 	 **/
 	_.decode_utf8 = function(str) {
-		return decodeURIComponent(escape(str));
+		return unescape(decodeURIComponent(str));
 	};
 
 	/**

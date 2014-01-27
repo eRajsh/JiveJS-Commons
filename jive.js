@@ -1636,10 +1636,10 @@ var _ = function() {
         return crc ^ -1 + 4294967296;
     };
     _.encode_utf8 = function(str) {
-        return unescape(encodeURIComponent(str));
+        return escape(encodeURIComponent(str));
     };
     _.decode_utf8 = function(str) {
-        return decodeURIComponent(escape(str));
+        return unescape(decodeURIComponent(str));
     };
     _.queryStringEncode = function(obj) {
         var ret = [];
