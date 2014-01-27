@@ -807,11 +807,11 @@ describe("Util.js Utility class", function() {
 
 	describe("has a function that prettifies dates", function(){
 		var now = new Date();
-		it("should ignore seconds", function() {
+		it("should not ignore seconds", function() {
 			var date = new Date(now.getTime() + 8000); // eight seconds in the "future";
 			var seconds = _.viewHelpers.prettifyDate(now, date);
 
-			expect(seconds).toEqual("0m");
+			expect(seconds).toEqual("8s");
 		});
 
 		it("should give back minutes", function() {
@@ -819,6 +819,18 @@ describe("Util.js Utility class", function() {
 			var minutes = _.viewHelpers.prettifyDate(now, date);
 
 			expect(minutes).toEqual("5m");
+		});
+
+		it("should give back minutes and seconds if less then 10 minutes", function() {
+			var date = new Date(now.getTime() + (5 * 60 * 1000) + (10 * 1000)); // five minutes and ten seconds in the "future";
+			var minutes = _.viewHelpers.prettifyDate(now, date);
+
+			expect(minutes).toEqual("5m 10s");
+
+			date = new Date(now.getTime() + (10 * 60 * 1000) + (10 * 1000)); // ten minutes and ten seconds in the "future";
+			minutes = _.viewHelpers.prettifyDate(now, date);
+
+			expect(minutes).toEqual("10m");
 		});
 
 		it("should give back hours and minutes", function() {

@@ -1,0 +1,3 @@
+[submodule "libs/jPromise"]
+	path = libs/jPromise
+	url = git@github.com:jive/jPromise

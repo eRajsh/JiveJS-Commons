@@ -1,5 +1,3 @@
-"use strict";
-
 /**
  * State.js returns a finite state machine kinda building upon the promise pattern 
  * 		while removing the artificial constraints of promise that you can't move from state to 
@@ -8,10 +6,11 @@
  * @notes Read this if you don't understand public/private/privelege in JS 
  *        http://javascript.crockford.com/private.html
  *        there is a cost to defining all of these functions in the constructor... 
- *        but that cost in very few instnaces is merited by the encapsulation gains
+ *        but that cost in very few instances is merited by the encapsulation gains
  * @returns {State} State constructor
 **/
 (function() {
+	"use strict";
 	//temp helper function since this state machine lib should be stand alone and not dependant on any
 	//unerscore or utility library
 	function extend(dest, source) {	for(var prop in source) {	dest[prop] = source[prop]; } return dest; }
@@ -76,7 +75,8 @@
 			all  : {
 				enter : [],
 				leave : [],
-				on    : []
+				on    : [],
+				notify: []
 			}
 		};
 
@@ -163,6 +163,15 @@
 				cbs = [];
 				cbs = cbs.concat(this.callbacks.all.on).concat(this.callbacks[state].on);
 				this.trigger(args, cbs);
+			} else {
+				var cbs = [];
+				var args = {
+					leavingState  : state,
+					enteringState : state,
+					data : data
+				};
+				cbs = cbs.concat(this.callbacks.all.notify).concat(this.callbacks[state].notify);
+				this.trigger(args, cbs);
 			}
 			return;
 		},
@@ -173,7 +182,7 @@
 			}
 			states.forEach(function(state) {
 				this.states.push(state);
-				this.callbacks[state] = this.callbacks[state] || {enter: [], leave: [], on: []};
+				this.callbacks[state] = this.callbacks[state] || {enter: [], leave: [], on: [], notify: []};
 			}, this);
 		},
 

@@ -20,6 +20,41 @@
 		return i++;
 	};
 
+	_.textToDate = function(targetDateRange) {
+		var data = {start:null, stop:null, text: null};				
+		var current = new Date();
+		//This is variable will give you today's date at 00:00:00
+		var today = (new Date(Math.floor(current.getTime() / (1000 * 60 * 60)) * (1000 * 60 * 60) - (1000 * 60 * 60) * current.getHours())).getTime();
+
+		if (targetDateRange === 'today'){
+			data.start = today;
+			data.stop = today + (1000 * 60 * 60 * 24);
+			data.text = "today";
+		} else if (targetDateRange === 'default'){
+			data.start = today - (1000 * 60 * 60 * 24 * 7);
+			data.stop = today;
+			data.text = "defualt";
+		} else if (targetDateRange === 'yesterday'){
+			data.start = today - (1000 * 60 * 60 * 24);
+			data.stop = today;
+			data.text = "yesterday";
+		} else if (targetDateRange === 'lastWeek'){
+			data.stop = today - (1000 * 60 * 60 * 24 * ((current.getDay() + 7) % 7));
+			data.start = data.stop - (1000 * 60 * 60 * 24 * 7);
+			data.text = "lastWeek";
+		} else if (targetDateRange === 'lastMonth'){
+			//This gets you the last day of the last month by taking the first day of this month at 00:00:00
+			data.stop = (new Date((current.getFullYear()), (current.getMonth()), 1,0,0,0)).getTime()
+			data.start = (new Date((current.getFullYear()), (current.getMonth() - 1), 1,0,0,0)).getTime()
+			data.text = "lastMonth";
+		} else if (targetDateRange === 'lastYear'){
+			data.stop = today;
+			data.start = today - (1000*60*60*24*365);
+			data.text = "lastYear";
+		}
+		return data;
+	};
+
 	/**
 	 * fileSytemError is a helper for the error callback of some of the new HTML5 file system
 	 *     error events... translating them into messages which are easier to understand
@@ -213,6 +248,8 @@
 	 * @public
 	 * @param {String} str - the string to hash, it could be an object that has been stringified etc
 	 * @return {Number} the computed hash of the string
+	 * Note: theoretical range of -2^32 to 2^32 soooo   -4294967296 to 4294967296 but we add 4294967296
+	 * 			so it is from 0 to 8589934592 
 	 **/
 	_.hash = function(str) {
 		if(_.isNormalObject(str)) {
@@ -229,7 +266,7 @@
 			x = "0x" + table.substr(y * 9, 8);
 			crc = (crc >>> 8) ^ x;
 		}
-		return crc ^ (-1);
+		return crc ^ (-1) + 4294967296;
 	};
 
 	/**
@@ -857,6 +894,7 @@
 			}			
 		},
 
+		isDate: _.isDate,
 
 		roundThreeAndPad: function(number){
 			var numberArray = ("" + Math.round(number * 1000)/1000).split('.');
@@ -982,10 +1020,12 @@
 			var days = (diff / (1000 * 60 * 60 * 24));
 			var hours = ((days % 1) * 24);
 			var minutes = ((hours % 1) * 60);
+			var seconds = ((minutes % 1) * 60);
 
 			days = Math.floor(days);
 			hours = Math.floor(hours);
 			minutes = Math.floor(minutes);
+			seconds = Math.floor(seconds);
 
 			if(days) {
 				days += "d ";
@@ -995,9 +1035,18 @@
 				hours += "hr ";
 				minutes += "m";
 				return (hours + minutes);
+			} else if (minutes) {
+				if(minutes < 10 && seconds > 0){
+					minutes += "m ";
+					seconds += "s";
+					return (minutes + seconds);
+				} else {
+					minutes += "m";
+					return minutes;
+				}
 			} else {
-				minutes += "m";
-				return minutes;
+				seconds += "s";
+				return seconds;
 			}
 		},
 

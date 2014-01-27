@@ -66,7 +66,7 @@
 						reader.onloadend = function (e) {
 							var data = e.target.result;
 							var err;
-							if (options && options.json) {
+							if (data !== null && typeof data !== "undefined" && options && options.json) {
 								try {
 									data = JSON.parse(data);
 								} catch (e) {
@@ -274,7 +274,7 @@
 				var get = transaction.objectStore('files').get(docKey);
 				get.onsuccess = function (e) {
 					var data = e.target.result;
-					if(options && options.json) {
+					if(data !== null && typeof data !== "undefined" && options && options.json) {
 						data = JSON.parse(data);
 					}
 					dfd.resolve(data);
@@ -472,7 +472,7 @@
 								dfd.resolve(undefined);
 							} else {
 								var data = res.rows.item(0).value;
-								if (options && options.json) {
+								if (data !== null && typeof data !== "undefined" && options && options.json) {
 									data = JSON.parse(data);
 								}
 								dfd.resolve(data);
@@ -613,7 +613,7 @@
 			get: function(docKey, options) {
 				var dfd = new _.Dfd();
 				var data = this.store.getItem(this._prefix + docKey);
-				if(options && options.json) {
+				if(data !== null && typeof data !== "undefined" && options && options.json) {
 					data = JSON.parse(data);
 				}
 				dfd.resolve(data);
@@ -673,15 +673,173 @@
 				dfd.resolve();
 				return dfd.promise();
 			}
-		}
+		};
 
 		return {
 			init: function (config) {
 				var dfd = new _.Dfd();
-				dfd.resolve(new LS(config));
+
+				if(this.type === "SessionStorage" && !self.sessionStorage) {
+					dfd.resolve(new LS(config));
+				} else if(this.type === "LocalStorage" && !self.localStorage) {
+					dfd.resolve(new LS(config));
+				} else {
+					dfd.reject();
+				}
+
 				return dfd.promise();
 			}
+		};
+	})();
+
+	var ChromeStorageProvider = (function () {
+		function CS(options) {
+			this.store = chrome.storage.local;
+			this._prefix = options.name + ":";
 		}
+
+		CS.prototype = {
+			get: function(docKey, options) {
+				var dfd = new _.Dfd();
+				var data = this.store.get(this._prefix + docKey, function(data) {
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
+					} else {
+						if(data !== null && typeof data !== "undefined" && options && options.json) {
+							data = JSON.parse(data);
+						}
+						dfd.resolve(data);
+					}
+				});
+				return dfd.promise();
+			},
+
+			set: function(docKey, data, options) {
+				var dfd = new _.Dfd();
+				if(options && options.json) {
+					data = JSON.stringify(data);
+				}
+
+				var toSet = {};
+				toSet[this._prefix + docKey] = data;
+
+				this.store.set(toSet, function() {
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
+					} else {
+						dfd.resolve();
+					}
+				});
+
+				return dfd.promise();
+			},
+
+			remove: function(docKey, options) {
+				var dfd = new _.Dfd();
+				this.store.remove(this._prefix + docKey, function() {
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
+					} else {
+						dfd.resolve();
+					}
+				});
+				return dfd.promise();
+			},
+
+			list: function(options) {
+				options = options || {};
+				var that = this;
+				var dfd = new _.Dfd();
+
+				var prefix = this._prefix;
+				if(options.prefix) {
+					prefix += options.prefix;
+				}
+
+				this.store.get(null, function(listing) {
+					var ret = [];
+
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
+					} else {
+						for (var key in items) {
+							if(key.indexOf(prefix) === 0) {
+								ret.push(key.substr(that._prefix.length - 1));
+							}
+						}
+
+						dfd.resolve(ret);
+					}
+				});
+
+				return dfd.promise();
+			},
+
+			clear: function(options) {
+				options = options || {};
+				var that = this;
+				var dfd = new _.Dfd();
+				var dfds = [true];
+
+				var prefix = this._prefix;
+				if(options.prefix) {
+					prefix += options.prefix;
+				}
+
+				this.store.get(null, function(listing) {
+					var ret = [];
+
+					if(chrome.runtime.lastError) {
+						dfd.reject(chrome.runtime.lastError);
+					} else {
+						function remove(key) {
+							var removeDfd = new _.Dfd();
+							dfds.push(removeDfd.promise());
+
+							this.store.remove(key, function() {
+								if(chrome.runtime.lastError) {
+									removeDfd.reject(chrome.runtime.lastError);
+								} else {
+									removeDfd.resolve();
+								}
+							});
+						}
+
+						for (var key in items) {
+							remove(key);
+						}
+
+						dfd.resolve(ret);
+					}
+				});
+
+				_.Dfd.when(dfds).done(function(rets) {
+					// remove the true from the resolves of dfds
+					rets.shift();
+					dfd.resolve(rets);
+				}).fail(function(errors) {
+					// remove the true from the rejects of dfds
+					errors.shift();
+					dfd.resolve(errors);
+				});
+
+				return dfd.promise();
+			}
+		};
+
+		return {
+			init: function (config) {
+				var dfd = new _.Dfd();
+
+				if(typeof chrome === "object" && chrome.storage && chrome.storage.local) {
+					dfd.resolve(new CS(config));
+				} else {
+					dfd.reject();
+				}
+
+				return dfd.promise();
+			}
+		};
 	})();
 
 	var LargeLocalStorage = (function () {
@@ -691,8 +849,9 @@
 			IndexedDB: IndexedDBProvider,
 			WebSQL: WebSQLProvider,
 			LocalStorage: LocalStorageProvider,
-			SessionStorage: LocalStorageProvider
-		}
+			SessionStorage: LocalStorageProvider,
+			ChromeStorageProvider: ChromeStorageProvider
+		};
 
 		var defaultConfig = {
 			size: 10 * 1024 * 1024,
@@ -701,7 +860,9 @@
 
 		function selectImplementation(config) {
 			if (!config) config = {};
-			config = _.defaults(config, defaultConfig);
+			for(var key in defaultConfig) {
+				config[key] = config[key] || defaultConfig[key];
+			}
 
 			if (config.forceProvider) {
 				return providers[config.forceProvider].init(config);
@@ -709,19 +870,23 @@
 
 			var dfd = new _.Dfd();
 
-			LocalStorageProvider.init(config).done(function(ret) {
+			ChromeStorageProvider.init(config).done(function(ret) {
 				dfd.resolve(ret)
 			}).fail(function() {
-				IndexedDBProvider.init(config).done(function(ret) {
+				LocalStorageProvider.init(config).done(function(ret) {
 					dfd.resolve(ret)
 				}).fail(function() {
-					FilesystemAPIProvider.init(config).done(function(ret) {
+					IndexedDBProvider.init(config).done(function(ret) {
 						dfd.resolve(ret)
 					}).fail(function() {
-						WebSQLProvider.init(config).done(function(ret) {
+						FilesystemAPIProvider.init(config).done(function(ret) {
 							dfd.resolve(ret)
 						}).fail(function() {
-							dfd.reject("I have nothing.... leave me alone :(");
+							WebSQLProvider.init(config).done(function(ret) {
+								dfd.resolve(ret)
+							}).fail(function() {
+								dfd.reject("I have nothing.... leave me alone :(");
+							});
 						});
 					});
 				});
@@ -797,7 +962,8 @@
 		return LargeLocalStorage;
 	})();
 
-	_.LargeLocalStorage = LargeLocalStorage;
+	self._ = self._ || {};
+	self._.LargeLocalStorage = LargeLocalStorage;
 	return LargeLocalStorage;
 
 })(typeof self !== "undefined" ? self : this);
