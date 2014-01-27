@@ -277,7 +277,7 @@
 	 * @return {string} the encoded string
 	 **/
 	_.encode_utf8 = function(str) {
-		return escape(encodeURIComponent(str));
+		return encodeURIComponent(escape(str));
 	};
 
 	/**
