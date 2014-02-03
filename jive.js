@@ -1233,7 +1233,10 @@ var _ = function() {
                 }
             }
         }
-        var p = function(beforeStart) {
+        var p = function p(beforeStart) {
+            if (this.constructor !== p) {
+                throw new Error("You must create deferreds with the 'new' keyword");
+            }
             this.internalState = 0;
             this.internalWith = undefined;
             this.internalData = null;
@@ -1498,7 +1501,7 @@ var _ = function() {
             text: null
         };
         var current = new Date();
-        var today = new Date(Math.floor(current.getTime() / (1e3 * 60 * 60)) * 1e3 * 60 * 60 - 1e3 * 60 * 60 * current.getHours()).getTime();
+        var today = new Date(Math.floor(current.getTime() / (1e3 * 60 * 60)) * (1e3 * 60 * 60) - 1e3 * 60 * 60 * current.getHours()).getTime();
         if (targetDateRange === "today") {
             data.start = today;
             data.stop = today + 1e3 * 60 * 60 * 24;
@@ -1636,7 +1639,7 @@ var _ = function() {
         return crc ^ -1 + 4294967296;
     };
     _.encode_utf8 = function(str) {
-        return escape(encodeURIComponent(str));
+        return encodeURIComponent(escape(str));
     };
     _.decode_utf8 = function(str) {
         return unescape(decodeURIComponent(str));
@@ -4141,7 +4144,7 @@ var _ = function() {
             return dfd.promise();
         }
         if (scope._options.store.remote && args.remote) {
-            if (args.method === "GET" && scope._options.store.localStorage && scope._options._ttl && new Date().getTime() > scope._options._ttl) {
+            if (args.method === "GET" && scope._options.store.localStorage && (scope._options._ttl && new Date().getTime() > scope._options._ttl)) {
                 if (args.method === "GET") {
                     makeForModelDeferDfds[scope.urn] = makeForModelDeferDfds[scope.urn] || {
                         promise: dfd.promise()
