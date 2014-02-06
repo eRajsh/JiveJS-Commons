@@ -365,9 +365,9 @@ describe("Util.js Utility class", function() {
 		});
 
 		it("has a hash function which makes short awesome numeric hashes from strings", function() {
-			expect(_.hash("this is a standard string")).toEqual(1660023177);
-			expect(_.hash("this is a standard string")).toEqual(1660023177);
-			expect(_.hash("this is a different string")).toEqual(-138228752);
+			expect(_.hash("this is a standard string")).toEqual(-1695061268);
+			expect(_.hash("this is a standard string")).toEqual(-1695061268);
+			expect(_.hash("this is a different string")).toEqual(415781971);
 		});
 
 		it("has an encode_utf8 function that smartly mashes several native javascript functions", function() {
