@@ -781,6 +781,43 @@ describe("Util.js Utility class", function() {
 			expect(_.isDirtyEqual(initial, modified)).toEqual(false);
 			expect(_.isDirtyEqual(initial, modified, ['test'], {ignoreKeys: true})).toEqual(true);
 		});
+
+		it("should work with undefineds inside objects", function() {
+
+			var initial ={
+				__v: 2,
+				_id: 'conversations:1505',
+				lastModified: 1391722102270,
+				createdDate: 1391722079649,
+				metas: [
+					'meta:conversations:1505:entities:jivetesting10@gmail.com',
+					'meta:conversations:1505:entities:jmorris'
+				],
+				entries: [ 'conversations:1505:entries:1515' ],
+				entities: [ 'entities:jivetesting10@gmail.com', 'entities:jmorris' ],
+				urn: 'conversations:1505',
+				id: 'conversations:1505',
+				name: undefined,
+				ETag: undefined
+			};
+
+			var modified = {
+				__v: 1,
+				_id: 'conversations:1505',
+				createdDate: "Thu Feb 06 2014 14:27:59 GMT-0700 (MST)",
+				entities: [ 'entities:jivetesting10@gmail.com', 'entities:jmorris' ],
+				entries: [],
+				lastModified: "Thu Feb 06 2014 14:27:59 GMT-0700 (MST)",
+				metas: [
+					'meta:conversations:1505:entities:jivetesting10@gmail.com',
+					'meta:conversations:1505:entities:jmorris'
+				],
+			};
+
+			expect(_.isDirtyEqual(initial, _.clone(initial))).toEqual(true);
+			expect(_.isDirtyEqual(initial, modified)).toEqual(false);
+			expect(_.isDirtyEqual(initial, modified, ['group'], {ignoreKeys: true})).toEqual(true);
+		});
 	});
 
 	describe("indexBy takes an array and a path and converts it into an object", function(){

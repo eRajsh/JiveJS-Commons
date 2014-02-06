@@ -330,7 +330,7 @@
 			};
 		}
 
-		if (!('lastIndexOf' in Array.prototype)) {
+		if (typeof Array.prototype.lastIndexOf === 'undefined') {
 			Array.prototype.lastIndexOf= function(find, i /*opt*/) {
 				if (i===undefined) i= this.length-1;
 				if (i<0) i+= this.length;

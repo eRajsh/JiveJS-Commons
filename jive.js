@@ -2477,7 +2477,7 @@ var _ = function() {
                 return this.replace(/^\s+|\s+$/g, "");
             };
         }
-        if (!("lastIndexOf" in Array.prototype)) {
+        if (typeof Array.prototype.lastIndexOf === "undefined") {
             Array.prototype.lastIndexOf = function(find, i) {
                 if (i === undefined) i = this.length - 1;
                 if (i < 0) i += this.length;
