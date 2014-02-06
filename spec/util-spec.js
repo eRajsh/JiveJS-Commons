@@ -722,7 +722,6 @@ describe("Util.js Utility class", function() {
 
 	describe("has isDirtyEquals method that allows us to see if there are any differences", function(){
 		it("should work with arrays inside objects", function() {
-
 			var initial = {
 				"__v":0,
 				"_id":"nodes:3963",
@@ -748,8 +747,40 @@ describe("Util.js Utility class", function() {
 			};
 
 
-			expect(_.isDirtyEqual(initial, initial)).toEqual(true);
+			expect(_.isDirtyEqual(initial, _.clone(initial))).toEqual(true);
 			expect(_.isDirtyEqual(initial, modified, ['location'])).toEqual(false);
+		});
+
+		it("should work with undefineds inside objects", function() {
+
+			var initial = {
+				"__v":0,
+				"test": undefined,
+				"_id":"nodes:3963",
+				"company":"company:jive",
+				"createdDate":"2013-12-09T15:35:12.430Z",
+				"entity":"entities:jivetesting10",
+				"lastModified":"2013-12-09T15:35:13.774Z",
+				"location":[0,0],
+				"type":"Android"
+			};
+
+			var modified = {
+				"__v":0,
+				"_id":"nodes:3963",
+				"entity":"entities:jivetesting10",
+				"lastModified":1386603314821,
+				"type":"Android",
+				"createdDate":1386603312430,
+				"company":"company:jive",
+				"location":[85,1386603314825],
+				"urn":"nodes:3963",
+				"id":"nodes:3963"
+			};
+
+			expect(_.isDirtyEqual(initial, _.clone(initial))).toEqual(true);
+			expect(_.isDirtyEqual(initial, modified)).toEqual(false);
+			expect(_.isDirtyEqual(initial, modified, ['test'], {ignoreKeys: true})).toEqual(true);
 		});
 	});
 

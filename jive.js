@@ -1929,9 +1929,11 @@ var _ = function() {
             if (keys) {
                 aKeys = keys;
                 bKeys = keys;
-                for (var i = 0; i < keys.length; i++) {
-                    if (tempAKeys.indexOf(keys[i]) === -1 || tempBKeys.indexOf(keys[i]) === -1) {
-                        return false;
+                if (options.ignoreKeys !== true) {
+                    for (var i = 0; i < keys.length; i++) {
+                        if (tempAKeys.indexOf(keys[i]) === -1 || tempBKeys.indexOf(keys[i]) === -1) {
+                            return false;
+                        }
                     }
                 }
             } else {
