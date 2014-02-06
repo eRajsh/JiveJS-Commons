@@ -371,15 +371,20 @@ describe("Util.js Utility class", function() {
 		});
 
 		it("has an encode_utf8 function that smartly mashes several native javascript functions", function() {
-			expect(_.encode_utf8("this is a standard string")).toEqual("this is a standard string");
-			expect(_.encode_utf8("this is a crazy string <>?!@#$%^&*()_+=`~")).toEqual("this is a crazy string <>?!@#$%^&*()_+=`~");
-			expect(_.encode_utf8("this is a accented Peneda-GerÃªs")).toEqual("this is a accented Peneda-GerÃÂªs");
+			expect(_.encode_utf8("this is a standard string")).toEqual("this%2520is%2520a%2520standard%2520string");
+			expect(_.encode_utf8("this is a crazy string <>?!@#$%^&*()_+=`~")).toEqual("this%2520is%2520a%2520crazy%2520string%2520%253C%253E%253F%2521%40%2523%2524%2525%255E%2526*%2528%2529_%2B%253D%2560%257E");
+			expect(_.encode_utf8("this is a accented Peneda-GerÃªs")).toEqual("this%2520is%2520a%2520accented%2520Peneda-Ger%25C3%25AAs");
 		});
 
 		it("has a decode_utf8 function that smartly mashes several native javascript functions", function() {
-			expect(_.decode_utf8("this is a standard string")).toEqual("this is a standard string");
-			expect(_.decode_utf8("this is a crazy string <>?!@#$%^&*()_+=`~")).toEqual("this is a crazy string <>?!@#$%^&*()_+=`~");
-			expect(_.decode_utf8("this is a accented Peneda-GerÃÂªs")).toEqual("this is a accented Peneda-GerÃªs");
+			expect(_.decode_utf8("this%2520is%2520a%2520standard%2520string")).toEqual("this is a standard string");
+			expect(_.decode_utf8("this%2520is%2520a%2520crazy%2520string%2520%253C%253E%253F%2521%40%2523%2524%2525%255E%2526*%2528%2529_%2B%253D%2560%257E")).toEqual("this is a crazy string <>?!@#$%^&*()_+=`~");
+			expect(_.decode_utf8("this is a accented Peneda-GerÃªs")).toEqual("this is a accented Peneda-GerÃªs");
+		});
+
+		it("has a decode_utf8 and encode_utf8 functions are inverses", function() {
+			var string = "this is a crazy string <>?!@#$%^&*()_+=`~ & this is a accented Peneda-GerÃªs";
+			expect(_.decode_utf8(_.encode_utf8(string))).toEqual(string);
 		});
 
 		it("has a query string encode that encodes an object into a URL encoded string.", function() {
@@ -387,17 +392,11 @@ describe("Util.js Utility class", function() {
 				foo: "bar",
 				test: "cheese",
 				utf8: "this is a accented Peneda-GerÃªs"
-			})).toEqual("foo=bar&test=cheese&utf8=this is a accented Peneda-GerÃÂªs");
+			})).toEqual("foo=bar&test=cheese&utf8=this%2520is%2520a%2520accented%2520Peneda-Ger%25C3%25AAs");
 		});
 
 		it("has a query string decode that decodes a URL encoded string into an object.", function() {
-			expect(_.queryStringDecode("foo=bar&test=cheese&utf8=this is a accented Peneda-GerÃÂªs")).toEqual({
-				foo: "bar",
-				test: "cheese",
-				utf8: "this is a accented Peneda-GerÃªs"
-			});
-
-			expect(_.queryStringDecode("?foo=bar&test=cheese&utf8=this is a accented Peneda-GerÃÂªs")).toEqual({
+			expect(_.queryStringDecode("foo=bar&test=cheese&utf8=this%2520is%2520a%2520accented%2520Peneda-Ger%25C3%25AAs")).toEqual({
 				foo: "bar",
 				test: "cheese",
 				utf8: "this is a accented Peneda-GerÃªs"
