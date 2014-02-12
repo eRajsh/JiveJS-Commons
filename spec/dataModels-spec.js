@@ -249,7 +249,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1]).toEqual({test: 100});
 			});
 
-			it("has a $alphaNumSearch capability that searches for the key inside the value stripping special characters", function(){
+			it("has a $alphaNumSearch capability that searches for the key inside the value stripping special characters and case sensitivity", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();
 
@@ -271,6 +271,18 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[0]).toEqual({test: "I'm a little tea 10 pot"});
 				expect(results[1]).toEqual({test: "I'm a little tea 100 pot"});
 
+				results = collection.query({
+					filter: {
+						test: {
+							$alphaNumSearch: "im a little tea 1+0"
+						}
+					}
+				});
+
+				expect(results.length).toEqual(12);
+				expect(results[0]).toEqual({test: "I'm a little tea 10 pot"});
+				expect(results[1]).toEqual({test: "I'm a little tea 100 pot"});
+
 				collection = new Collection();
 
 				for(var i = 0; i < 1001; i++) {
@@ -279,7 +291,7 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 					});
 				}
 
-				var results = collection.query({
+				results = collection.query({
 					filter: {
 						test: {
 							$alphaNumSearch: 10

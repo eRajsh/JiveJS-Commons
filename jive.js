@@ -4854,13 +4854,13 @@ var _ = function() {
                         break;
 
                       case "$alphaNumSearch":
-                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w:\-\/]/g, "");
+                        filter[key][filterKey] = ("" + filter[key][filterKey]).replace(/[^\w:\-\/]/g, "").toLowerCase();
                         if (_.isDate(val)) {
                             cleanVal = "" + val.toLocaleString();
                         } else {
                             cleanVal = "" + val;
                         }
-                        cleanVal = cleanVal.replace(/[^\w:\-\/]/g, "");
+                        cleanVal = cleanVal.replace(/[^\w:\-\/]/g, "").toLowerCase();
 
                       case "$search":
                         cleanVal = cleanVal || val;

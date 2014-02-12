@@ -930,16 +930,16 @@
 						break;
 
 						case "$alphaNumSearch":
-							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '');						
+							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '').toLowerCase();
 							if(_.isDate(val)) {
 								//TO DO: MAKE THIS LESS HACKEY 
 								cleanVal = '' + val.toLocaleString();
 							} else {
 								cleanVal = '' + val;
 							}
-							cleanVal = cleanVal.replace(/[^\w:\-\/]/g, '');
+							cleanVal = cleanVal.replace(/[^\w:\-\/]/g, '').toLowerCase();
 							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
-						case "$search":	
+						case "$search":
 							cleanVal = cleanVal || val;
 							if(('' + cleanVal).indexOf(filter[key][filterKey]) === -1) {
 								return false;
