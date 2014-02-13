@@ -20,38 +20,54 @@
 		return i++;
 	};
 
-	_.textToDate = function(targetDateRange) {
-		var data = {start:null, stop:null, text: null};				
-		var current = new Date();
+	_.textToDate = function(targetDateRange, current) {
+		var data = {start:null, stop:null, text: null};
+		current = (_.isDate(current) && current) || (current && new Date(current)) || new Date();
 		//This is variable will give you today's date at 00:00:00
-		var today = (new Date(Math.floor(current.getTime() / (1000 * 60 * 60)) * (1000 * 60 * 60) - (1000 * 60 * 60) * current.getHours())).getTime();
+
+		if (targetDateRange === 'default') {
+			targetDateRange = "lastDays7";
+		}
 
 		if (targetDateRange === 'today'){
-			data.start = today;
-			data.stop = today + (1000 * 60 * 60 * 24);
-			data.text = "today";
-		} else if (targetDateRange === 'default'){
-			data.start = today - (1000 * 60 * 60 * 24 * 7);
-			data.stop = today;
-			data.text = "defualt";
+			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+			data.stop = current;
 		} else if (targetDateRange === 'yesterday'){
-			data.start = today - (1000 * 60 * 60 * 24);
-			data.stop = today;
-			data.text = "yesterday";
+			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 2, 0, 0);
+			data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+		} else if (targetDateRange.match(/^lastDays\d+$/)) {
+			var matches = targetDateRange.match(/^lastDays(\d+)$/);
+			var days = matches[1];
+			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - days, 0, 0);
+			data.stop = current;
+		} else if (targetDateRange === 'thisWeek'){
+			data.start = new Date(current.getFullYear(), current.getMonth(), (current.getDate() - current.getDay()), 0, 0);
+			data.stop = current;
+		} else if (targetDateRange === 'thisMonth'){
+			data.start = new Date(current.getFullYear(), current.getMonth(), 0, 0, 0);
+			data.stop = current;
 		} else if (targetDateRange === 'lastWeek'){
-			data.stop = today - (1000 * 60 * 60 * 24 * ((current.getDay() + 7) % 7));
-			data.start = data.stop - (1000 * 60 * 60 * 24 * 7);
-			data.text = "lastWeek";
+			data.start = new Date(current.getFullYear(), current.getMonth(), ((current.getDate() - current.getDay()) - 7), 0, 0);
+			data.stop = new Date(current.getFullYear(), current.getMonth(), (current.getDate() - current.getDay() - 1), 23, 59, 59, 999);
 		} else if (targetDateRange === 'lastMonth'){
-			//This gets you the last day of the last month by taking the first day of this month at 00:00:00
-			data.stop = (new Date((current.getFullYear()), (current.getMonth()), 1,0,0,0)).getTime()
-			data.start = (new Date((current.getFullYear()), (current.getMonth() - 1), 1,0,0,0)).getTime()
-			data.text = "lastMonth";
+			var month = new Date(current.getFullYear(), current.getMonth() - 1, 0, 0, 0);
+			data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
+			// Last day of the current month minus one day
+			data.stop = new Date(((new Date(current.getFullYear(), current.getMonth())).getTime()) - (1000 * 60 * 60 * 24));
+		} else if (targetDateRange === 'lastMonth3'){
+			var month = new Date(current.getFullYear(), current.getMonth() - 3, 0, 0, 0);
+			data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
+			// Last day of the current month minus one day
+			data.stop = new Date(((new Date(current.getFullYear(), current.getMonth())).getTime()) - (1000 * 60 * 60 * 24));
 		} else if (targetDateRange === 'lastYear'){
-			data.stop = today;
-			data.start = today - (1000*60*60*24*365);
-			data.text = "lastYear";
+			data.start = new Date(current.getFullYear() - 1, 0, 1, 0, 0);
+			// Last day of the year.
+			data.stop = new Date(current.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
 		}
+
+		data.start = data.start.getTime();
+		data.stop = data.stop.getTime();
+		data.text = targetDateRange;
 		return data;
 	};
 
@@ -249,7 +265,7 @@
 	 * @param {String} str - the string to hash, it could be an object that has been stringified etc
 	 * @return {Number} the computed hash of the string
 	 * Note: theoretical range of -2^32 to 2^32 soooo   -4294967296 to 4294967296 but we add 4294967296
-	 * 			so it is from 0 to 8589934592 
+	 * 			so it is from 0 to 8589934592
 	 **/
 	_.hash = function(str) {
 		if(_.isNormalObject(str)) {
@@ -871,9 +887,9 @@
 	};
 
 	_.viewHelpers = {
-		
+
 		roundAndPad: function(number, howManyToRound, howManyToPad, roundFunc) {
-			howManyToRound = ("" + Math.pow(10, howManyToRound)); 
+			howManyToRound = ("" + Math.pow(10, howManyToRound));
 
 			var numberArray = ("" + Math[roundFunc](number * howManyToRound)/howManyToRound).split('.');
 
@@ -882,7 +898,7 @@
 				numberArray[1] = '';
 				for (var i = 0; i < howManyToPad; i++){
 					numberArray[1] = numberArray[1] + "0";
-				}	
+				}
 			} else {
 				for (var j = 1; j < (howManyToPad - numberArray[1].length); j++){
 					numberArray[1] = numberArray[1] + "0";
@@ -893,7 +909,7 @@
 				return numberArray[0];
 			} else {
 				return numberArray[0] + "." + numberArray[1];
-			}			
+			}
 		},
 
 		isDate: _.isDate,
@@ -907,7 +923,7 @@
 				numberArray[1] = "" + numberArray[1] + "00";
 			} else if (numberArray[1].length === 2) {
 				numberArray[1] = "" + numberArray[1] + "0";
-			} 
+			}
 
 			return numberArray[0] + "." + numberArray[1];
 		},
@@ -937,7 +953,7 @@
 						"name": menuData[menuName]['name'],
 						"link": menuData[menuName]['link'],
 						"parentClass": menuData[menuName]['parentClass']
-					};  
+					};
 
 					if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(menuData[menuName].children).length === 0) {
 
@@ -962,7 +978,7 @@
 					};
 
 					if (Object.keys(canonicalMenu[menuName].children).length === 0 && Object.keys(conflictData[menuName].children).length === 0) {
-					
+
 					} else {
 						canonicalMenu[menuName].children = _.viewHelpers.canonicalizeMenuChildren(canonicalMenu[menuName].children, (conflictData[menuName].children || {}));
 					}

@@ -1494,39 +1494,51 @@ var _ = function() {
     _.__i__ = function() {
         return i++;
     };
-    _.textToDate = function(targetDateRange) {
+    _.textToDate = function(targetDateRange, current) {
         var data = {
             start: null,
             stop: null,
             text: null
         };
-        var current = new Date();
-        var today = new Date(Math.floor(current.getTime() / (1e3 * 60 * 60)) * (1e3 * 60 * 60) - 1e3 * 60 * 60 * current.getHours()).getTime();
-        if (targetDateRange === "today") {
-            data.start = today;
-            data.stop = today + 1e3 * 60 * 60 * 24;
-            data.text = "today";
-        } else if (targetDateRange === "default") {
-            data.start = today - 1e3 * 60 * 60 * 24 * 7;
-            data.stop = today;
-            data.text = "defualt";
-        } else if (targetDateRange === "yesterday") {
-            data.start = today - 1e3 * 60 * 60 * 24;
-            data.stop = today;
-            data.text = "yesterday";
-        } else if (targetDateRange === "lastWeek") {
-            data.stop = today - 1e3 * 60 * 60 * 24 * ((current.getDay() + 7) % 7);
-            data.start = data.stop - 1e3 * 60 * 60 * 24 * 7;
-            data.text = "lastWeek";
-        } else if (targetDateRange === "lastMonth") {
-            data.stop = new Date(current.getFullYear(), current.getMonth(), 1, 0, 0, 0).getTime();
-            data.start = new Date(current.getFullYear(), current.getMonth() - 1, 1, 0, 0, 0).getTime();
-            data.text = "lastMonth";
-        } else if (targetDateRange === "lastYear") {
-            data.stop = today;
-            data.start = today - 1e3 * 60 * 60 * 24 * 365;
-            data.text = "lastYear";
+        current = _.isDate(current) && current || current && new Date(current) || new Date();
+        if (targetDateRange === "default") {
+            targetDateRange = "lastDays7";
         }
+        if (targetDateRange === "today") {
+            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+            data.stop = current;
+        } else if (targetDateRange === "yesterday") {
+            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 2, 0, 0);
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+        } else if (targetDateRange.match(/^lastDays\d+$/)) {
+            var matches = targetDateRange.match(/^lastDays(\d+)$/);
+            var days = matches[1];
+            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - days, 0, 0);
+            data.stop = current;
+        } else if (targetDateRange === "thisWeek") {
+            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay(), 0, 0);
+            data.stop = current;
+        } else if (targetDateRange === "thisMonth") {
+            data.start = new Date(current.getFullYear(), current.getMonth(), 0, 0, 0);
+            data.stop = current;
+        } else if (targetDateRange === "lastWeek") {
+            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 7, 0, 0);
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 1, 23, 59, 59, 999);
+        } else if (targetDateRange === "lastMonth") {
+            var month = new Date(current.getFullYear(), current.getMonth() - 1, 0, 0, 0);
+            data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
+            data.stop = new Date(new Date(current.getFullYear(), current.getMonth()).getTime() - 1e3 * 60 * 60 * 24);
+        } else if (targetDateRange === "lastMonth3") {
+            var month = new Date(current.getFullYear(), current.getMonth() - 3, 0, 0, 0);
+            data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
+            data.stop = new Date(new Date(current.getFullYear(), current.getMonth()).getTime() - 1e3 * 60 * 60 * 24);
+        } else if (targetDateRange === "lastYear") {
+            data.start = new Date(current.getFullYear() - 1, 0, 1, 0, 0);
+            data.stop = new Date(current.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+        }
+        data.start = data.start.getTime();
+        data.stop = data.stop.getTime();
+        data.text = targetDateRange;
         return data;
     };
     _.fileSystemError = function(e) {
