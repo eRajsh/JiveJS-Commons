@@ -312,7 +312,7 @@
 
 				var transaction = this._db.transaction(['files'], 'readwrite');
 
-				var del = transaction.objectStore('files').delete(docKey);
+				var del = transaction.objectStore('files')["delete"](docKey);
 
 				put.onsuccess = function(e) {
 					dfd.resolve(e.target.result);
