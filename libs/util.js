@@ -30,11 +30,11 @@
 		}
 
 		if (targetDateRange === 'today'){
-			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0);
 			data.stop = current;
 		} else if (targetDateRange === 'yesterday'){
-			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 2, 0, 0);
-			data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+			data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
+			data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 23, 59, 59, 999);
 		} else if (targetDateRange.match(/^lastDays\d+$/)) {
 			var matches = targetDateRange.match(/^lastDays(\d+)$/);
 			var days = matches[1];

@@ -965,15 +965,15 @@ describe("Util.js Utility class", function() {
 		it("should be able to calculate today", function() {
 			var ret = _.textToDate("today", now);
 
-			expect(ret.start).toEqual(1327993200000);
+			expect(ret.start).toEqual(1328079600000);
 			expect(ret.stop).toEqual(now.getTime());
 		});
 
 		it("should be able to calculate yesterday", function() {
 			var ret = _.textToDate("yesterday", now);
 
-			expect(ret.start).toEqual(1327906800000);
-			expect(ret.stop).toEqual(1327993200000);
+			expect(ret.start).toEqual(1327993200000);
+			expect(ret.stop).toEqual(1328079599999);
 		});
 
 		it("should be able to calculate the last n days", function() {
