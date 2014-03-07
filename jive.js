@@ -2111,6 +2111,7 @@ var _ = function() {
     };
     _.viewHelpers = {
         roundAndPad: function(number, howManyToRound, howManyToPad, roundFunc) {
+            number = number || 0;
             howManyToRound = "" + Math.pow(10, howManyToRound);
             var numberArray = ("" + Math[roundFunc](number * howManyToRound) / howManyToRound).split(".");
             if (!numberArray[1]) {

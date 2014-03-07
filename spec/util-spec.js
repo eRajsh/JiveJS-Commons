@@ -957,6 +957,14 @@ describe("Util.js Utility class", function() {
 
 			expect(ret).toEqual("120");
 		});
+
+		it("should return 0 for undefineds and NaNs", function() {
+			var ret = _.viewHelpers.roundAndPad(undefined, 1, 1, 'round');
+			expect(ret).toEqual("0.0");
+
+			ret = _.viewHelpers.roundAndPad(NaN, 1, 1, 'round');
+			expect(ret).toEqual("0.0");
+		});
 	});
 
 	describe("textToDate function", function() {
