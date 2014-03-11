@@ -1506,7 +1506,7 @@ var _ = function() {
         }
         if (targetDateRange === "today") {
             data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0);
-            data.stop = current;
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
         } else if (targetDateRange === "yesterday") {
             data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
             data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 23, 59, 59, 999);
@@ -1514,13 +1514,13 @@ var _ = function() {
             var matches = targetDateRange.match(/^lastDays(\d+)$/);
             var days = matches[1];
             data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - days, 0, 0);
-            data.stop = current;
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
         } else if (targetDateRange === "thisWeek") {
             data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay(), 0, 0);
-            data.stop = current;
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
         } else if (targetDateRange === "thisMonth") {
             data.start = new Date(current.getFullYear(), current.getMonth(), 0, 0, 0);
-            data.stop = current;
+            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
         } else if (targetDateRange === "lastWeek") {
             data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 7, 0, 0);
             data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 1, 23, 59, 59, 999);

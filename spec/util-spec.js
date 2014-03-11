@@ -974,7 +974,7 @@ describe("Util.js Utility class", function() {
 			var ret = _.textToDate("today", now);
 
 			expect(ret.start).toEqual(1328079600000);
-			expect(ret.stop).toEqual(now.getTime());
+			expect(ret.stop).toEqual(1328165999999);
 		});
 
 		it("should be able to calculate yesterday", function() {
@@ -988,12 +988,12 @@ describe("Util.js Utility class", function() {
 			var ret = _.textToDate("lastDays1", now);
 
 			expect(ret.start).toEqual(1327993200000);
-			expect(ret.stop).toEqual(now.getTime());
+			expect(ret.stop).toEqual(1328165999999);
 
 			ret = _.textToDate("lastDays3", now);
 
 			expect(ret.start).toEqual(1327820400000);
-			expect(ret.stop).toEqual(now.getTime());
+			expect(ret.stop).toEqual(1328165999999);
 		});
 
 		it("should be able to calculate the last week", function() {
