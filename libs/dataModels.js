@@ -221,6 +221,17 @@
 				}
 
 				ajax(args, scope).done(function(ret){
+					if(args.method === "DELETE") {
+						var collection = findCollection(scope.urn);
+						if(collection) {
+							for(var i = 0; i < collection.entries.length; i++) {
+								if(collection.entries[i].urn === scope.urn) {
+									collection.entries.splice(i, 1);
+								}
+							}
+						}
+					}
+
 					dfd.resolve(ret);
 				}).fail(function(e) {
 					dfd.reject(e);
@@ -487,12 +498,8 @@
 		return toRet;
 	};
 
-	var deleteFunc = function deleteFunc(ret, scope) {
+	var deleteFunc = function deleteFunc(args, scope) {
 		scope = scope || this;
-
-		for(var key in scope) {
-			delete scope[key];
-		}
 
 		scope._options.subs.forEach(function(sub) {
 			scope.off({sub: sub});
@@ -502,8 +509,6 @@
 			event: "deleted",
 			data: args
 		});
-
-		scope.changed();
 	};
 
 	var doInitializeDefault = function doInitializeDefault(scope, key) {
@@ -602,21 +607,23 @@
 
 		scope._options.persisted = scope.toJSON();
 
-		scope.on({event: "posted", session: true}).progress(function(ret) {
-			scope._options.postFunc(ret);
-		});
+		if(scope._options.collection === true) {
+			scope.on({event: "posted", session: true}).progress(function(ret) {
+				scope._options.postFunc(ret);
+			});
+		} else {
+			scope.on({event: "putted", session: true}).progress(function(ret) {
+				scope._options.putFunc({data: ret.data.body});
+			});
 
-		scope.on({event: "putted", session: true}).progress(function(ret) {
-			scope._options.putFunc({data: ret.data.body});
-		});
+			scope.on({event: "patched", session: true}).progress(function(ret) {
+				scope._options.patchFunc({data: ret.data.body});
+			});
 
-		scope.on({event: "patched", session: true}).progress(function(ret) {
-			scope._options.patchFunc({data: ret.data.body});
-		});
-
-		scope.on({event: "deleted", session: true}).progress(function(ret) {
-			scope._options.deleteFunc();
-		});
+			scope.on({event: "deleted", session: true}).progress(function(ret) {
+				scope._options.deleteFunc();
+			});
+		}
 	};
 
 	var Model = function(data, options) {
