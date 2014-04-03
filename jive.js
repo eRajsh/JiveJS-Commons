@@ -4321,14 +4321,14 @@ var _ = function() {
         }).done(function(data, status, jqXhr) {
             dfd.resolve({
                 data: data,
-                status: jqXhr.status,
-                headers: parseHeaders(jqXhr.getAllResponseHeaders())
+                status: jqXhr && jqXhr.status || 0,
+                headers: parseHeaders(jqXhr && jqXhr.getAllResponseHeaders() || "")
             });
         }).fail(function(jqXhr, status, error) {
             dfd.reject({
                 e: error,
                 status: jqXhr.status,
-                headers: parseHeaders(jqXhr.getAllResponseHeaders())
+                headers: parseHeaders(jqXhr && jqXhr.getAllResponseHeaders() || "")
             });
         });
         return dfd.promise();
@@ -4602,11 +4602,21 @@ var _ = function() {
                         scope.entries = scope.entries || [];
                         for (var i = 0; i < ret.data.entries.length; i++) {
                             if (_.isNormalObject(ret.data.entries[i]) && _.isUrn(ret.data.entries[i].urn)) {
-                                var instance = scope.queryOne({
-                                    urn: ret.data.entries[i].urn
+                                var instance = scope && scope.queryOne({
+                                    filter: {
+                                        urn: ret.data.entries[i].urn
+                                    }
                                 });
                                 if (instance) {
                                     instance.set(ret.data.entries[i]);
+                                    setTimeout(function(instance) {
+                                        store({
+                                            method: "POST",
+                                            urn: instance.urn,
+                                            data: instance.toJSON(),
+                                            remote: false
+                                        }, instance);
+                                    }, 0, instance);
                                 } else {
                                     var model = findModel(ret.data.entries[i].urn);
                                     if (model) {
@@ -5078,6 +5088,9 @@ var _ = function() {
             toSet[key] = value;
         }
         for (var key in toSet) {
+            if (key in scope._options.refs) {
+                continue;
+            }
             scope[key] = toSet[key];
             scope._options.changes = scope._options.changes || {};
             scope._options.changes[key] = {
