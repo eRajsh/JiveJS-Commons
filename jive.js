@@ -4602,18 +4602,25 @@ var _ = function() {
                         scope.entries = scope.entries || [];
                         for (var i = 0; i < ret.data.entries.length; i++) {
                             if (_.isNormalObject(ret.data.entries[i]) && _.isUrn(ret.data.entries[i].urn)) {
-                                var model = findModel(ret.data.entries[i].urn);
-                                if (model) {
-                                    var instance = new model(ret.data.entries[i]);
-                                    setTimeout(function(instance) {
-                                        store({
-                                            method: "POST",
-                                            urn: instance.urn,
-                                            data: instance.toJSON(),
-                                            remote: false
-                                        }, instance);
-                                    }, 0, instance);
-                                    scope.entries.push(instance);
+                                var instance = scope.queryOne({
+                                    urn: ret.data.entries[i].urn
+                                });
+                                if (instance) {
+                                    instance.set(ret.data.entries[i]);
+                                } else {
+                                    var model = findModel(ret.data.entries[i].urn);
+                                    if (model) {
+                                        instance = new model(ret.data.entries[i]);
+                                        setTimeout(function(instance) {
+                                            store({
+                                                method: "POST",
+                                                urn: instance.urn,
+                                                data: instance.toJSON(),
+                                                remote: false
+                                            }, instance);
+                                        }, 0, instance);
+                                        scope.entries.push(instance);
+                                    }
                                 }
                             } else {
                                 scope.entries.push(ret.data.entries[i]);
@@ -5062,20 +5069,25 @@ var _ = function() {
         });
         scope._options.persisted = jsoned;
     };
-    Model.prototype.set = function(args, scope) {
+    Model.prototype.set = function(key, value, scope) {
         scope = scope || this;
-        args = args || {};
-        if (typeof args.val !== "undefined") {
-            scope[args.key] = args.val;
+        var toSet = {};
+        if (typeof key === "object" && !value) {
+            toSet = key;
+        } else if (typeof key === "string" && typeof value !== "undefined") {
+            toSet[key] = value;
         }
-        scope._options.changes = scope._options.changes || {};
-        scope._options.changes[args.key] = {
-            aVal: scope._options.persisted[args.key],
-            bVal: scope[args.val]
-        };
+        for (var key in toSet) {
+            scope[key] = toSet[key];
+            scope._options.changes = scope._options.changes || {};
+            scope._options.changes[key] = {
+                aVal: scope._options.persisted[key],
+                bVal: scope[key]
+            };
+        }
         scope.dispatch({
             event: "setted",
-            data: args
+            data: toSet
         });
         scope.changed();
     };

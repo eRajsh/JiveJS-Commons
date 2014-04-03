@@ -416,7 +416,25 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 			});
 		});
 
+		describe("it has a set function that updates", function() {
+			it("can update a key and val by passing them in one-by-one", function() {
+				var Model = _.Model.create(modelSchema);
+
+				var model = new Model({urn: "test8:1", blah: "foobarcheese"});
+				model.set("blah", "cheesyfoobars");
+
+				expect(model.blah).toEqual("cheesyfoobars");
+			});
+
+			it("can bulk update by passing in an object", function() {
+				var Model = _.Model.create(modelSchema);
+
+				var model = new Model({urn: "test8:1", blah: "foobarcheese"});
+				model.set({"blah": "cheesyfoobars", "cheese": "is the best"});
+
+				expect(model.blah).toEqual("cheesyfoobars");
+				expect(model.cheese).toEqual("is the best");
+			});
+		});
 	});
-	
-	
 });
