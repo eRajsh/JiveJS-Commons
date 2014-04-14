@@ -304,6 +304,63 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1]).toEqual({test: 100});
 			});
 
+			it("has a $fuzzySearch capability that searches without regard for case inside the value only at the beginning and end of words", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				for(var i = 0; i < 11; i++) {
+					collection.entries.push({
+						test: "I'm a little tea " + i + " pot"
+					});
+				}
+
+				var results = collection.query({
+					filter: {
+						test: {
+							$fuzzySearch: "litt"
+						}
+					}
+				});
+
+				expect(results.length).toEqual(11);
+				expect(results[0]).toEqual({test: "I'm a little tea 0 pot"});
+				expect(results[1]).toEqual({test: "I'm a little tea 1 pot"});
+
+				results = collection.query({
+					filter: {
+						test: {
+							$fuzzySearch: "LITt"
+						}
+					}
+				});
+
+				expect(results.length).toEqual(11);
+				expect(results[0]).toEqual({test: "I'm a little tea 0 pot"});
+				expect(results[1]).toEqual({test: "I'm a little tea 1 pot"});
+
+				results = collection.query({
+					filter: {
+						test: {
+							$fuzzySearch: "0"
+						}
+					}
+				});
+
+				expect(results.length).toEqual(2);
+				expect(results[0]).toEqual({test: "I'm a little tea 0 pot"});
+				expect(results[1]).toEqual({test: "I'm a little tea 10 pot"});
+
+				results = collection.query({
+					filter: {
+						test: {
+							$fuzzySearch: "tt"
+						}
+					}
+				});
+
+				expect(results.length).toEqual(0);
+			});
+
 			it("has $in functionality for querying", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();

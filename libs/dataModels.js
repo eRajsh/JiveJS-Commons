@@ -875,8 +875,8 @@
 		for(var key in filter) {
 			var val = subSelect(entry, key),
 			    length,
-			    temp;
-			var cleanVal;
+			    temp,
+			    cleanVal;
 
 			if(_.isNormalObject(filter[key])) {
 				for(var filterKey in filter[key]) {
@@ -957,6 +957,13 @@
 						case "$search":
 							cleanVal = cleanVal || val;
 							if(('' + cleanVal).indexOf(filter[key][filterKey]) === -1) {
+								return false;
+							}
+						break;
+
+						case "$fuzzySearch":
+							var filter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
+							if(!defaultFilter(filter, val)) {
 								return false;
 							}
 						break;
