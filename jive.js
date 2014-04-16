@@ -4193,7 +4193,28 @@ var _ = function() {
                             }
                         }
                     }
-                    dfd.resolve(ret);
+                    if (args.method === "POST") {
+                        var wait = new _.Dfd();
+                        makeForModelDeferDfds[ret.data.urn] = makeForModelDeferDfds[ret.data.urn] || {
+                            promise: wait.promise(),
+                            dfd: wait
+                        };
+                        makeForModelDeferDfds[ret.data.urn].promise.done(function(model) {
+                            if (model) {
+                                ret.model = model;
+                            } else {
+                                var collection = findCollection(scope.urn);
+                                ret.model = collection.queryOne({
+                                    filter: {
+                                        urn: ret.data.urn
+                                    }
+                                });
+                            }
+                            dfd.resolve(ret);
+                        });
+                    } else {
+                        dfd.resolve(ret);
+                    }
                 }).fail(function(e) {
                     dfd.reject(e);
                 });
