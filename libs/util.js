@@ -549,16 +549,16 @@
 
 				case '[object Array]':
 					var ret = {
-							removed: [],
-							added: [],
-							changed: []
+						removed: [],
+						added: [],
+						changed: []
 					};
 					if(options.arrayOrderMatters) {
 						var i, j;
 						var iMax = a.length;
 						var jMax = b.length;
 
-						while(i < aMax && j < bMax) {
+						while(i < iMax && j < jMax) {
 							if(_.isEqual(a[i], b[j])) {
 								i++; j++;
 							}
@@ -586,6 +586,8 @@
 								i++;
 							}
 						}
+
+						return ret;
 					} else {
 						var aIndexesMatched = [];
 						var bIndexesMatched = [];

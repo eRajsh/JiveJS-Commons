@@ -1840,7 +1840,7 @@ var _ = function() {
                     var i, j;
                     var iMax = a.length;
                     var jMax = b.length;
-                    while (i < aMax && j < bMax) {
+                    while (i < iMax && j < jMax) {
                         if (_.isEqual(a[i], b[j])) {
                             i++;
                             j++;
@@ -1870,6 +1870,7 @@ var _ = function() {
                             i++;
                         }
                     }
+                    return ret;
                 } else {
                     var aIndexesMatched = [];
                     var bIndexesMatched = [];

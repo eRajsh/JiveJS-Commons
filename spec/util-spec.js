@@ -640,6 +640,39 @@ describe("Util.js Utility class", function() {
 			expect(ret.added.length).toEqual(1);
 			expect(ret.changed.length).toEqual(0);
 		});
+
+		it("should tell me things were removed when order matters", function() {
+			var a = ["entities:andrew", "entities:jmorris"];
+			var b = ["entities:andrew"];
+
+			var ret = _.diffValues(a, b, {arrayOrderMatters: true});
+
+			expect(ret.removed.length).toEqual(1);
+			expect(ret.added.length).toEqual(0);
+			expect(ret.changed.length).toEqual(0);
+		});
+
+		it("should tell me things were added when order matters", function() {
+			var a = ["entities:andrew"];
+			var b = ["entities:andrew", "entities:jmorris"];
+
+			var ret = _.diffValues(a, b, {arrayOrderMatters: true});
+
+			expect(ret.removed.length).toEqual(0);
+			expect(ret.added.length).toEqual(1);
+			expect(ret.changed.length).toEqual(0);
+		});
+
+		it("should tell me things were changed when order matters", function() {
+			var b = ["entities:andrew", "entities:jmorris"];
+			var a = ["entities:jmorris", "entities:andrew"];
+
+			var ret = _.diffValues(a, b, {arrayOrderMatters: true});
+
+			expect(ret.removed.length).toEqual(0);
+			expect(ret.added.length).toEqual(0);
+			expect(ret.changed.length).toEqual(2);
+		});
 	});
 
 
