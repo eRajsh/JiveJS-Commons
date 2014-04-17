@@ -966,6 +966,16 @@
 							}
 						break;
 
+						case "$neq":
+							var checkEqualFailCase = true;
+						case "$eq":
+							checkEqualFailCase = checkEqualFailCase || false;
+
+							if(_.isEqual(val, filter[key][filterKey]) === checkEqualFailCase) {
+								return false;
+							}
+						break;
+
 						case "$alphaNumSearch":
 							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '').toLowerCase();
 							if(_.isDate(val)) {

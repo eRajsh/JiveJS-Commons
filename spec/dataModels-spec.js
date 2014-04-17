@@ -406,6 +406,50 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[0].toJSON()).toEqual({urn: "test3:8", entities: [0, 8]});
 			});
 
+			it("has $eq functionality for querying", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({urn: "test3:" + i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: {
+						entities: {
+							$eq: [1, 5]
+						}
+					}
+				});
+
+				expect(results.length).toEqual(1);
+				expect(results[0].toJSON()).toEqual({urn: "test3:5", entities: [1, 5]});
+			});
+
+			it("has $neq functionality for querying", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({urn: "test3:" + i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: {
+						entities: {
+							$neq: [1, 5]
+						}
+					}
+				});
+
+				expect(results.length).toEqual(1000);
+				expect(results[0].toJSON()).toEqual({urn: "test3:0", entities: [0, 0]});
+			});
+
 			it("can select only specific fields", function(){
 				var results = collection.query({
 					select: ["presence.chat.code"]
