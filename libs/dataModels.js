@@ -244,8 +244,10 @@
 							if(model) {
 								ret.model = model;
 							} else {
-								var collection = findCollection(scope.urn);
-								ret.model = collection.queryOne({filter: {urn: ret.data.urn}});
+								var collection = findCollection(ret.data.urn);
+								if(collection) {
+									ret.model = collection.queryOne({filter: {urn: ret.data.urn}});
+								}
 							}
 
 							dfd.resolve(ret);
