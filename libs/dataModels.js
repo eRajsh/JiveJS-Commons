@@ -894,123 +894,133 @@
 	};
 
 	var filterCheckTheBastard = function(entry, filter) {
-		for(var key in filter) {
-			var val = subSelect(entry, key),
-			    length,
-			    temp,
-			    cleanVal;
+		if(_.isNormalObject(filter)) {
+			for(var key in filter) {
+				var val = subSelect(entry, key),
+					length,
+					temp,
+					cleanVal;
 
-			if(_.isNormalObject(filter[key])) {
-				for(var filterKey in filter[key]) {
-					switch(filterKey) {
-						case "$lt":
-							if(val >= filter[key][filterKey]) {
-								return false;
-							}
-						break;
-
-						case "$gt":
-							if(val <= filter[key][filterKey]) {
-								return false;
-							}
-						break;
-
-
-						case "$lte":
-							if(val > filter[key][filterKey]) {
-								return false;
-							}
-						break;
-
-						case "$gte":
-							if(val < filter[key][filterKey]) {
-								return false;
-							}
-						break;
-
-						case "$btw":
-							if(val <= filter[key][filterKey][0] || val >= filter[key][filterKey][1]) {
-								return false;
-							}
-						break;
-
-						case "$btwe":
-							if(val < filter[key][filterKey][0] || val > filter[key][filterKey][1]) {
-								return false;
-							}
-						break;
-
-
-						case "$nin":
-							length = 1;
-							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
-						case "$in":
-							length = length || 0;
-							if(_.isArray(val)) {
-								var intersection = _.intersection(val, filter[key][filterKey]);
-
-								if(intersection.length === length) {
+				if(_.isNormalObject(filter[key])) {
+					for(var filterKey in filter[key]) {
+						switch(filterKey) {
+							case "$lt":
+								if(val >= filter[key][filterKey]) {
 									return false;
 								}
-							}
-						break;
+							break;
 
-
-						case "$all":
-							if(_.isArray(val)) {
-								var diffs = _.diffValues(val, filter[key][filterKey]);
-
-								if(diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+							case "$gt":
+								if(val <= filter[key][filterKey]) {
 									return false;
 								}
-							}
-						break;
+							break;
 
-						case "$neq":
-							var checkEqualFailCase = true;
-						case "$eq":
-							checkEqualFailCase = checkEqualFailCase || false;
 
-							if(_.isEqual(val, filter[key][filterKey]) === checkEqualFailCase) {
-								return false;
-							}
-						break;
+							case "$lte":
+								if(val > filter[key][filterKey]) {
+									return false;
+								}
+							break;
 
-						case "$alphaNumSearch":
-							filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '').toLowerCase();
-							if(_.isDate(val)) {
-								//TO DO: MAKE THIS LESS HACKEY 
-								cleanVal = '' + val.toLocaleString();
-							} else {
-								cleanVal = '' + val;
-							}
-							cleanVal = cleanVal.replace(/[^\w:\-\/]/g, '').toLowerCase();
-							// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
-						case "$search":
-							cleanVal = cleanVal || val;
-							if(('' + cleanVal).indexOf(filter[key][filterKey]) === -1) {
-								return false;
-							}
-						break;
+							case "$gte":
+								if(val < filter[key][filterKey]) {
+									return false;
+								}
+							break;
 
-						case "$fuzzySearch":
-							var filter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
-							if(!defaultFilter(filter, val)) {
-								return false;
-							}
-						break;
+							case "$btw":
+								if(val <= filter[key][filterKey][0] || val >= filter[key][filterKey][1]) {
+									return false;
+								}
+							break;
 
-						default:
-							if(!defaultFilter(filter[key][filterKey], val)) {
-								return false;
-							}
-						break;
+							case "$btwe":
+								if(val < filter[key][filterKey][0] || val > filter[key][filterKey][1]) {
+									return false;
+								}
+							break;
+
+
+							case "$nin":
+								length = 1;
+								// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
+							case "$in":
+								length = length || 0;
+								if(_.isArray(val)) {
+									var intersection = _.intersection(val, filter[key][filterKey]);
+
+									if(intersection.length === length) {
+										return false;
+									}
+								}
+							break;
+
+
+							case "$all":
+								if(_.isArray(val)) {
+									var diffs = _.diffValues(val, filter[key][filterKey]);
+
+									if(diffs.added.length !== 0 || diffs.changed.length !== 0 || diffs.removed.length !== 0) {
+										return false;
+									}
+								}
+							break;
+
+							case "$neq":
+								var checkEqualFailCase = true;
+							case "$eq":
+								checkEqualFailCase = checkEqualFailCase || false;
+
+								if(_.isEqual(val, filter[key][filterKey]) === checkEqualFailCase) {
+									return false;
+								}
+							break;
+
+							case "$alphaNumSearch":
+								filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '').toLowerCase();
+								if(_.isDate(val)) {
+									//TO DO: MAKE THIS LESS HACKEY 
+									cleanVal = '' + val.toLocaleString();
+								} else {
+									cleanVal = '' + val;
+								}
+								cleanVal = cleanVal.replace(/[^\w:\-\/]/g, '').toLowerCase();
+								// FLOWS THROUGH ON PURPOSE, DON'T BREAK THIS.
+							case "$search":
+								cleanVal = cleanVal || val;
+								if(('' + cleanVal).indexOf(filter[key][filterKey]) === -1) {
+									return false;
+								}
+							break;
+
+							case "$fuzzySearch":
+								var filter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
+								if(!defaultFilter(filter, val)) {
+									return false;
+								}
+							break;
+
+							default:
+								if(!defaultFilter(filter[key][filterKey], val)) {
+									return false;
+								}
+							break;
+						}
+					}
+				} else if(_.isFunction(filter[key])) {
+					if(!filter[key].call(entry, val, entry)) {
+						return false;
+					}
+				} else {
+					if(!defaultFilter(filter[key], val)) {
+						return false;
 					}
 				}
-			} else {
-				if(!defaultFilter(filter[key], val)) {
-					return false;
-				}
+			}
+		} else if(_.isFunction(filter)) {
+			if(!filter.call(entry, entry)) {
+				return false;
 			}
 		}
 

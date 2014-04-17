@@ -450,6 +450,60 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[0].toJSON()).toEqual({urn: "test3:0", entities: [0, 0]});
 			});
 
+			it("the filter key can also be a function", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({urn: "test3:" + i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: function(scope) {
+						expect(scope).toEqual(this);
+						if(scope.urn === "test3:0") {
+							return true;
+						}
+
+						return false;
+					}
+				});
+
+				expect(results.length).toEqual(1);
+				expect(results[0].toJSON()).toEqual({urn: "test3:0", entities: [0, 0]});
+			});
+
+			it("a specific key in the filter can be a function", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({urn: "test3:" + i, entities: [ i % 4, i ]}));
+				}
+
+				var results = collection.query({
+					filter: {
+						urn: function(val, scope) {
+							expect(scope).toEqual(this);
+							expect(val).toEqual(scope.urn);
+
+							if(val === "test3:0") {
+								return true;
+							}
+
+							return false;
+						}
+					}
+				});
+
+				expect(results.length).toEqual(1);
+				expect(results[0].toJSON()).toEqual({urn: "test3:0", entities: [0, 0]});
+			});
+
 			it("can select only specific fields", function(){
 				var results = collection.query({
 					select: ["presence.chat.code"]
