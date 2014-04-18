@@ -47,8 +47,8 @@
 
 	};
 
-	var makeAndGet = function makeAndGet(args, model, collection, dfd, given) {
-		var instance = new model(args);
+	var makeAndGet = function makeAndGet(args, Model, collection, dfd, given) {
+		var instance = new Model(args);
 
 		if(!given) {
 			instance.get().done(function() {
@@ -67,7 +67,7 @@
 		var dfd = new _.Dfd();
 
 		var collection = findCollection(args.urn);
-		var model = findModel(args.urn);
+		var Model = findModel(args.urn);
 		var instance;
 
 		if(collection) {
@@ -91,20 +91,20 @@
 									if(instance) {
 										dfd.resolve(instance);
 									} else {
-										makeAndGet(args, model, collection, dfd, given);
+										makeAndGet(args, Model, collection, dfd, given);
 									}
 								});
 							} else {
-								makeAndGet(args, model, collection, dfd, given);
+								makeAndGet(args, Model, collection, dfd, given);
 							}
 						}
 					});
 				} else {
-					makeAndGet(args, model, collection, dfd, given);
+					makeAndGet(args, Model, collection, dfd, given);
 				}
 			}
-		} else if(model) {
-			makeAndGet(args, model, dfd, given);
+		} else if(Model) {
+			makeAndGet(args, Model, dfd, given);
 		} else {
 			dfd.reject("Couldn't find a model registered for " + args.urn);
 		}
@@ -119,55 +119,61 @@
 
 		var dfds = [true];
 
-		for(var key in scope._options.refs) {
-			(function(key) {
-				var ref = scope._options.refs[key];
+		function fetchForKey(key) {
+			var ref = scope._options.refs[key];
 
-				if(_.isArray(ref)) {
-					scope[key].forEach(function(item, i) {
-						if(_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
-							var eachDfd = new _.Dfd();
+			if(_.isArray(ref)) {
+				scope[key].forEach(function(item, i) {
+					var eachDfd;
 
-							makeForModel(item, true).done(function(ret) {
-								scope[key][i] = ret;
-								eachDfd.resolve();
-							});
+					if(_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
+						eachDfd = new _.Dfd();
 
-							dfds.push(eachDfd.promise());
-						} else if(_.isUrn(item)) {
-							var eachDfd = new _.Dfd();
-
-							makeForModel({urn: item}).done(function(ret) {
-								scope[key][i] = ret;
-								eachDfd.resolve();
-							});
-
-							dfds.push(eachDfd.promise());
-						}
-					});
-				} else {
-					if(_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
-						var eachDfd = new _.Dfd();
-
-						makeForModel(scope[key], true).done(function(ret) {
-							scope[key] = ret;
+						makeForModel(item, true).done(function(ret) {
+							scope[key][i] = ret;
 							eachDfd.resolve();
 						});
 
-						dfds.push(eachDfd);
-					} else if(_.isUrn(scope[key])) {
-						var eachDfd = new _.Dfd();
+						dfds.push(eachDfd.promise());
+					} else if(_.isUrn(item)) {
+						eachDfd = new _.Dfd();
 
-
-						makeForModel({urn: scope[key]}).done(function(ret) {
-							scope[key] = ret;
+						makeForModel({urn: item}).done(function(ret) {
+							scope[key][i] = ret;
 							eachDfd.resolve();
 						});
 
 						dfds.push(eachDfd.promise());
 					}
+				});
+			} else {
+				var eachDfd;
+
+				if(_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
+					eachDfd = new _.Dfd();
+
+					makeForModel(scope[key], true).done(function(ret) {
+						scope[key] = ret;
+						eachDfd.resolve();
+					});
+
+					dfds.push(eachDfd);
+				} else if(_.isUrn(scope[key])) {
+					eachDfd = new _.Dfd();
+
+
+					makeForModel({urn: scope[key]}).done(function(ret) {
+						scope[key] = ret;
+						eachDfd.resolve();
+					});
+
+					dfds.push(eachDfd.promise());
 				}
-			})(key);
+			}
+		}
+
+		for(var key in scope._options.refs) {
+			fetchForKey(key);
 		}
 
 		_.Dfd.when(dfds).done(function() {
@@ -240,13 +246,13 @@
 							dfd: wait
 						};
 
-						makeForModelDeferDfds[ret.data.urn].promise.done(function(model) {
-							if(model) {
-								ret.model = model;
+						makeForModelDeferDfds[ret.data.urn].promise.done(function(instance) {
+							if(instance) {
+								ret.model = ret.instance = instance;
 							} else {
 								var collection = findCollection(ret.data.urn);
 								if(collection) {
-									ret.model = collection.queryOne({filter: {urn: ret.data.urn}});
+									ret.model = ret.instance = collection.queryOne({filter: {urn: ret.data.urn}});
 								}
 							}
 
@@ -280,6 +286,8 @@
 
 	var local = function local(args, scope) {
 		var urn = args.urn;
+		var dfd;
+		var xhr;
 
 		if(scope._options.collection === true) {
 			var urnArray = scope._options.store.localStorage.split(":");
@@ -301,8 +309,8 @@
 			break;
 
 			case "PATCH":
-				var dfd = new _.Dfd();
-				var xhr = self.Jive.Store.get(urn, {json: true});
+				dfd = new _.Dfd();
+				xhr = self.Jive.Store.get(urn, {json: true});
 				xhr.done(function(ret) {
 					_.extend(ret, args.data);
 					self.Jive.Store.set(urn, ret, {json: true}).done(function(ret) {
@@ -322,15 +330,15 @@
 
 			case "HEAD":
 				//TODO figure out meta storage as different from "data" storage
-				var dfd = new _.Dfd();
-				var xhr = self.Jive.Store.get(urn, {json: true});
+				dfd = new _.Dfd();
+				xhr = self.Jive.Store.get(urn, {json: true});
 				xhr.done(function(ret) {
 					dfd.resolve({
 						lastModified: ret.lastModified,
 						eTag: ret.eTag,
 						ttl: ret.ttl,
 						expires: ret.expires
-					})
+					});
 				}).fail(function(e) {
 					dfd.reject(e);
 				});
@@ -339,12 +347,12 @@
 
 			case "OPTIONS":
 			default:
-				var dfd = new _.Dfd();
+				dfd = new _.Dfd();
 				dfd.resolve();
 				return dfd.promise();
 			break;
 		}
-	}
+	};
 
 
 	var rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg;
@@ -430,15 +438,15 @@
 		var toRet, populate, publish = false, dfd;
 
 		if(scope._options.collection === true) {
-			var model = findModel(data.urn);
+			var Model = findModel(data.urn);
 			var collection = findCollection(data.urn);
 
 			var instance = (typeof collection !== "undefined") ? collection.queryOne({filter: { urn: data.urn }}) : undefined;
 
 			switch(event) {
 				case "posted":
-					if(typeof instance === "undefined" && model) {
-						instance = new model(data);
+					if(typeof instance === "undefined" && Model) {
+						instance = new Model(data);
 						if(makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
 							makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
 						} else {
@@ -468,24 +476,27 @@
 			// gets an update since the collection is a client side concept only
 			toRet = instance;
 		} else {
+			var key;
 			switch(event) {
 				case "putted":
 					if(typeof scope !== "undefined") {
-						for(var key in scope) {
+						for(key in scope) {
 							if(key !== "_options") {
 								delete scope[key];
 							}
 						}
 					}
 				// THIS TOTALLY FLOWS INTO PATCHED
-				// It should be this way
+				// It should be this way.
+				// putted causes all of the parts to be deleted and then we set the keys,
+				// patched only changes the keys that were defined.
 
 				case "patched":
-					for (var key in scope._options.keys) {
+					for (key in scope._options.keys) {
 						scope[key] = (typeof data[key] !== "undefined") ? data[key] : scope[key];
 					}
 
-					for (var key in scope._options.refs) {
+					for (key in scope._options.refs) {
 						if(typeof data[key] !== "undefined" && scope[key].urn !== data[key]) {
 							scope[key] = data[key];
 
@@ -569,8 +580,9 @@
 
 	// We moved this into its own function because chrome was saying it couldn't optimize this bastard.
 	var initializeForInForNotOptimized = function initializeForInForNotOptimized(args, scope) {
+		var key;
 
-		for(var key in scope._options.refs) {
+		for(key in scope._options.refs) {
 			if(_.isArray(scope._options.refs[key])) {
 				scope[key] = scope[key] || [];
 			} else {
@@ -578,16 +590,16 @@
 			}
 		}
 
-		for(var key in scope._options.keys) {
+		for(key in scope._options.keys) {
 			doInitializeDefault(scope, key);
 		}
 
-		for(var key in scope._options.virtuals) {
+		for(key in scope._options.virtuals) {
 			scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
 			scope.virtuals[key].setter = scope.virtuals[key].getter.bind(scope);
 		}
 
-		for(var key in args) {
+		for(key in args) {
 			scope[key] = args[key];
 		}
 
@@ -692,9 +704,9 @@
 										store({ method: "POST", urn: instance.urn, data: instance.toJSON(), remote: false}, instance);
 									}, 0, instance);
 								} else {
-									var model = findModel(ret.data.entries[i].urn);
-									if(model) {
-										instance = new model(ret.data.entries[i]);
+									var Model = findModel(ret.data.entries[i].urn);
+									if(Model) {
+										instance = new Model(ret.data.entries[i]);
 										setTimeout(function(instance) {
 											store({ method: "POST", urn: instance.urn, data: instance.toJSON(), remote: false}, instance);
 										}, 0, instance);
@@ -714,11 +726,12 @@
 						if(collection) {
 
 							var entry = collection.queryOne({filter: {urn: scope.urn}});
+							var index;
 							if(entry) {
-								var index = collection.entries.indexOf(entry);
+								index = collection.entries.indexOf(entry);
 								collection.entries[index] = scope;
 							} else {
-								var index = collection.entries.indexOf(scope.urn);
+								index = collection.entries.indexOf(scope.urn);
 								if(index !== -1) {
 									collection.entries[index] = scope;
 								} else {
@@ -730,9 +743,9 @@
 
 					scope._options.persisted = scope.toJSON();
 
-					if(ret.headers['cache-control'] !== "no-cache" && ret.headers['expires']) {
-						scope._options.ttl = new Date(ret.headers['expires']).getTime();
-						scope._options.lastModified = new Date(ret.headers['last-modified']).getTime();
+					if(ret.headers['cache-control'] !== "no-cache" && ret.headers.expires) {
+						scope._options.ttl = new Date(ret.headers.expires).getTime();
+						scope._options.lastModified = new Date(ret.headers.last-modified).getTime();
 					} else {
 						scope._options.ttl = Date.now();
 					}
@@ -984,7 +997,7 @@
 							case "$alphaNumSearch":
 								filter[key][filterKey] = ('' + filter[key][filterKey]).replace(/[^\w:\-\/]/g, '').toLowerCase();
 								if(_.isDate(val)) {
-									//TO DO: MAKE THIS LESS HACKEY 
+									//TODO: MAKE THIS LESS HACKEY
 									cleanVal = '' + val.toLocaleString();
 								} else {
 									cleanVal = '' + val;
@@ -999,8 +1012,8 @@
 							break;
 
 							case "$fuzzySearch":
-								var filter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
-								if(!defaultFilter(filter, val)) {
+								var fuzzyFilter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
+								if(!defaultFilter(fuzzyFilter, val)) {
 									return false;
 								}
 							break;
@@ -1059,19 +1072,19 @@
 				if (aVal > bVal){
 					return -1;
 				} else {
-					return 1; 
+					return 1;
 				}
 			} else if(asc) {
 				if (aVal < bVal){
 					return -1;
 				} else {
-					return 1; 
+					return 1;
 				}
 			} else if(_.isFunction(keys[keyIndex].order)){
 				return keys[keyIndex].order(aVal, bVal);
 			}
 		});
-		
+
 		return ret;
 	};
 
@@ -1108,7 +1121,7 @@
 
 				if(args.vm) {
 					if(entry.toVM && _.isFunction(entry.toVM)) {
-						toPush = entry.toVM(args);
+						toPush = entry.toVM({vm: args.vm});
 					} else {
 						toPush = _.clone(entry);
 					}
@@ -1250,7 +1263,7 @@
 			toSet[key] = value;
 		}
 
-		for(var key in toSet) {
+		for(key in toSet) {
 			if(key in scope._options.refs) {
 				continue;
 			}
@@ -1319,7 +1332,6 @@
 
 	var toVMedCache = {};
 	Model.prototype.toVM = function(args, scope) {
-		// TODO: Upchain stuff already to VM'd 
 		scope = scope || this;
 		args = args || {};
 		args.vm = args.vm || "default";
@@ -1346,8 +1358,8 @@
 			scope.entries.forEach(function(entry) {
 				var vmed;
 				toVMedCache[entry[toVMedCacheKey]] = toVMedCache[entry[toVMedCacheKey]] || {};
-				
-				if(typeof toVMedCache[entry[toVMedCacheKey]][args.vm] === "undefined") { 
+
+				if(typeof toVMedCache[entry[toVMedCacheKey]][args.vm] === "undefined") {
 					if(typeof entry.toVM !== "undefined" && _.isFunction(entry.toVM)) {
 						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry.toVM({vm: args.vm});
 					} else {
@@ -1483,14 +1495,15 @@
 		model._options.vms = schema.vms;
 
 		model._options.refs = schema.refs || {};
-		for(var key in model._options.refs) {
+		var key;
+		for(key in model._options.refs) {
 			model._options.excludes[key] = true;
 		}
 
 		model._options.virtuals = schema.virtuals;
 		if(typeof model._options.virtuals !== "undefined") {
 			model.prototype.virtuals = {};
-			for(var key in model._options.virtuals) {
+			for(key in model._options.virtuals) {
 				model.prototype.virtuals[key] = {};
 
 				model.prototype.virtuals[key].getter = model._options.virtuals[key].getter || function() {};
@@ -1551,9 +1564,9 @@
 					createdDate: {type: "date"}
 				};
 
-				var newCollection = Model.create(collectionSchema);
+				var NewCollection = Model.create(collectionSchema);
 
-				new newCollection();
+				new NewCollection();
 			}
 		}
 

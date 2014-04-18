@@ -4019,8 +4019,8 @@ var _ = function() {
             }
         }
     };
-    var makeAndGet = function makeAndGet(args, model, collection, dfd, given) {
-        var instance = new model(args);
+    var makeAndGet = function makeAndGet(args, Model, collection, dfd, given) {
+        var instance = new Model(args);
         if (!given) {
             instance.get().done(function() {
                 dfd.resolve(instance);
@@ -4037,7 +4037,7 @@ var _ = function() {
     var makeForModel = function makeForModel(args, given) {
         var dfd = new _.Dfd();
         var collection = findCollection(args.urn);
-        var model = findModel(args.urn);
+        var Model = findModel(args.urn);
         var instance;
         if (collection) {
             instance = collection.queryOne({
@@ -4070,20 +4070,20 @@ var _ = function() {
                                     if (instance) {
                                         dfd.resolve(instance);
                                     } else {
-                                        makeAndGet(args, model, collection, dfd, given);
+                                        makeAndGet(args, Model, collection, dfd, given);
                                     }
                                 });
                             } else {
-                                makeAndGet(args, model, collection, dfd, given);
+                                makeAndGet(args, Model, collection, dfd, given);
                             }
                         }
                     });
                 } else {
-                    makeAndGet(args, model, collection, dfd, given);
+                    makeAndGet(args, Model, collection, dfd, given);
                 }
             }
-        } else if (model) {
-            makeAndGet(args, model, dfd, given);
+        } else if (Model) {
+            makeAndGet(args, Model, dfd, given);
         } else {
             dfd.reject("Couldn't find a model registered for " + args.urn);
         }
@@ -4093,49 +4093,52 @@ var _ = function() {
         args = args || {};
         var dfd = new _.Dfd();
         var dfds = [ true ];
-        for (var key in scope._options.refs) {
-            (function(key) {
-                var ref = scope._options.refs[key];
-                if (_.isArray(ref)) {
-                    scope[key].forEach(function(item, i) {
-                        if (_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
-                            var eachDfd = new _.Dfd();
-                            makeForModel(item, true).done(function(ret) {
-                                scope[key][i] = ret;
-                                eachDfd.resolve();
-                            });
-                            dfds.push(eachDfd.promise());
-                        } else if (_.isUrn(item)) {
-                            var eachDfd = new _.Dfd();
-                            makeForModel({
-                                urn: item
-                            }).done(function(ret) {
-                                scope[key][i] = ret;
-                                eachDfd.resolve();
-                            });
-                            dfds.push(eachDfd.promise());
-                        }
-                    });
-                } else {
-                    if (_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
-                        var eachDfd = new _.Dfd();
-                        makeForModel(scope[key], true).done(function(ret) {
-                            scope[key] = ret;
+        function fetchForKey(key) {
+            var ref = scope._options.refs[key];
+            if (_.isArray(ref)) {
+                scope[key].forEach(function(item, i) {
+                    var eachDfd;
+                    if (_.isNormalObject(item) && _.isUrn(item.urn) && !(item instanceof Model)) {
+                        eachDfd = new _.Dfd();
+                        makeForModel(item, true).done(function(ret) {
+                            scope[key][i] = ret;
                             eachDfd.resolve();
                         });
-                        dfds.push(eachDfd);
-                    } else if (_.isUrn(scope[key])) {
-                        var eachDfd = new _.Dfd();
+                        dfds.push(eachDfd.promise());
+                    } else if (_.isUrn(item)) {
+                        eachDfd = new _.Dfd();
                         makeForModel({
-                            urn: scope[key]
+                            urn: item
                         }).done(function(ret) {
-                            scope[key] = ret;
+                            scope[key][i] = ret;
                             eachDfd.resolve();
                         });
                         dfds.push(eachDfd.promise());
                     }
+                });
+            } else {
+                var eachDfd;
+                if (_.isNormalObject(scope[key]) && _.isUrn(scope[key].urn) && !(scope[key] instanceof Model)) {
+                    eachDfd = new _.Dfd();
+                    makeForModel(scope[key], true).done(function(ret) {
+                        scope[key] = ret;
+                        eachDfd.resolve();
+                    });
+                    dfds.push(eachDfd);
+                } else if (_.isUrn(scope[key])) {
+                    eachDfd = new _.Dfd();
+                    makeForModel({
+                        urn: scope[key]
+                    }).done(function(ret) {
+                        scope[key] = ret;
+                        eachDfd.resolve();
+                    });
+                    dfds.push(eachDfd.promise());
                 }
-            })(key);
+            }
+        }
+        for (var key in scope._options.refs) {
+            fetchForKey(key);
         }
         _.Dfd.when(dfds).done(function() {
             dfd.resolve(scope);
@@ -4200,13 +4203,13 @@ var _ = function() {
                             promise: wait.promise(),
                             dfd: wait
                         };
-                        makeForModelDeferDfds[ret.data.urn].promise.done(function(model) {
-                            if (model) {
-                                ret.model = model;
+                        makeForModelDeferDfds[ret.data.urn].promise.done(function(instance) {
+                            if (instance) {
+                                ret.model = ret.instance = instance;
                             } else {
                                 var collection = findCollection(ret.data.urn);
                                 if (collection) {
-                                    ret.model = collection.queryOne({
+                                    ret.model = ret.instance = collection.queryOne({
                                         filter: {
                                             urn: ret.data.urn
                                         }
@@ -4240,6 +4243,8 @@ var _ = function() {
     };
     var local = function local(args, scope) {
         var urn = args.urn;
+        var dfd;
+        var xhr;
         if (scope._options.collection === true) {
             var urnArray = scope._options.store.localStorage.split(":");
             urnArray.splice(-1);
@@ -4265,8 +4270,8 @@ var _ = function() {
             break;
 
           case "PATCH":
-            var dfd = new _.Dfd();
-            var xhr = self.Jive.Store.get(urn, {
+            dfd = new _.Dfd();
+            xhr = self.Jive.Store.get(urn, {
                 json: true
             });
             xhr.done(function(ret) {
@@ -4289,8 +4294,8 @@ var _ = function() {
             break;
 
           case "HEAD":
-            var dfd = new _.Dfd();
-            var xhr = self.Jive.Store.get(urn, {
+            dfd = new _.Dfd();
+            xhr = self.Jive.Store.get(urn, {
                 json: true
             });
             xhr.done(function(ret) {
@@ -4308,7 +4313,7 @@ var _ = function() {
 
           case "OPTIONS":
           default:
-            var dfd = new _.Dfd();
+            dfd = new _.Dfd();
             dfd.resolve();
             return dfd.promise();
             break;
@@ -4388,7 +4393,7 @@ var _ = function() {
         var data = ret.data.body || ret.data;
         var toRet, populate, publish = false, dfd;
         if (scope._options.collection === true) {
-            var model = findModel(data.urn);
+            var Model = findModel(data.urn);
             var collection = findCollection(data.urn);
             var instance = typeof collection !== "undefined" ? collection.queryOne({
                 filter: {
@@ -4397,8 +4402,8 @@ var _ = function() {
             }) : undefined;
             switch (event) {
               case "posted":
-                if (typeof instance === "undefined" && model) {
-                    instance = new model(data);
+                if (typeof instance === "undefined" && Model) {
+                    instance = new Model(data);
                     if (makeForModelDeferDfds[instance.urn] && makeForModelDeferDfds[instance.urn].dfd) {
                         makeForModelDeferDfds[instance.urn].dfd.resolve(instance);
                     } else {
@@ -4422,10 +4427,11 @@ var _ = function() {
             }
             toRet = instance;
         } else {
+            var key;
             switch (event) {
               case "putted":
                 if (typeof scope !== "undefined") {
-                    for (var key in scope) {
+                    for (key in scope) {
                         if (key !== "_options") {
                             delete scope[key];
                         }
@@ -4433,10 +4439,10 @@ var _ = function() {
                 }
 
               case "patched":
-                for (var key in scope._options.keys) {
+                for (key in scope._options.keys) {
                     scope[key] = typeof data[key] !== "undefined" ? data[key] : scope[key];
                 }
-                for (var key in scope._options.refs) {
+                for (key in scope._options.refs) {
                     if (typeof data[key] !== "undefined" && scope[key].urn !== data[key]) {
                         scope[key] = data[key];
                         populate = true;
@@ -4514,21 +4520,22 @@ var _ = function() {
         }
     };
     var initializeForInForNotOptimized = function initializeForInForNotOptimized(args, scope) {
-        for (var key in scope._options.refs) {
+        var key;
+        for (key in scope._options.refs) {
             if (_.isArray(scope._options.refs[key])) {
                 scope[key] = scope[key] || [];
             } else {
                 scope[key] = scope[key] || null;
             }
         }
-        for (var key in scope._options.keys) {
+        for (key in scope._options.keys) {
             doInitializeDefault(scope, key);
         }
-        for (var key in scope._options.virtuals) {
+        for (key in scope._options.virtuals) {
             scope.virtuals[key].getter = scope.virtuals[key].getter.bind(scope);
             scope.virtuals[key].setter = scope.virtuals[key].getter.bind(scope);
         }
-        for (var key in args) {
+        for (key in args) {
             scope[key] = args[key];
         }
     };
@@ -4643,9 +4650,9 @@ var _ = function() {
                                         }, instance);
                                     }, 0, instance);
                                 } else {
-                                    var model = findModel(ret.data.entries[i].urn);
-                                    if (model) {
-                                        instance = new model(ret.data.entries[i]);
+                                    var Model = findModel(ret.data.entries[i].urn);
+                                    if (Model) {
+                                        instance = new Model(ret.data.entries[i]);
                                         setTimeout(function(instance) {
                                             store({
                                                 method: "POST",
@@ -4672,11 +4679,12 @@ var _ = function() {
                                     urn: scope.urn
                                 }
                             });
+                            var index;
                             if (entry) {
-                                var index = collection.entries.indexOf(entry);
+                                index = collection.entries.indexOf(entry);
                                 collection.entries[index] = scope;
                             } else {
-                                var index = collection.entries.indexOf(scope.urn);
+                                index = collection.entries.indexOf(scope.urn);
                                 if (index !== -1) {
                                     collection.entries[index] = scope;
                                 } else {
@@ -4686,9 +4694,9 @@ var _ = function() {
                         }
                     }
                     scope._options.persisted = scope.toJSON();
-                    if (ret.headers["cache-control"] !== "no-cache" && ret.headers["expires"]) {
-                        scope._options.ttl = new Date(ret.headers["expires"]).getTime();
-                        scope._options.lastModified = new Date(ret.headers["last-modified"]).getTime();
+                    if (ret.headers["cache-control"] !== "no-cache" && ret.headers.expires) {
+                        scope._options.ttl = new Date(ret.headers.expires).getTime();
+                        scope._options.lastModified = new Date(ret.headers.last - modified).getTime();
                     } else {
                         scope._options.ttl = Date.now();
                     }
@@ -4944,8 +4952,8 @@ var _ = function() {
                             break;
 
                           case "$fuzzySearch":
-                            var filter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
-                            if (!defaultFilter(filter, val)) {
+                            var fuzzyFilter = new RegExp("\\b" + filter[key][filterKey] + "|" + filter[key][filterKey] + "\\b", "i");
+                            if (!defaultFilter(fuzzyFilter, val)) {
                                 return false;
                             }
                             break;
@@ -5034,7 +5042,9 @@ var _ = function() {
                 var toPush = entry;
                 if (args.vm) {
                     if (entry.toVM && _.isFunction(entry.toVM)) {
-                        toPush = entry.toVM(args);
+                        toPush = entry.toVM({
+                            vm: args.vm
+                        });
                     } else {
                         toPush = _.clone(entry);
                     }
@@ -5138,7 +5148,7 @@ var _ = function() {
         } else if (typeof key === "string" && typeof value !== "undefined") {
             toSet[key] = value;
         }
-        for (var key in toSet) {
+        for (key in toSet) {
             if (key in scope._options.refs) {
                 continue;
             }
@@ -5436,13 +5446,14 @@ var _ = function() {
         }
         model._options.vms = schema.vms;
         model._options.refs = schema.refs || {};
-        for (var key in model._options.refs) {
+        var key;
+        for (key in model._options.refs) {
             model._options.excludes[key] = true;
         }
         model._options.virtuals = schema.virtuals;
         if (typeof model._options.virtuals !== "undefined") {
             model.prototype.virtuals = {};
-            for (var key in model._options.virtuals) {
+            for (key in model._options.virtuals) {
                 model.prototype.virtuals[key] = {};
                 model.prototype.virtuals[key].getter = model._options.virtuals[key].getter || function() {};
                 model.prototype.virtuals[key].setter = model._options.virtuals[key].setter || function() {};
@@ -5499,8 +5510,8 @@ var _ = function() {
                         type: "date"
                     }
                 };
-                var newCollection = Model.create(collectionSchema);
-                new newCollection();
+                var NewCollection = Model.create(collectionSchema);
+                new NewCollection();
             }
         }
         return newModel;
