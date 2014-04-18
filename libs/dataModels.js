@@ -1349,7 +1349,7 @@
 				
 				if(typeof toVMedCache[entry[toVMedCacheKey]][args.vm] === "undefined") { 
 					if(typeof entry.toVM !== "undefined" && _.isFunction(entry.toVM)) {
-						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry.toVM(args);
+						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry.toVM({vm: args.vm});
 					} else {
 						vmed = toVMedCache[entry[toVMedCacheKey]][args.vm] = entry;
 					}
@@ -1371,7 +1371,7 @@
 							toVMedCache[entry.urn] = toVMedCache[entry.urn] || {};
 							if(typeof toVMedCache[entry.urn][args.vm] === "undefined") {
 								if(_.isFunction(entry.toVM)) {
-									vmed = toVMedCache[entry.urn][args.vm] = entry.toVM(args);
+									vmed = toVMedCache[entry.urn][args.vm] = entry.toVM({vm: args.vm});
 								} else {
 									console.log("wasn't a function thing", entry);
 								}
@@ -1384,18 +1384,14 @@
 						var vmed;
 						toVMedCache[scope[key].urn] = toVMedCache[scope[key].urn] || {};
 						if(typeof toVMedCache[scope[key].urn][args.vm] === "undefined") {
-							vmed = toVMedCache[scope[key].urn][args.vm] = scope[key].toVM(args);
+							vmed = toVMedCache[scope[key].urn][args.vm] = scope[key].toVM({vm: args.vm});
 						} else {
 							vmed = toVMedCache[scope[key].urn][args.vm];
 						}
 						ret[key] = vmed;
 					}
 				} else if(key === "*") {
-					if(args.vm === "default") {
-						_.extend(ret, scope.toVM({keys: "*", vm: "star"}));
-					} else {
-						_.extend(ret, scope.toVM());
-					}
+					_.extend(ret, scope.toVM({keys: "*", vm: "default"}));
 				} else {
 					var sub = subSelect(scope, key, args);
 					if(typeof sub !== "undefined") {
