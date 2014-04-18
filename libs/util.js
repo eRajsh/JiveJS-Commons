@@ -318,7 +318,7 @@
 		var ret = [];
 		if (_.isNormalObject(obj)) {
 			for (var key in obj) {
-				ret.push(_.encode_utf8(key) + "=" + _.encode_utf8(obj[key]));
+				ret.push(encodeURIComponent(key) + "=" + encodeURIComponent(obj[key]));
 			}
 		}
 		return ret.join("&");
@@ -339,7 +339,7 @@
 			var pairs = str.split("&");
 			for (var i = 0; i < pairs.length; i++) {
 				var pair = pairs[i].split("=");
-				ret[_.decode_utf8(pair[0])] = _.decode_utf8(pair[1]);
+				ret[decodeURIComponent(pair[0])] = decodeURIComponent(pair[1]);
 			}
 		}
 

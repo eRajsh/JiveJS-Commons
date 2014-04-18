@@ -392,11 +392,11 @@ describe("Util.js Utility class", function() {
 				foo: "bar",
 				test: "cheese",
 				utf8: "this is a accented Peneda-GerÃªs"
-			})).toEqual("foo=bar&test=cheese&utf8=this%2520is%2520a%2520accented%2520Peneda-Ger%25C3%25AAs");
+			})).toEqual("foo=bar&test=cheese&utf8=this%20is%20a%20accented%20Peneda-Ger%C3%83%C2%AAs");
 		});
 
 		it("has a query string decode that decodes a URL encoded string into an object.", function() {
-			expect(_.queryStringDecode("foo=bar&test=cheese&utf8=this%2520is%2520a%2520accented%2520Peneda-Ger%25C3%25AAs")).toEqual({
+			expect(_.queryStringDecode("foo=bar&test=cheese&utf8=this%20is%20a%20accented%20Peneda-Ger%C3%83%C2%AAs")).toEqual({
 				foo: "bar",
 				test: "cheese",
 				utf8: "this is a accented Peneda-GerÃªs"

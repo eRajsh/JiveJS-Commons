@@ -374,27 +374,31 @@
 
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
 
-		$.ajax({
-			url: (self.Jive.Features.APIBaseUrl || "") + remote + "/" + urn,
-			beforeSend : function (xhr){
-				xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
-			},
-			type: args.method,
-			data: data,
-			dataType: "json"
-		}).done(function(data, status, jqXhr){
-			dfd.resolve({
-				data: data,
-				status: (jqXhr && jqXhr.status) || 0,
-				headers: parseHeaders(((jqXhr && jqXhr.getAllResponseHeaders()) || ""))
-			});
-		}).fail(function(jqXhr, status, error){
-			dfd.reject({
-				e: error,
-				status: jqXhr.status,
-				headers: parseHeaders(((jqXhr && jqXhr.getAllResponseHeaders()) || ""))
-			});
-		});
+		var xhr = new XMLHttpRequest();
+		xhr.open(args.method, (self.Jive.Features.APIBaseUrl || "") + remote + "/" + urn);
+		xhr.setRequestHeader("Content-Type","application/json; charset=utf-8");
+
+		xhr.onreadystatechange = function xhrOnReadyStateChange() {
+			if(xhr.readyState === 4) {
+				if(xhr.status > 400) {
+					dfd.reject({
+						e: error,
+						status: xhr.status,
+						headers: parseHeaders(((xhr && xhr.getAllResponseHeaders()) || ""))
+					});
+				} else {
+					var data = JSON.parse(xhr.responseText);
+
+					dfd.resolve({
+						data: data,
+						status: xhr.status,
+						headers: parseHeaders(((xhr && xhr.getAllResponseHeaders()) || ""))
+					});
+				}
+			}
+		};
+
+		xhr.send(data);
 
 		return dfd.promise();
 	};
