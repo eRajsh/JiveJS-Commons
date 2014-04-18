@@ -1105,7 +1105,7 @@
 		return ret;
 	};
 
-	Model.prototype.query = function(args, scope) {
+	Model.prototype.query = Model.prototype.find = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
 
@@ -1150,7 +1150,7 @@
 		return ret;
 	};
 
-	Model.prototype.queryOne = function(args, scope) {
+	Model.prototype.queryOne = Model.prototype.findOne = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
 
@@ -1427,7 +1427,9 @@
 	_.updateProp(Model.prototype, {name: "options", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "head", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "query", attrs: {enumerable: false}});
+	_.updateProp(Model.prototype, {name: "find", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "queryOne", attrs: {enumerable: false}});
+	_.updateProp(Model.prototype, {name: "findOne", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "dispatch", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "on", attrs: {enumerable: false}});
 	_.updateProp(Model.prototype, {name: "off", attrs: {enumerable: false}});

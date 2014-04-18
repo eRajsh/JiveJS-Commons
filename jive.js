@@ -5031,7 +5031,7 @@ var _ = function() {
         });
         return ret;
     };
-    Model.prototype.query = function(args, scope) {
+    Model.prototype.query = Model.prototype.find = function(args, scope) {
         scope = scope || this;
         args = args || {};
         args.key = args.key || "entries";
@@ -5067,7 +5067,7 @@ var _ = function() {
         }
         return ret;
     };
-    Model.prototype.queryOne = function(args, scope) {
+    Model.prototype.queryOne = Model.prototype.findOne = function(args, scope) {
         scope = scope || this;
         args = args || {};
         args.limit = 1;
@@ -5336,7 +5336,19 @@ var _ = function() {
         }
     });
     _.updateProp(Model.prototype, {
+        name: "find",
+        attrs: {
+            enumerable: false
+        }
+    });
+    _.updateProp(Model.prototype, {
         name: "queryOne",
+        attrs: {
+            enumerable: false
+        }
+    });
+    _.updateProp(Model.prototype, {
+        name: "findOne",
         attrs: {
             enumerable: false
         }
