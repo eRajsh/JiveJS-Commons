@@ -390,7 +390,7 @@
 			if(xhr.readyState === 4) {
 				if(xhr.status > 400) {
 					dfd.reject({
-						e: error,
+						e: xhr.status,
 						status: xhr.status,
 						headers: parseHeaders(((xhr && xhr.getAllResponseHeaders()) || ""))
 					});
