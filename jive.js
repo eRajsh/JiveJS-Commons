@@ -4696,7 +4696,7 @@ var _ = function() {
                     scope._options.persisted = scope.toJSON();
                     if (ret.headers["cache-control"] !== "no-cache" && ret.headers.expires) {
                         scope._options.ttl = new Date(ret.headers.expires).getTime();
-                        scope._options.lastModified = new Date(ret.headers.last - modified).getTime();
+                        scope._options.lastModified = new Date(ret.headers["last-modified"]).getTime();
                     } else {
                         scope._options.ttl = Date.now();
                     }
