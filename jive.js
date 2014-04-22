@@ -4863,6 +4863,11 @@ var _ = function() {
     var filterCheckTheBastard = function(entry, filter) {
         if (_.isNormalObject(filter)) {
             for (var key in filter) {
+                if (entry && entry._options && entry._options.refs && entry._options.refs[key]) {
+                    filter[key + ".urn"] = filter[key];
+                    delete filter[key];
+                    key = key + ".urn";
+                }
                 var val = subSelect(entry, key), length, temp, cleanVal;
                 if (_.isNormalObject(filter[key])) {
                     for (var filterKey in filter[key]) {

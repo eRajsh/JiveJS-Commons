@@ -119,6 +119,57 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1].toJSON()).toEqual({urn: "test:1", i: 1, presence: { chat: { code: (1 % 4) }}});
 			});
 
+			it("has the ability to find URNs or Objects", function(){
+				var collection;
+
+				runs(function() {
+					var Model = _.Model.create({
+						name: "testUrnRef",
+						store: {
+							localStorage: false,
+							remote: false,
+						},
+						urn: "testUrnRef:*",
+						vms: {
+							default: "*"
+						},
+						refs: {
+							entity: {type: "urn"}
+						},
+						keys: {}
+					});
+
+					collection = _.Model.getCollections().testUrnRef.collection;
+
+					collection.entries.push(new Model({urn: "testRefUrn:0", entity: "test:0"}));
+				});
+
+				waitsFor(function() {
+					return collection.entries[0]._options.inited.state() === 1;
+				}, 1000);
+
+				runs(function() {
+					var results = collection.query({
+						filter: {
+							entity: "test:0"
+						}
+					});
+
+					expect(results.length).toEqual(1);
+					expect(results[0].urn).toEqual("testRefUrn:0");
+					expect(_.isObject(results[0].entity)).toEqual(true);
+
+					results = collection.query({
+						filter: {
+							"entity.urn": "test:0"
+						}
+					});
+
+					expect(results.length).toEqual(1);
+					expect(results[0].urn).toEqual("testRefUrn:0");
+				});
+			});
+
 			it("has $lt, $gt, $lte, $gte, $between, and $betweene functionality for querying", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();
