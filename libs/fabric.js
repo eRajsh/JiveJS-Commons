@@ -382,7 +382,7 @@
 		this.publish     = function(args) {
 			args = args || {data:{}};
 			args.data = args.data || {};
-			args.key = "message_"+this.__i__();
+			args.key = this.__i__();
 			args.type = args.type  || "publish";
 
 			if (replay) {
@@ -411,7 +411,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__();
+			args.data.key = this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "request";
 
@@ -477,7 +477,7 @@
 			args = args || {};
 			args.data = args.data  || {};
 
-			args.data.key = "message_"+this.__i__();
+			args.data.key = this.__i__();
 			args.data.cbUrn = args.urn+":"+args.data.key;
 			args.data.type = "command";
 

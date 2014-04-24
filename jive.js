@@ -5908,7 +5908,7 @@ var _ = function() {
                 data: {}
             };
             args.data = args.data || {};
-            args.key = "message_" + this.__i__();
+            args.key = this.__i__();
             args.type = args.type || "publish";
             if (replay) {
                 store.put(args.key, args);
@@ -5918,7 +5918,7 @@ var _ = function() {
         this.request = function(args) {
             args = args || {};
             args.data = args.data || {};
-            args.data.key = "message_" + this.__i__();
+            args.data.key = this.__i__();
             args.data.cbUrn = args.urn + ":" + args.data.key;
             args.data.type = "request";
             args.data.key = this.subscribe({
@@ -5943,7 +5943,7 @@ var _ = function() {
         this.command = function(args) {
             args = args || {};
             args.data = args.data || {};
-            args.data.key = "message_" + this.__i__();
+            args.data.key = this.__i__();
             args.data.cbUrn = args.urn + ":" + args.data.key;
             args.data.type = "command";
             args.data.key = this.subscribe({
