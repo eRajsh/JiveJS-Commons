@@ -1418,7 +1418,10 @@ var _ = function() {
                     newp.resolve(whenData);
                 }
                 promises.forEach(function(promise, i) {
-                    if (isPromise(promise) || isDeferred(promise)) {
+                    if (isPromise(promise) || isDeferred(promise) || !!promise) {
+                        if (!!promise) {
+                            promise = p.wrap(promise);
+                        }
                         promise.done(function(data) {
                             resolvedCount++;
                             handledCount++;
@@ -1453,10 +1456,6 @@ var _ = function() {
                         }).progress(function(data) {
                             newp.notify(data);
                         });
-                    } else if (!!promise) {
-                        resolvedCount++;
-                        handledCount++;
-                        whenData[i] = promise;
                     } else {
                         handledCount++;
                         whenData[i] = promise;
