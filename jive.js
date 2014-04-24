@@ -3993,7 +3993,7 @@ var _ = function() {
     var findModel = function findModel(urn) {
         for (var key in urns) {
             if (urns[key].regex.exec(urn)) {
-                return urns[key].model;
+                return urns[key].Model;
             }
         }
     };
@@ -4084,7 +4084,7 @@ var _ = function() {
         } else if (Model) {
             makeAndGet(args, Model, dfd, given);
         } else {
-            dfd.reject("Couldn't find a model registered for " + args.urn);
+            dfd.reject("Couldn't find a Model registered for " + args.urn);
         }
         return dfd.promise();
     };
@@ -4541,6 +4541,7 @@ var _ = function() {
     var initialize = function initialize(args, scope) {
         scope = scope || this;
         args = args || {};
+        scope._options.fetched = new _.Dfd();
         if (scope._options.collection === true) {
             collections[scope._options.name] = {
                 regex: _.createRegex({
@@ -4552,6 +4553,18 @@ var _ = function() {
                 scope.urn = scope._options.rootUrn;
             } else if (_.isString(scope._options.urn)) {
                 scope.urn = scope._options.urn;
+            }
+            if (_.isArray(scope._options.subscriptions) && self && self.Jive && self.Jive.SessionBridge) {
+                if (scope._options.collection === true) {
+                    scope._options.fetched.done(function(scope) {
+                        for (var i = 0; i < scope._options.subscriptions.length; i++) {
+                            self.Jive.SessionBridge.subscribe({
+                                urn: scope._options.subscriptions[i],
+                                ETag: scope._options.ETag
+                            });
+                        }
+                    });
+                }
             }
             scope.insert = insertFunc.bind(scope);
         }
@@ -4631,6 +4644,7 @@ var _ = function() {
                 if (_.isNormalObject(ret.data)) {
                     if (scope._options.collection === true) {
                         scope.entries = scope.entries || [];
+                        scope._options.ETag = ret.data.ETag;
                         for (var i = 0; i < ret.data.entries.length; i++) {
                             if (_.isNormalObject(ret.data.entries[i]) && _.isUrn(ret.data.entries[i].urn)) {
                                 var instance = scope && scope.queryOne({
@@ -4714,6 +4728,9 @@ var _ = function() {
                     scope._options.inited = populateRefs(scope, {
                         local: ret.local
                     }).done(function() {
+                        if (scope._options.fetched) {
+                            scope._options.fetched.resolve(scope);
+                        }
                         dfd.resolve(scope);
                     });
                 } else {
@@ -5411,79 +5428,70 @@ var _ = function() {
             enumerable: false
         }
     });
-    var parseSchema = function(schema, model) {
-        model._options.urn = schema.urn;
-        model._options.rootUrn = schema.rootUrn;
-        model._options.name = schema.name;
-        urns[model._options.urn] = {
+    var parseSchema = function(schema, Model) {
+        Model._options.urn = schema.urn;
+        Model._options.rootUrn = schema.rootUrn;
+        Model._options.name = schema.name;
+        urns[Model._options.urn] = {
             regex: _.createRegex({
-                urn: model._options.urn
+                urn: Model._options.urn
             }),
-            model: model
+            Model: Model
         };
-        model._options.collection = isCollection(model._options.urn);
+        Model._options.collection = isCollection(Model._options.urn);
         if (typeof schema.store === "undefined") {
             if (typeof window !== "undefined") {
                 if (document.localStorage) {
-                    model._options.store = {
+                    Model._options.store = {
                         localStorage: "Jive:Data"
                     };
                 } else {
-                    model._options.store = {
+                    Model._options.store = {
                         memory: "Jive.Data"
                     };
                 }
             } else {
-                model._options.store = {
+                Model._options.store = {
                     mongo: "mongoConnectionUrl"
                 };
             }
         } else {
-            model._options.store = schema.store;
+            Model._options.store = schema.store;
         }
         if (typeof schema.vms === "undefined") {
             schema.vms = {
                 "default": "*"
             };
         }
-        if (typeof schema.subscriptions !== "undefined" && model._options.collection === true) {
-            model._options.subscriptions = schema.subscriptions;
-        } else if (typeof model._options.subscriptions === "undefined" && model._options.collection === true && model._options.urn) {
-            model._options.subscriptions = [ model._options.urn, model._options.urn + ":*" ];
+        if (typeof schema.subscriptions !== "undefined" && Model._options.collection === true) {
+            Model._options.subscriptions = schema.subscriptions;
+        } else if (typeof Model._options.subscriptions === "undefined" && Model._options.collection === true && Model._options.urn) {
+            Model._options.subscriptions = [ Model._options.urn, Model._options.urn + ":*" ];
         }
-        if (_.isArray(model._options.subscriptions) && self && self.Jive && self.Jive.SessionBridge) {
-            if (model._options.collection === true) {
-                for (var i = 0; i < model._options.subscriptions.length; i++) {
-                    self.Jive.SessionBridge.subscribe({
-                        urn: model._options.subscriptions[i]
-                    });
-                }
-            }
-        }
-        model._options.vms = schema.vms;
-        model._options.refs = schema.refs || {};
+        Model._options.vms = schema.vms;
+        Model._options.refs = schema.refs || {};
         var key;
-        for (key in model._options.refs) {
-            model._options.excludes[key] = true;
+        for (key in Model._options.refs) {
+            Model._options.excludes[key] = true;
         }
-        model._options.virtuals = schema.virtuals;
-        if (typeof model._options.virtuals !== "undefined") {
-            model.prototype.virtuals = {};
-            for (key in model._options.virtuals) {
-                model.prototype.virtuals[key] = {};
-                model.prototype.virtuals[key].getter = model._options.virtuals[key].getter || function() {};
-                model.prototype.virtuals[key].setter = model._options.virtuals[key].setter || function() {};
+        Model._options.virtuals = schema.virtuals;
+        if (typeof Model._options.virtuals !== "undefined") {
+            Model.prototype.virtuals = {};
+            for (key in Model._options.virtuals) {
+                Model.prototype.virtuals[key] = {};
+                Model.prototype.virtuals[key].getter = Model._options.virtuals[key].getter || function() {};
+                Model.prototype.virtuals[key].setter = Model._options.virtuals[key].setter || function() {};
             }
         }
-        model._options.keys = schema.keys || {};
-        _.updateProp(model, {
+        Model._options.keys = schema.keys || {};
+        _.updateProp(Model, {
             name: "_options",
             attrs: {
                 enumerable: false
             }
         });
-        _.lockProperty(model._options, "refs");
-        _.lockProperty(model._options, "keys");
+        _.lockProperty(Model._options, "refs");
+        _.lockProperty(Model._options, "keys");
     };
     Model.create = function(schema) {
         var newModel = function(data, options) {
