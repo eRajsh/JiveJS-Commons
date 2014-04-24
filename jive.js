@@ -1419,7 +1419,7 @@ var _ = function() {
                 }
                 promises.forEach(function(promise, i) {
                     if (isPromise(promise) || isDeferred(promise) || !!promise) {
-                        if (!!promise) {
+                        if (!isPromise(promise) && !isDeferred(promise)) {
                             promise = p.wrap(promise);
                         }
                         promise.done(function(data) {
