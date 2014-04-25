@@ -5295,7 +5295,7 @@ var _ = function() {
                 } else if (key === "*") {
                     _.extend(ret, scope.toVM({
                         keys: "*",
-                        vm: "default"
+                        vm: args.vm
                     }));
                 } else {
                     var sub = subSelect(scope, key, args);

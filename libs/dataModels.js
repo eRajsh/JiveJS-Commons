@@ -1428,7 +1428,7 @@
 						ret[key] = vmed;
 					}
 				} else if(key === "*") {
-					_.extend(ret, scope.toVM({keys: "*", vm: "default"}));
+					_.extend(ret, scope.toVM({keys: "*", vm: args.vm}));
 				} else {
 					var sub = subSelect(scope, key, args);
 					if(typeof sub !== "undefined") {

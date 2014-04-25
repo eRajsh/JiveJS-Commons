@@ -170,6 +170,67 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				});
 			});
 
+			it("will chain view models (vm's) along down the chain", function(){
+				var collection;
+
+				runs(function() {
+					var schema = _.clone(modelSchema, true);
+					schema.name = "testNestedToVM";
+					schema.urn = "testNestedToVM:*";
+					schema.vms = {
+						default: ["*"],
+						foobar: ["*", "foobar"]
+					};
+					schema.virtuals = {
+						foobar: {
+							getter: function(args, scope){
+								return "im a little virtual short and stout";
+							}
+						}
+					};
+					var VirtualizedModel = _.Model.create(schema);
+					
+					_.Model.getCollections().testNestedToVM.collection.entries.push(new VirtualizedModel({urn: "testNestedToVM:0"}));
+
+					var Model = _.Model.create({
+						name: "testNestedToVM2",
+						store: {
+							localStorage: false,
+							remote: false,
+						},
+						urn: "testNestedToVM2:*",
+						vms: {
+							default: "*",
+							foobar: ["*"]
+						},
+						refs: {
+							entities: [{type: "urn"}]
+						},
+						keys: {}
+					});
+
+					collection = _.Model.getCollections().testNestedToVM2.collection;
+
+					collection.entries.push(new Model({urn: "testNestedToVM2:0", entities: ["testNestedToVM:0"]}));
+				});
+
+				waitsFor(function() {
+					return collection.entries[0]._options.inited.state() === 1;
+				}, 1000);
+
+				runs(function() {
+					var results = collection.query({vm: "default"});
+
+					expect(results.length).toEqual(1);
+					expect(results[0].entities[0].foobar).toEqual(undefined);
+
+					results = collection.query({vm: "foobar"});
+
+					expect(results.length).toEqual(1);
+					expect(results[0].entities[0].foobar).toEqual("im a little virtual short and stout");
+				});
+			});
+
 			it("has $lt, $gt, $lte, $gte, $between, and $betweene functionality for querying", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();
