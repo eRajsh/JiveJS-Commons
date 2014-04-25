@@ -201,14 +201,14 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func2).toHaveBeenCalledWith({
 					data: 'foo',
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func4.calls[0].args[0].matches[1]).toEqual('rocks');
 				expect(spy.func5.calls[0].args[0].matches[1]).toEqual('rocks');
@@ -388,35 +388,35 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func2).toHaveBeenCalledWith({
 					data: 1,
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func3).toHaveBeenCalledWith({
 					data: 2,
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func4).toHaveBeenCalledWith({
 					data: 3,
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 				expect(spy.func5).toHaveBeenCalledWith({
 					data: 4,
 					matches: undefined,
 					raw: 'foo',
 					binding: 'nick:rocks',
-					key: 'message_6'
+					key: 6
 				});
 			});
 		});
@@ -472,13 +472,13 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 			});
 
 			runs(function(){
-				expect(JSON.stringify(spy.func1.calls[0].args[0])).toEqual('{"data":{"key":"subscription_3","cbUrn":"nick:request:message_2","type":"request"},"raw":{"key":"subscription_3","cbUrn":"nick:request:message_2","type":"request"},"binding":"nick:request","key":"message_4"}');
+				expect(JSON.stringify(spy.func1.calls[0].args[0])).toEqual('{"data":{"key":"subscription_3","cbUrn":"nick:request:2","type":"request"},"raw":{"key":"subscription_3","cbUrn":"nick:request:2","type":"request"},"binding":"nick:request","key":4}');
 				expect(spy.func2).toHaveBeenCalledWith({
 					data: 'woot',
 					matches: undefined,
 					raw: 'woot',
-					binding: 'nick:request:message_2',
-					key: 'message_5'
+					binding: 'nick:request:2',
+					key: 5
 				});
 				expect(spy.func3).not.toHaveBeenCalled()
 			});
@@ -535,13 +535,13 @@ describe("Fabric.js is a class to provide a kick ass event fabric in the client 
 			});
 
 			runs(function(){
-				expect(JSON.stringify(spy.func1.calls[0].args[0])).toEqual('{"data":{"key":"subscription_3","cbUrn":"nick:command:message_2","type":"command"},"raw":{"key":"subscription_3","cbUrn":"nick:command:message_2","type":"command"},"binding":"nick:command","key":"message_4"}');
+				expect(JSON.stringify(spy.func1.calls[0].args[0])).toEqual('{"data":{"key":"subscription_3","cbUrn":"nick:command:2","type":"command"},"raw":{"key":"subscription_3","cbUrn":"nick:command:2","type":"command"},"binding":"nick:command","key":4}');
 				expect(spy.func2).toHaveBeenCalledWith({
 					data: 'woot',
 					matches: undefined,
 					raw: 'woot',
-					binding: 'nick:command:message_2',
-					key: 'message_5'
+					binding: 'nick:command:2',
+					key: 5
 				});
 				expect(spy.func3).not.toHaveBeenCalled()
 			});
