@@ -918,6 +918,7 @@
 
 		isDate: _.isDate,
 
+		// TODO: Remove this.
 		roundThreeAndPad: function(number){
 			var numberArray = ("" + Math.round(number * 1000)/1000).split('.');
 
@@ -1126,6 +1127,65 @@
 			}
 
 			ret = hours + ":" + minutes + " " + AMPM;
+
+			return ret;
+		},
+
+		formatDuration: function(length, options) {
+			options = options || {};
+
+			if(length == parseInt(length)) {
+				length = parseInt(length);
+			}
+
+			length = (typeof length === "number" && length > 0) ? length : 0;
+
+			var secondsInMinute = 60;
+			var secondsInHour = secondsInMinute * 60;
+			var secondsInDay = secondsInHour * 24;
+
+			var ret = "";
+
+			if(options.days && (length / secondsInDay) >= 1 ) {
+				var days = Math.floor(length / secondsInDay);
+				length -= (days * secondsInDay);
+
+				if(days <= 9) {
+					 ret += "0";
+				}
+				ret += days + ":";
+			}
+
+			if(options.hours && ((length / secondsInHour) >= 1 || days) ) {
+				var hours = Math.floor(length / secondsInHour);
+				length -= (hours * secondsInHour);
+
+				if(hours <= 9) {
+					 ret += "0";
+				}
+				ret += hours + ":";
+			}
+
+			if(options.minutes !== false) {
+				var minutes = Math.floor(length / secondsInMinute);
+
+				if(minutes >= 1) {
+					length -= (minutes * secondsInMinute);
+				}
+
+				if(minutes <= 9 && (options.days || options.hours)) {
+					 ret += "0";
+				}
+				ret += minutes + ":";
+			}
+
+			var seconds = length || 0;
+
+			if(seconds <= 9) {
+				ret += "0";
+			}
+
+			ret += seconds;
 
 			return ret;
 		},

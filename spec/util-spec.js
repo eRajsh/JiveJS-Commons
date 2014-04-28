@@ -1000,6 +1000,80 @@ describe("Util.js Utility class", function() {
 		});
 	});
 
+	describe("has a function that takes a length and turns it into something like HH:MM:SS format", function(){
+		it("should default to zero for wonky inputs", function() {
+			var formatted = _.viewHelpers.formatDuration(0);
+			expect(formatted).toEqual("0:00");
+
+			formatted = _.viewHelpers.formatDuration(-1);
+			expect(formatted).toEqual("0:00");
+
+			formatted = _.viewHelpers.formatDuration(undefined);
+			expect(formatted).toEqual("0:00");
+
+			formatted = _.viewHelpers.formatDuration();
+			expect(formatted).toEqual("0:00");
+
+			formatted = _.viewHelpers.formatDuration("10");
+			expect(formatted).toEqual("0:10");
+
+			formatted = _.viewHelpers.formatDuration("This is not a number");
+			expect(formatted).toEqual("0:00");
+		});
+
+		it("should work for just a second or two", function() {
+			var formatted = _.viewHelpers.formatDuration(1);
+			expect(formatted).toEqual("0:01");
+
+			formatted = _.viewHelpers.formatDuration(10);
+			expect(formatted).toEqual("0:10");
+		});
+
+		it("should work for a minute", function() {
+			var formatted = _.viewHelpers.formatDuration(59);
+			expect(formatted).toEqual("0:59");
+
+			formatted = _.viewHelpers.formatDuration(60);
+			expect(formatted).toEqual("1:00");
+		});
+
+		it("should work for 10 minutes", function() {
+			var formatted = _.viewHelpers.formatDuration((60 * 10) - 1);
+			expect(formatted).toEqual("9:59");
+
+			formatted = _.viewHelpers.formatDuration((60 * 10));
+			expect(formatted).toEqual("10:00");
+		});
+
+		it("should work for 60 minutes", function() {
+			var formatted = _.viewHelpers.formatDuration((60 * 60) - 1);
+			expect(formatted).toEqual("59:59");
+
+			formatted = _.viewHelpers.formatDuration((60 * 60));
+			expect(formatted).toEqual("60:00");
+
+			formatted = _.viewHelpers.formatDuration((60 * 60) - 1, {hours: true});
+			expect(formatted).toEqual("59:59");
+
+			formatted = _.viewHelpers.formatDuration((60 * 60), {hours: true});
+			expect(formatted).toEqual("01:00:00");
+		});
+
+		it("should work for 24 hours", function() {
+			formatted = _.viewHelpers.formatDuration((60 * 60 * 24) - 1);
+			expect(formatted).toEqual("1439:59");
+
+			formatted = _.viewHelpers.formatDuration((60 * 60 * 24));
+			expect(formatted).toEqual("1440:00");
+
+			var formatted = _.viewHelpers.formatDuration((60 * 60 * 24) - 1, {hours: true, days: true});
+			expect(formatted).toEqual("23:59:59");
+
+			formatted = _.viewHelpers.formatDuration((60 * 60 * 24), {hours: true, days: true});
+			expect(formatted).toEqual("01:00:00:00");
+		});
+	});
+
 	describe("textToDate function", function() {
 		var now = new Date(2012, 1, 1, 1, 1);
 
