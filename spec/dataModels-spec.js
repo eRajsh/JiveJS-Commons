@@ -496,6 +496,29 @@ describe("dataModels.js is an awesome library that fulfills our needs of a much 
 				expect(results[1].toJSON()).toEqual({urn: "test2:4", entities: [0, 4]});
 			});
 
+			it("has $in functionality for querying when the key is a value not an array", function(){
+				var Collection = _.Model.create(collectionSchema);
+				var collection = new Collection();
+
+				var Model = _.Model.create(modelSchema);
+
+				for(var i = 0; i < 1001; i++) {
+					collection.entries.push(new Model({urn: "test2:" + i, entities: i % 4}));
+				}
+
+				var results = collection.query({
+					filter: {
+						entities: {
+							$in: [0]
+						}
+					}
+				});
+
+				expect(results.length).toEqual(251);
+				expect(results[0].toJSON()).toEqual({urn: "test2:0", entities: [0, 0]});
+				expect(results[1].toJSON()).toEqual({urn: "test2:4", entities: [0, 4]});
+			});
+
 			it("has $all functionality for querying", function(){
 				var Collection = _.Model.create(collectionSchema);
 				var collection = new Collection();

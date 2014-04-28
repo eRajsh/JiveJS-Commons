@@ -4968,14 +4968,27 @@ var _ = function() {
                             break;
 
                           case "$nin":
+                            temp = true;
                             length = 1;
 
                           case "$in":
-                            length = length || 0;
+                            length = 0;
+                            temp = temp || false;
                             if (_.isArray(val)) {
                                 var intersection = _.intersection(val, filter[key][filterKey]);
                                 if (intersection.length === length) {
                                     return false;
+                                }
+                            } else {
+                                var index = filter[key][filterKey].indexOf(val);
+                                if (temp === true) {
+                                    if (index !== -1) {
+                                        return false;
+                                    }
+                                } else if (temp === false) {
+                                    if (index === -1) {
+                                        return false;
+                                    }
                                 }
                             }
                             break;
