@@ -1258,6 +1258,7 @@ var _ = function() {
             this.progress = p.progress.bind(p);
             this.always = p.always.bind(p);
             this.then = p.then.bind(p);
+            this.finish = p.finish.bind(p);
             this.state = function() {
                 return p.internalState;
             };
@@ -1387,6 +1388,14 @@ var _ = function() {
                 var newp = new p();
                 this.done(getThenFilterCallback(doneFilter, newp, "resolve")).fail(getThenFilterCallback(failFilter, newp, "reject")).progress(getThenFilterCallback(progressFilter, newp, "notify"));
                 return newp.promise();
+            },
+            finish: function() {
+                this.callbacks.fail.concat(this.callbacks.always);
+                this.callbacks.fail.push(function(e) {
+                    setTimeout(function() {
+                        throw e;
+                    }, 0);
+                });
             },
             wrap: function(thennable) {
                 var newp = new p();
