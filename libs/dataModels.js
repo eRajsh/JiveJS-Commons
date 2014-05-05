@@ -77,26 +77,13 @@
 			} else {
 				var alreadyWaiting = getDeffered(args.urn);
 				if(alreadyWaiting) {
-					alreadyWaiting.promise.done(function(){
+					alreadyWaiting.promise.done(function waitingDone(){
 						instance = collection.queryOne({ filter: { urn: args.urn }});
 
 						if(instance) {
 							dfd.resolve(instance);
 						} else {
-							var alreadyWaiting = getDeffered(args.urn, true);
-							if(alreadyWaiting) {
-								alreadyWaiting.promise.done(function(){
-									instance = collection.queryOne({ filter: { urn: args.urn }});
-
-									if(instance) {
-										dfd.resolve(instance);
-									} else {
-										makeAndGet(args, Model, collection, dfd, given);
-									}
-								});
-							} else {
-								makeAndGet(args, Model, collection, dfd, given);
-							}
+							console.error("Our alreadyWaiting promise finished, but we still couldn't find it. WTF?", args.urn, given, collection);
 						}
 					});
 				} else {
@@ -705,7 +692,7 @@
 		var dfd = new _.Dfd();
 
 		if(args.urn || args.force || !scope._options.ttl || (scope._options.ttl && new Date().getTime() > scope._options.ttl)) {
-			var xhr = store({ method: "GET", urn: scope.urn, data: args }, scope).done(function(ret) {
+			var xhr = store({ method: "GET", urn: scope.urn, data: args }, scope).done(function modelGotten(ret) {
 				if(_.isNormalObject(ret.data)) {
 					if(scope._options.collection === true) {
 						scope.entries = scope.entries || [];
@@ -929,8 +916,8 @@
 		return true;
 	};
 
-	var filterCheckTheBastard = function(entry, filter) {
-		if(_.isNormalObject(filter)) {
+	var filterCheckTheBastard = function(entry, filter, isFilterObject, isFilterFunction) {
+		if(isFilterObject) {
 			for(var key in filter) {
 				if(entry && entry._options && entry._options.refs && entry._options.refs[key]) {
 					filter[key + ".urn"] = filter[key];
@@ -1075,7 +1062,7 @@
 					}
 				}
 			}
-		} else if(_.isFunction(filter)) {
+		} else if(isFilterFunction) {
 			if(!filter.call(entry, entry)) {
 				return false;
 			}
@@ -1148,6 +1135,14 @@
 	Model.prototype.query = Model.prototype.find = function(args, scope) {
 		scope = scope || this;
 		args = args || {};
+		args.filter = args.filter || {};
+
+		var isFilterObject = _.isNormalObject(args.filter);
+		var isFilterFunction = _.isFunction(args.filter);
+		if(!isFilterObject && !isFilterFunction) {
+			throw new TypeError("If you give me a filter key, it must be an object or function");
+		}
+
 
 		args.key = args.key || "entries";
 
@@ -1156,7 +1151,7 @@
 		for(var i = 0; i < scope[args.key].length; i++) {
 			var entry = scope[args.key][i];
 
-			if(typeof args.filter === "undefined" || (args.filter && filterCheckTheBastard(entry, args.filter, args))) {
+			if(typeof args.filter === "undefined" || (args.filter && filterCheckTheBastard(entry, args.filter, isFilterObject, isFilterFunction, args))) {
 				var toPush = entry;
 
 				if(args.vm) {

@@ -1115,10 +1115,10 @@ var _ = function() {
             setTimeout = process.nextTick;
         }
         function callback(scope, data, cbs) {
-            setTimeout(function() {
-                cbs.forEach(function(item) {
-                    item.call(scope, data);
-                });
+            setTimeout(function dfdTimeout() {
+                for (var i = 0; i < cbs.length; i++) {
+                    cbs[i].call(scope, data);
+                }
             }, 0);
         }
         function sanitizeCbs(cbs) {
@@ -4101,7 +4101,7 @@ var _ = function() {
             } else {
                 var alreadyWaiting = getDeffered(args.urn);
                 if (alreadyWaiting) {
-                    alreadyWaiting.promise.done(function() {
+                    alreadyWaiting.promise.done(function waitingDone() {
                         instance = collection.queryOne({
                             filter: {
                                 urn: args.urn
@@ -4110,23 +4110,7 @@ var _ = function() {
                         if (instance) {
                             dfd.resolve(instance);
                         } else {
-                            var alreadyWaiting = getDeffered(args.urn, true);
-                            if (alreadyWaiting) {
-                                alreadyWaiting.promise.done(function() {
-                                    instance = collection.queryOne({
-                                        filter: {
-                                            urn: args.urn
-                                        }
-                                    });
-                                    if (instance) {
-                                        dfd.resolve(instance);
-                                    } else {
-                                        makeAndGet(args, Model, collection, dfd, given);
-                                    }
-                                });
-                            } else {
-                                makeAndGet(args, Model, collection, dfd, given);
-                            }
+                            console.error("Our alreadyWaiting promise finished, but we still couldn't find it. WTF?", args.urn, given, collection);
                         }
                     });
                 } else {
@@ -4692,7 +4676,7 @@ var _ = function() {
                 method: "GET",
                 urn: scope.urn,
                 data: args
-            }, scope).done(function(ret) {
+            }, scope).done(function modelGotten(ret) {
                 if (_.isNormalObject(ret.data)) {
                     if (scope._options.collection === true) {
                         scope.entries = scope.entries || [];
@@ -4928,8 +4912,8 @@ var _ = function() {
         }
         return true;
     };
-    var filterCheckTheBastard = function(entry, filter) {
-        if (_.isNormalObject(filter)) {
+    var filterCheckTheBastard = function(entry, filter, isFilterObject, isFilterFunction) {
+        if (isFilterObject) {
             for (var key in filter) {
                 if (entry && entry._options && entry._options.refs && entry._options.refs[key]) {
                     filter[key + ".urn"] = filter[key];
@@ -5061,7 +5045,7 @@ var _ = function() {
                     }
                 }
             }
-        } else if (_.isFunction(filter)) {
+        } else if (isFilterFunction) {
             if (!filter.call(entry, entry)) {
                 return false;
             }
@@ -5120,11 +5104,17 @@ var _ = function() {
     Model.prototype.query = Model.prototype.find = function(args, scope) {
         scope = scope || this;
         args = args || {};
+        args.filter = args.filter || {};
+        var isFilterObject = _.isNormalObject(args.filter);
+        var isFilterFunction = _.isFunction(args.filter);
+        if (!isFilterObject && !isFilterFunction) {
+            throw new TypeError("If you give me a filter key, it must be an object or function");
+        }
         args.key = args.key || "entries";
         var ret = [];
         for (var i = 0; i < scope[args.key].length; i++) {
             var entry = scope[args.key][i];
-            if (typeof args.filter === "undefined" || args.filter && filterCheckTheBastard(entry, args.filter, args)) {
+            if (typeof args.filter === "undefined" || args.filter && filterCheckTheBastard(entry, args.filter, isFilterObject, isFilterFunction, args)) {
                 var toPush = entry;
                 if (args.vm) {
                     if (entry.toVM && _.isFunction(entry.toVM)) {
