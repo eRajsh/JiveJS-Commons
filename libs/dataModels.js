@@ -83,6 +83,23 @@
 						if(instance) {
 							dfd.resolve(instance);
 						} else {
+							var alreadyWaiting = getDeffered(args.urn, true);
+							if (alreadyWaiting) {
+								alreadyWaiting.promise.done(function() {
+									instance = collection.queryOne({
+										filter: {
+											urn: args.urn
+										}
+									});
+									if (instance) {
+										dfd.resolve(instance);
+									} else {
+										makeAndGet(args, Model, collection, dfd, given);
+									}
+								});
+							} else {
+								makeAndGet(args, Model, collection, dfd, given);
+							}
 							console.error("Our alreadyWaiting promise finished, but we still couldn't find it. WTF?", args.urn, given, collection);
 						}
 					});
