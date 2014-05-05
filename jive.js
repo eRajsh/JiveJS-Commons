@@ -4687,7 +4687,7 @@ var _ = function() {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
-        if (args.force || !scope._options.ttl || scope._options.ttl && new Date().getTime() > scope._options.ttl) {
+        if (args.urn || args.force || !scope._options.ttl || scope._options.ttl && new Date().getTime() > scope._options.ttl) {
             var xhr = store({
                 method: "GET",
                 urn: scope.urn,
