@@ -1513,36 +1513,34 @@ var _ = function() {
             targetDateRange = "lastDays7";
         }
         if (targetDateRange === "today") {
-            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 23, 59, 59, 999));
         } else if (targetDateRange === "yesterday") {
-            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - 1, 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - 1, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - 1, 23, 59, 59, 999));
         } else if (targetDateRange.match(/^lastDays\d+$/)) {
             var matches = targetDateRange.match(/^lastDays(\d+)$/);
             var days = matches[1];
-            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - days, 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - days, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 23, 59, 59, 999));
         } else if (targetDateRange === "thisWeek") {
-            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay(), 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - current.getUTCDay(), 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 23, 59, 59, 999));
         } else if (targetDateRange === "thisMonth") {
-            data.start = new Date(current.getFullYear(), current.getMonth(), 0, 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 0, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate(), 23, 59, 59, 999));
         } else if (targetDateRange === "lastWeek") {
-            data.start = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 7, 0, 0);
-            data.stop = new Date(current.getFullYear(), current.getMonth(), current.getDate() - current.getDay() - 1, 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - current.getUTCDay() - 7, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() - current.getUTCDay() - 1, 23, 59, 59, 999));
         } else if (targetDateRange === "lastMonth") {
-            var month = new Date(current.getFullYear(), current.getMonth() - 1, 0, 0, 0);
-            data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
-            data.stop = new Date(new Date(current.getFullYear(), current.getMonth()).getTime() - 1e3 * 60 * 60 * 24);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 1, 1, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 0, 23, 59, 59, 999));
         } else if (targetDateRange === "lastMonth3") {
-            var month = new Date(current.getFullYear(), current.getMonth() - 3, 0, 0, 0);
-            data.start = new Date(month.getFullYear(), month.getMonth(), month.getDate() + 1, 0, 0);
-            data.stop = new Date(new Date(current.getFullYear(), current.getMonth()).getTime() - 1e3 * 60 * 60 * 24);
+            data.start = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 3, 1, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 0, 23, 59, 59, 999));
         } else if (targetDateRange === "lastYear") {
-            data.start = new Date(current.getFullYear() - 1, 0, 1, 0, 0);
-            data.stop = new Date(current.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+            data.start = new Date(Date.UTC(current.getUTCFullYear() - 1, 0, 1, 0, 0));
+            data.stop = new Date(Date.UTC(current.getUTCFullYear() - 1, 11, 31, 23, 59, 59, 999));
         }
         data.start = data.start.getTime();
         data.stop = data.stop.getTime();
@@ -2269,7 +2267,7 @@ var _ = function() {
             ret = date.getFullYear() + "/" + date.getMonth() + "/" + date.getDate();
             return ret;
         },
-        formatTime: function(format, date) {
+        formatTime: function(format, date, UTC) {
             var ret = "";
             if (!_.isDate(date)) {
                 date = new Date(date);
@@ -2277,8 +2275,8 @@ var _ = function() {
                     date = new Date();
                 }
             }
-            var hours = date.getHours();
-            var minutes = date.getMinutes();
+            var hours = UTC === true ? date.getUTCHours() : date.getHours();
+            var minutes = UTC === true ? date.getUTCMinutes() : date.getMinutes();
             var AMPM;
             if (hours >= 12) {
                 hours -= 12;

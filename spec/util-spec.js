@@ -952,9 +952,9 @@ describe("Util.js Utility class", function() {
 		it("should return the correct format", function() {
 			var date = new Date("2013-10-12T15:07:24.594Z");
 
-			var ret = _.viewHelpers.formatTime("%l:%M %p", date);
+			var ret = _.viewHelpers.formatTime("%l:%M %p", date, true);
 
-			expect(ret).toEqual("9:07 AM");
+			expect(ret).toEqual("3:07 PM");
 		});
 
 		it("should default to now", function() {
@@ -1075,60 +1075,60 @@ describe("Util.js Utility class", function() {
 	});
 
 	describe("textToDate function", function() {
-		var now = new Date(2012, 1, 1, 1, 1);
+		var now = new Date(Date.UTC(2012, 0, 1, 1, 1));
 
 		it("should be able to calculate today", function() {
 			var ret = _.textToDate("today", now);
 
-			expect(ret.start).toEqual(1328079600000);
-			expect(ret.stop).toEqual(1328165999999);
+			expect(ret.start).toEqual(1325376000000);
+			expect(ret.stop).toEqual(1325462399999);
 		});
 
 		it("should be able to calculate yesterday", function() {
 			var ret = _.textToDate("yesterday", now);
 
-			expect(ret.start).toEqual(1327993200000);
-			expect(ret.stop).toEqual(1328079599999);
+			expect(ret.start).toEqual(1325289600000);
+			expect(ret.stop).toEqual(1325375999999);
 		});
 
 		it("should be able to calculate the last n days", function() {
 			var ret = _.textToDate("lastDays1", now);
 
-			expect(ret.start).toEqual(1327993200000);
-			expect(ret.stop).toEqual(1328165999999);
+			expect(ret.start).toEqual(1325289600000);
+			expect(ret.stop).toEqual(1325462399999);
 
 			ret = _.textToDate("lastDays3", now);
 
-			expect(ret.start).toEqual(1327820400000);
-			expect(ret.stop).toEqual(1328165999999);
+			expect(ret.start).toEqual(1325116800000);
+			expect(ret.stop).toEqual(1325462399999);
 		});
 
 		it("should be able to calculate the last week", function() {
 			var ret = _.textToDate("lastWeek", now);
 
-			expect(ret.start).toEqual(1327215600000);
-			expect(ret.stop).toEqual(1327820399999);
+			expect(ret.start).toEqual(1324771200000);
+			expect(ret.stop).toEqual(1325375999999);
 		});
 
 		it("should be able to calculate the last month", function() {
 			var ret = _.textToDate("lastMonth", now);
 
-			expect(ret.start).toEqual(1325401200000);
-			expect(ret.stop).toEqual(1327993200000);
+			expect(ret.start).toEqual(1322697600000);
+			expect(ret.stop).toEqual(1325375999999);
 		});
 
 		it("should be able to calculate the last 3 months", function() {
 			var ret = _.textToDate("lastMonth3", now);
 
-			expect(ret.start).toEqual(1320127200000);
-			expect(ret.stop).toEqual(1327993200000);
+			expect(ret.start).toEqual(1317427200000);
+			expect(ret.stop).toEqual(1325375999999);
 		});
 
 		it("should be able to calculate the last year", function() {
 			var ret = _.textToDate("lastYear", now);
 
-			expect(ret.start).toEqual(1293865200000);
-			expect(ret.stop).toEqual(1325401199999);
+			expect(ret.start).toEqual(1293840000000);
+			expect(ret.stop).toEqual(1325375999999);
 		});
 	});
 
