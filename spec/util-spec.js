@@ -750,6 +750,31 @@ describe("Util.js Utility class", function() {
 			expect(_.dirtyKeys(foo, foo)).toEqual([]);
 			expect(Object.keys(_.dirtyKeys(foo, bar))).toEqual(["lastModified", "createdDate", "interactions", "urn", "id", "ETag"]);
 		});
+
+		it("diff arrays correctly", function() {
+
+			var foo = {
+				__v: 0,
+				_id: 'presence:entities:jmorris',
+				entity: 'entities:jmorris',
+				lastModified: 1384295829941,
+				createdDate: 1384292763705,
+				entities: ["entities:jmorris"]
+			};
+
+			var bar = {
+				__v: 0,
+				_id: 'presence:entities:jmorris',
+				entity: 'entities:jmorris',
+				lastModified: 1384295829941,
+				createdDate: 1384292763705,
+				entities: ["entities:jmorris", "entities:johnbob"]
+			};
+
+			expect(_.dirtyKeys(foo, foo)).toEqual([]);
+			expect(_.dirtyKeys(foo, bar).entities.diff).toEqual({removed: [], added: [{ index: null, from: null, to: 'entities:johnbob' }], changed: []});
+			expect(_.dirtyKeys(bar, foo).entities.diff).toEqual({removed: [{ index: null, from: 'entities:johnbob', to: null }], added: [], changed: []});
+		});
 	});
 
 	describe("has isDirtyEquals method that allows us to see if there are any differences", function(){
