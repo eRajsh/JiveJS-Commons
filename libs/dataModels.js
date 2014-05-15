@@ -183,7 +183,7 @@
 		_.Dfd.when(dfds).done(function() {
 			dfd.resolve(scope);
 		}).fail(function(errs) {
-			console.log("Errors in populates", errs);
+			console.error("Errors in populates", errs);
 		});
 
 		return dfd.promise();
@@ -704,9 +704,15 @@
 	};
 
 	//RESTY MAGICS
+	var gettingUrns = {};
 	Model.prototype.get = function(args, scope) {
-		scope = scope || this; args = args || {};
+		scope = scope || this;
+		args = args || {};
 		var dfd = new _.Dfd();
+
+		if(gettingUrns[scope.urn + JSON.stringify(args)]) {
+			return gettingUrns[scope.urn + JSON.stringify(args)];
+		}
 
 		if(args.urn || args.force || !scope._options.ttl || (scope._options.ttl && new Date().getTime() > scope._options.ttl)) {
 			var xhr = store({ method: "GET", urn: scope.urn, data: args }, scope).done(function modelGotten(ret) {
@@ -770,11 +776,6 @@
 						scope._options.ttl = Date.now();
 					}
 
-					scope.dispatch({
-						event: "gotted",
-						data: scope
-					});
-
 					setTimeout(function() {
 						store({ method: "POST", urn: scope.urn, data: scope._options.persisted, remote: false}, scope);
 					}, 0);
@@ -783,15 +784,28 @@
 						if(scope._options.fetched) {
 							scope._options.fetched.resolve(scope);
 						}
+						delete gettingUrns[scope.urn + JSON.stringify(args)];
 						dfd.resolve(scope);
 					});
+
+					scope._options.inited.done(function() {
+						scope.dispatch({
+							event: "gotted",
+							data: scope
+						});
+					});
 				} else {
+					delete gettingUrns[scope.urn + JSON.stringify(args)];
 					dfd.reject("Ret was noooo good.");
 				}
 			}).fail(function(ret) {
+				delete gettingUrns[scope.urn + JSON.stringify(args)];
 				dfd.reject(ret.error);
 			});
+
+			gettingUrns[scope.urn + JSON.stringify(args)] = dfd;
 		} else {
+			delete gettingUrns[scope.urn + JSON.stringify(args)];
 			dfd.resolve(scope);
 		}
 		return dfd.promise();

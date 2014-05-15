@@ -4682,10 +4682,14 @@ var _ = function() {
         scope = scope || this;
         args = args || {};
     };
+    var gettingUrns = {};
     Model.prototype.get = function(args, scope) {
         scope = scope || this;
         args = args || {};
         var dfd = new _.Dfd();
+        if (gettingUrns[scope.urn + JSON.stringify(args)]) {
+            return gettingUrns[scope.urn + JSON.stringify(args)];
+        }
         if (args.urn || args.force || !scope._options.ttl || scope._options.ttl && new Date().getTime() > scope._options.ttl) {
             var xhr = store({
                 method: "GET",
@@ -4764,10 +4768,6 @@ var _ = function() {
                     } else {
                         scope._options.ttl = Date.now();
                     }
-                    scope.dispatch({
-                        event: "gotted",
-                        data: scope
-                    });
                     setTimeout(function() {
                         store({
                             method: "POST",
@@ -4782,15 +4782,26 @@ var _ = function() {
                         if (scope._options.fetched) {
                             scope._options.fetched.resolve(scope);
                         }
+                        delete gettingUrns[scope.urn + JSON.stringify(args)];
                         dfd.resolve(scope);
                     });
+                    scope._options.inited.done(function() {
+                        scope.dispatch({
+                            event: "gotted",
+                            data: scope
+                        });
+                    });
                 } else {
+                    delete gettingUrns[scope.urn + JSON.stringify(args)];
                     dfd.reject("Ret was noooo good.");
                 }
             }).fail(function(ret) {
+                delete gettingUrns[scope.urn + JSON.stringify(args)];
                 dfd.reject(ret.error);
             });
+            gettingUrns[scope.urn + JSON.stringify(args)] = dfd;
         } else {
+            delete gettingUrns[scope.urn + JSON.stringify(args)];
             dfd.resolve(scope);
         }
         return dfd.promise();
