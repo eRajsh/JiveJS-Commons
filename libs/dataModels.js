@@ -51,7 +51,7 @@
 		var instance = new Model(args);
 
 		if(!given) {
-			instance.get().done(function() {
+			instance.get().done(function(instance) {
 				dfd.resolve(instance);
 			}).fail(function(e) {
 				dfd.reject(e);
@@ -78,30 +78,32 @@
 				var alreadyWaiting = getDeffered(args.urn);
 				if(alreadyWaiting) {
 					alreadyWaiting.promise.done(function waitingDone(){
-						instance = collection.queryOne({ filter: { urn: args.urn }});
+						setTimeout(function() {
+							instance = collection.queryOne({ filter: { urn: args.urn }});
 
-						if(instance) {
-							dfd.resolve(instance);
-						} else {
-							var alreadyWaiting = getDeffered(args.urn, true);
-							if (alreadyWaiting) {
-								alreadyWaiting.promise.done(function() {
-									instance = collection.queryOne({
-										filter: {
-											urn: args.urn
+							if(instance) {
+								dfd.resolve(instance);
+							} else {
+								var alreadyWaiting = getDeffered(args.urn, true);
+								if (alreadyWaiting) {
+									alreadyWaiting.promise.done(function() {
+										instance = collection.queryOne({
+											filter: {
+												urn: args.urn
+											}
+										});
+										if (instance) {
+											dfd.resolve(instance);
+										} else {
+											makeAndGet(args, Model, collection, dfd, given);
 										}
 									});
-									if (instance) {
-										dfd.resolve(instance);
-									} else {
-										makeAndGet(args, Model, collection, dfd, given);
-									}
-								});
-							} else {
-								makeAndGet(args, Model, collection, dfd, given);
+								} else {
+									console.error("Our alreadyWaiting promise finished, but we still couldn't find it. WTF?", args.urn, given, collection);
+									makeAndGet(args, Model, collection, dfd, given);
+								}
 							}
-							console.error("Our alreadyWaiting promise finished, but we still couldn't find it. WTF?", args.urn, given, collection);
-						}
+						}, 5);
 					});
 				} else {
 					makeAndGet(args, Model, collection, dfd, given);
@@ -500,11 +502,25 @@
 						scope[key] = (typeof data[key] !== "undefined") ? data[key] : scope[key];
 					}
 
-					for (key in scope._options.refs) {
-						if(typeof data[key] !== "undefined" && scope[key].urn !== data[key]) {
-							scope[key] = data[key];
 
-							populate = true;
+					for (key in scope._options.refs) {
+						if(typeof data[key] !== "undefined") {
+							if(!scope[key]) {
+								scope[key] = data[key];
+								populate = true;
+							} else if(_.isNormalObject(scope[key]) && scope[key].urn && (!(scope[key] instanceof _.Model) || scope[key].urn !== data[key])) {
+								scope[key] = data[key];
+								populate = true;
+							} else if(_.isArray(scope[key])) {
+								var urns = _.pluck(scope[key], "urn");
+								if(!_.isEqual(scope[key], data[key])) {
+									scope[key] = data[key];
+									populate = true;
+								}
+							} else if(_.isUrn(scope[key])) {
+								scope[key] = data[key];
+								populate = true;
+							}
 						}
 					}
 
