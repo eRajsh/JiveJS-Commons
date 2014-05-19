@@ -384,6 +384,7 @@
 			data = JSON.stringify(data);
 		} else if((args.method == "GET" || args.method == "DELETE") && args.data){
 			urn += "?" + $.param(data);
+			data = "";
 		}
 
 		var remote = scope._options.store.remote.replace(/\/$/g, "");
