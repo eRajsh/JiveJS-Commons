@@ -2,7 +2,7 @@
 #  Most Important Rules  #
 ##########################
 
-.PHONY: all build clean test test-browser watch
+.PHONY: all build build-prod clean test test-browser watch
 all: build
 
 
@@ -18,7 +18,7 @@ ifeq ($(ENV), dev)
 UGLIFYFLAGS= -b
 UGLY=
 else
-UGLIFYFLAGS=
+UGLIFYFLAGS= --mangle
 UGLY=
 endif
 
@@ -81,6 +81,9 @@ $(JIVEJS): $(JIVEJS_DEPS) $(UGLIFYJS)
 ###################
 
 build: $(MINIFY) $(JIVEJS)
+
+build-prod:
+	$(MAKE) ENV=prod
 
 clean: 
 	rm -f jive.js jive.min.js 
