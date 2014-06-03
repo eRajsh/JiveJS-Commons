@@ -25,7 +25,7 @@
 		current = (_.isDate(current) && current) || (current && new Date(current)) || new Date();
 		//This is variable will give you today's date at 00:00:00
 
-		if (targetDateRange === 'default') {
+		if (!targetDateRange || targetDateRange === 'default') {
 			targetDateRange = "lastDays7";
 		}
 
