@@ -6,3 +6,6 @@ The jivejs project has a plethora of useful and nifty things. These include:
 - [jPromise](https://github.com/jive/jPromise)
 - [General Utils](util.md)
 - [Data Models](dataModels.md)
+
+
+For the others, for now, I recommend looking at the source code comments. They're actually pretty damn good.
